@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+    spec:
+      runtimeClassName: nvidia
+      nodeSelector:
+        "kubernetes.io/os": linux
+        "kubernetes.io/hostname": ruo-server3
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: 8878
+        volumeMounts:
+        - name: data-volume
+          mountPath: /app/data
+        resources:
+          limits:
+            cpu: "8"
+            memory: "10Gi"
+            nvidia.com/gpu: "1"
+          requests:
+            cpu: "2"
+            memory: "4Gi"
+        env:
+        - name: ENV
+          value: "production"
+        - name: SEOUL_API_KEY
+          value: "694f4a6550636f6d35384f46527050"
+        - name: SEOUL_API_BASE_URL
+          value: "http://openAPI.seoul.go.kr:8088"
+        - name: SEOUL_AIR_QUALITY_SERVICE
+          value: "TimeAverageAirQuality"
+        - name: OLLAMA_SERVER
+          value: "http://125.130.4.43:11434"
+        - name: OLLAMA_MODEL
+          value: "gemma3:27b"
+        - name: STREAMLIT_SERVER_MAX_UPLOAD_SIZE
+          value: "50"
+        - name: STREAMLIT_BROWSER_GATHER_USAGE_STATS
+          value: "false"
+        - name: STREAMLIT_SERVER_COOKIE_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: streamlit-secret
+              key: cookie-secret
+        - name: STREAMLIT_SERVER_HEADLESS
+          value: "true"
+        - name: STREAMLIT_SERVER_SESSION_TIMEOUT_SECONDS
+          value: "1800"
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: time-series-app-pvc
+        
