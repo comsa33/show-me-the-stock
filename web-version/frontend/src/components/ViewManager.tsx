@@ -1,12 +1,12 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { ApiData } from './Dashboard';
-import StockAnalysisView from './views/StockAnalysisView';
 import PortfolioView from './views/PortfolioView';
 import WatchlistView from './views/WatchlistView';
 import NewsView from './views/NewsView';
 import ReportsView from './views/ReportsView';
 import MainContent from './MainContent';
+import StockDetail from './StockDetail';
 
 interface ViewManagerProps {
   apiData: ApiData;
@@ -33,7 +33,7 @@ const ViewManager: React.FC<ViewManagerProps> = ({
 
   switch (currentView) {
     case 'stocks':
-      return <StockAnalysisView apiData={apiData} selectedMarket={selectedMarket} onRefresh={onRefresh} />;
+      return <StockDetail />;
     case 'portfolio':
       return <PortfolioView selectedMarket={selectedMarket} />;
     case 'watchlist':

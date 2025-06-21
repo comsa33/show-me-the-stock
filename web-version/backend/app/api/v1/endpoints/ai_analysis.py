@@ -1,12 +1,13 @@
 """
-AI 분석 관련 API 엔드포인트
+AI 분석 관련 API 엔드포인트 - Google Gemini 통합
 """
 
-from typing import Dict
-from fastapi import APIRouter, HTTPException, Query
-from datetime import datetime
 import logging
-import random
+from datetime import datetime
+from typing import Dict
+
+from fastapi import APIRouter, HTTPException, Query
+from app.services.ai_analysis import gemini_analyzer
 
 logger = logging.getLogger(__name__)
 
@@ -17,100 +18,99 @@ router = APIRouter()
 async def analyze_stock(
     symbol: str,
     market: str = Query(..., description="시장 (KR/US)"),
-    analysis_type: str = Query("short", description="분석 타입 (short/long)")
+    analysis_type: str = Query("short", description="분석 타입 (short/long)"),
 ):
     """
-    주식 AI 분석
+    Google Gemini를 사용한 AI 주식 분석
     Args:
         symbol: 종목 코드
-        market: 시장 구분
+        market: 시장 구분 (KR/US)
         analysis_type: 분석 타입 (short: 1일, long: 2주)
     """
     try:
-        # 임시 mock 분석 결과
-        analysis_result = await _generate_mock_analysis(symbol, market, analysis_type)
+        logger.info(f"Starting AI analysis for {symbol} ({market}) - {analysis_type}")
+        
+        # Gemini AI 분석 실행
+        analysis_result = await gemini_analyzer.analyze_stock(symbol, market, analysis_type)
+        
+        # Pydantic 모델을 딕셔너리로 변환
+        analysis_dict = analysis_result.model_dump()
         
         return {
             "symbol": symbol,
             "market": market,
             "analysis_type": analysis_type,
             "timestamp": datetime.now().isoformat(),
-            "analysis": analysis_result
+            "analysis": analysis_dict,
+            "ai_provider": "Google Gemini 2.5 Flash" if gemini_analyzer.client else "Mock Data"
+        }
+
+    except Exception as e:
+        logger.error(f"AI 분석 중 오류 발생 ({symbol}): {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"AI 분석 중 오류 발생: {str(e)}"
+        )
+
+
+@router.get("/stock/analysis-history/{symbol}")
+async def get_analysis_history(
+    symbol: str,
+    market: str = Query(..., description="시장 (KR/US)"),
+    limit: int = Query(default=10, ge=1, le=50, description="결과 수 제한"),
+):
+    """
+    종목별 분석 히스토리 조회 (향후 구현 예정)
+    """
+    # TODO: 실제 구현에서는 데이터베이스에서 과거 분석 결과를 조회
+    return {
+        "symbol": symbol,
+        "market": market,
+        "history": [],
+        "message": "분석 히스토리 기능은 향후 구현 예정입니다."
+    }
+
+
+@router.get("/market/sentiment")
+async def get_market_sentiment(
+    market: str = Query(default="ALL", description="시장 (KR/US/ALL)"),
+):
+    """
+    시장 전체 감성 분석 (향후 구현 예정)
+    """
+    try:
+        from datetime import datetime
+        import random
+        
+        # Mock 시장 감성 데이터
+        sentiments = {}
+        
+        if market.upper() in ["ALL", "KR"]:
+            sentiments["KR"] = {
+                "sentiment": random.choice(["긍정", "부정", "중립"]),
+                "score": random.randint(40, 80),
+                "trend": random.choice(["상승", "하락", "횡보"]),
+                "confidence": f"{random.randint(65, 85)}%"
+            }
+        
+        if market.upper() in ["ALL", "US"]:
+            sentiments["US"] = {
+                "sentiment": random.choice(["긍정", "부정", "중립"]),
+                "score": random.randint(40, 80),
+                "trend": random.choice(["상승", "하락", "횡보"]),
+                "confidence": f"{random.randint(65, 85)}%"
+            }
+        
+        return {
+            "timestamp": datetime.now().isoformat(),
+            "market": market.upper(),
+            "sentiments": sentiments,
+            "note": "실제 구현에서는 Gemini API로 시장 뉴스를 분석합니다."
         }
         
     except Exception as e:
-        logger.error(f"AI 분석 중 오류 발생: {e}")
-        raise HTTPException(status_code=500, detail=f"AI 분석 중 오류 발생: {str(e)}")
-
-
-async def _generate_mock_analysis(symbol: str, market: str, analysis_type: str) -> Dict:
-    """임시 Mock AI 분석 결과 생성"""
-    
-    # 분석 기간 설정
-    if analysis_type == "short":
-        period_desc = "1일"
-        data_period = "최근 1일 + 당일 뉴스"
-    else:
-        period_desc = "2주"
-        data_period = "최근 2주 + 관련 뉴스"
-    
-    # 주가 전망
-    price_trend = random.choice(["상승", "하락", "횡보"])
-    confidence = random.randint(65, 85)
-    
-    # 기술적 분석
-    rsi = random.randint(30, 70)
-    ma_signal = random.choice(["매수", "매도", "중립"])
-    
-    # 뉴스 감성 분석
-    news_sentiment = random.choice(["긍정", "부정", "중립"])
-    news_score = random.randint(40, 80)
-    
-    # 목표가 (현재가 기준 ±10%)
-    current_price = random.randint(50000, 100000) if market == "KR" else random.randint(100, 300)
-    target_price = current_price * random.uniform(0.9, 1.1)
-    
-    return {
-        "summary": {
-            "overall_signal": price_trend,
-            "confidence": f"{confidence}%",
-            "recommendation": "매수" if price_trend == "상승" else "매도" if price_trend == "하락" else "보유",
-            "target_price": f"₩{int(target_price):,}" if market == "KR" else f"${target_price:.2f}",
-            "analysis_period": data_period
-        },
-        "technical_analysis": {
-            "rsi": {
-                "value": rsi,
-                "signal": "과매수" if rsi > 70 else "과매도" if rsi < 30 else "중립",
-                "description": f"RSI {rsi} - {'과열 구간' if rsi > 70 else '침체 구간' if rsi < 30 else '안정 구간'}"
-            },
-            "moving_average": {
-                "signal": ma_signal,
-                "description": f"이동평균선 기준 {ma_signal} 신호 확인"
-            },
-            "volume_analysis": {
-                "trend": random.choice(["증가", "감소", "평균"]),
-                "description": "거래량 패턴 분석 결과"
-            }
-        },
-        "news_analysis": {
-            "sentiment": news_sentiment,
-            "score": news_score,
-            "summary": f"최근 뉴스 감성 분석 결과 {news_sentiment}적 ({news_score}점)",
-            "key_topics": [
-                "실적 발표",
-                "업계 동향", 
-                "정책 변화"
-            ]
-        },
-        "risk_factors": [
-            "시장 변동성 증가",
-            "업종별 리스크",
-            "거시경제 요인"
-        ],
-        "ai_insights": [
-            f"{period_desc} 기준 {price_trend} 전망",
-            f"기술적 지표 신뢰도 {confidence}%",
-            f"뉴스 감성 {news_sentiment}적 영향"
-        ]
-    }
+        logger.error(f"시장 감성 분석 중 오류: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"시장 감성 분석 중 오류 발생: {str(e)}"
+        )

@@ -57,26 +57,18 @@ const Dashboard: React.FC = () => {
 
     try {
       /* 1) 주가 호출 ---------------------------------------------------- */
-      const marketParam  = selectedMarket === 'KR' ? 'KOSPI' : 'US';
-      const v2URL = `${API_BASE}/v1/stocks/v2/market/prices/${marketParam}?page=${page}&limit=${pageSize}`;
-      const v1URL = `${API_BASE}/v1/stocks/prices/${selectedMarket}?limit=${pageSize}`;
+      const allStocksURL = `${API_BASE}/v1/stocks/all/${selectedMarket}?page=${page}&limit=${pageSize}`;
+      const pricesURL = `${API_BASE}/v1/stocks/prices/${selectedMarket}?page=${page}&limit=${pageSize}`;
 
-      let stocksRes  = await fetch(v2URL);
+      // 전체 종목 리스트 가져오기 (가격 정보 포함)
+      let stocksRes = await fetch(pricesURL);
       let stocksData = await stocksRes.json();
 
-      // v2가 비어 있으면 v1로 재시도
-      if (!stocksData.stocks?.length || stocksData.stocks.every((s: any) => s.price === 0)) {
-        console.warn('v2 API empty → fallback to v1');
-        stocksRes  = await fetch(v1URL);
-        const v1   = await stocksRes.json();
-
-        // v1 응답을 v2 포맷으로 가공
-        stocksData = {
-          stocks:      v1.stocks || [],
-          page:        page,
-          total_pages: Math.ceil((v1.total_available || 0) / pageSize),
-          total_count: v1.total_available || 0,
-        };
+      // 가격 정보가 없으면 전체 종목 리스트만 가져오기
+      if (!stocksData.stocks?.length) {
+        console.warn('Price API empty → fallback to all stocks list');
+        stocksRes = await fetch(allStocksURL);
+        stocksData = await stocksRes.json();
       }
 
       /* 2) 금리 호출 ---------------------------------------------------- */
@@ -85,14 +77,14 @@ const Dashboard: React.FC = () => {
 
       /* 3) 상태 반영 ---------------------------------------------------- */
       setApiData({
-        stocks:        stocksData.stocks,
+        stocks:        stocksData.stocks || [],
         interestRates: rates.current_rates,
         loading:       false,
         error:         null,
       });
-      setTotalPages(stocksData.total_pages);
-      setTotalCount(stocksData.total_count);
-      setCurrentPage(stocksData.page);
+      setTotalPages(stocksData.total_pages || 1);
+      setTotalCount(stocksData.total_count || 0);
+      setCurrentPage(stocksData.page || page);
     } catch (err) {
       console.error('Error fetching data:', err);
       setApiData(prev => ({ ...prev, loading: false, error: '서버 통신 실패' }));

@@ -4,19 +4,22 @@ Pydantic 기반 타입 안전한 데이터 모델
 """
 
 from datetime import datetime
-from typing import List, Optional, Dict, Any, Union
-from pydantic import BaseModel, Field, validator
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
 
 
 class MarketType(str, Enum):
     """시장 타입"""
+
     KR = "KR"
     US = "US"
 
 
 class ChartType(str, Enum):
     """차트 타입"""
+
     CANDLESTICK = "candlestick"
     LINE = "line"
     AREA = "area"
@@ -25,6 +28,7 @@ class ChartType(str, Enum):
 
 class PeriodType(str, Enum):
     """기간 타입"""
+
     ONE_DAY = "1d"
     FIVE_DAYS = "5d"
     ONE_MONTH = "1mo"
@@ -38,6 +42,7 @@ class PeriodType(str, Enum):
 
 class StockInfo(BaseModel):
     """주식 기본 정보"""
+
     symbol: str = Field(..., description="주식 심볼")
     name: str = Field(..., description="주식명")
     market: MarketType = Field(..., description="시장")
@@ -49,21 +54,21 @@ class StockInfo(BaseModel):
 
 class PriceData(BaseModel):
     """가격 데이터"""
+
     timestamp: datetime = Field(..., description="시간")
     open: float = Field(..., description="시가")
     high: float = Field(..., description="고가")
     low: float = Field(..., description="저가")
     close: float = Field(..., description="종가")
     volume: int = Field(..., description="거래량")
-    
+
     class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+        json_encoders = {datetime: lambda v: v.isoformat()}
 
 
 class TechnicalIndicators(BaseModel):
     """기술적 지표"""
+
     ma5: Optional[float] = Field(None, description="5일 이동평균")
     ma20: Optional[float] = Field(None, description="20일 이동평균")
     ma60: Optional[float] = Field(None, description="60일 이동평균")
@@ -77,11 +82,13 @@ class TechnicalIndicators(BaseModel):
 
 class EnrichedPriceData(PriceData):
     """기술적 지표가 포함된 가격 데이터"""
+
     indicators: Optional[TechnicalIndicators] = None
 
 
 class StockDataResponse(BaseModel):
     """주식 데이터 응답"""
+
     info: StockInfo
     data: List[EnrichedPriceData]
     period: PeriodType
@@ -91,6 +98,7 @@ class StockDataResponse(BaseModel):
 
 class MultiStockDataResponse(BaseModel):
     """다중 주식 데이터 응답"""
+
     stocks: Dict[str, StockDataResponse]
     requested_symbols: List[str]
     successful_symbols: List[str]
@@ -99,6 +107,7 @@ class MultiStockDataResponse(BaseModel):
 
 class MarketStatus(BaseModel):
     """시장 상태"""
+
     market: MarketType
     status: str = Field(..., description="장중/장마감")
     current_time: str = Field(..., description="현재 시간")
@@ -109,6 +118,7 @@ class MarketStatus(BaseModel):
 
 class InterestRateData(BaseModel):
     """금리 데이터"""
+
     date: datetime
     rate: float
     country: str = Field(..., description="국가 (KR/US)")
@@ -117,6 +127,7 @@ class InterestRateData(BaseModel):
 
 class StockSearchRequest(BaseModel):
     """주식 검색 요청"""
+
     query: str = Field(..., min_length=1, max_length=100, description="검색어")
     market: MarketType = Field(..., description="시장")
     limit: int = Field(default=20, ge=1, le=100, description="결과 수 제한")
@@ -124,6 +135,7 @@ class StockSearchRequest(BaseModel):
 
 class StockSearchResult(BaseModel):
     """주식 검색 결과"""
+
     symbol: str
     name: str
     display: str
@@ -133,7 +145,10 @@ class StockSearchResult(BaseModel):
 
 class StockDataRequest(BaseModel):
     """주식 데이터 요청"""
-    symbols: List[str] = Field(..., min_items=1, max_items=10, description="주식 심볼 목록")
+
+    symbols: List[str] = Field(
+        ..., min_items=1, max_items=10, description="주식 심볼 목록"
+    )
     period: PeriodType = Field(default=PeriodType.ONE_YEAR, description="조회 기간")
     market: MarketType = Field(..., description="시장")
     include_indicators: bool = Field(default=True, description="기술적 지표 포함 여부")
@@ -142,6 +157,7 @@ class StockDataRequest(BaseModel):
 
 class ChartRequest(BaseModel):
     """차트 요청"""
+
     symbols: List[str] = Field(..., min_items=1, max_items=5)
     chart_type: ChartType = Field(default=ChartType.CANDLESTICK)
     period: PeriodType = Field(default=PeriodType.ONE_YEAR)
@@ -153,6 +169,7 @@ class ChartRequest(BaseModel):
 
 class FavoriteStock(BaseModel):
     """즐겨찾기 주식"""
+
     symbol: str
     name: str
     market: MarketType
@@ -161,6 +178,7 @@ class FavoriteStock(BaseModel):
 
 class UserFavorites(BaseModel):
     """사용자 즐겨찾기"""
+
     user_id: str
     favorites: List[FavoriteStock] = Field(default_factory=list)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -168,6 +186,7 @@ class UserFavorites(BaseModel):
 
 class APIResponse(BaseModel):
     """표준 API 응답"""
+
     success: bool = Field(default=True)
     message: str = Field(default="Success")
     data: Optional[Any] = None
@@ -177,6 +196,7 @@ class APIResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     """에러 응답"""
+
     success: bool = Field(default=False)
     message: str
     error_code: Optional[str] = None

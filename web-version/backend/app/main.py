@@ -2,11 +2,10 @@
 Stock Dashboard FastAPI Application
 """
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-
 from app.api.v1.api import api_router
 from app.core.config import get_settings
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 settings = get_settings()
 
@@ -15,7 +14,7 @@ app = FastAPI(
     description="AI-powered stock analysis dashboard backend with ML predictions",
     version="2.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 # CORS middleware
@@ -30,14 +29,12 @@ app.add_middleware(
 # Include API router
 app.include_router(api_router, prefix="/api/v1")
 
+
 @app.get("/")
 async def root():
     """Root endpoint"""
-    return {
-        "message": "Stock Dashboard API",
-        "version": "2.0.0",
-        "status": "running"
-    }
+    return {"message": "Stock Dashboard API", "version": "2.0.0", "status": "running"}
+
 
 @app.get("/health")
 async def health_check():
@@ -45,8 +42,9 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "stock-dashboard-backend",
-        "version": "2.0.0"
+        "version": "2.0.0",
     }
+
 
 @app.get("/api/v1/stocks")
 async def get_stocks():
@@ -55,19 +53,18 @@ async def get_stocks():
         "stocks": [
             {"symbol": "AAPL", "name": "Apple Inc.", "price": 150.00},
             {"symbol": "GOOGL", "name": "Alphabet Inc.", "price": 2800.00},
-            {"symbol": "MSFT", "name": "Microsoft Corporation", "price": 300.00}
+            {"symbol": "MSFT", "name": "Microsoft Corporation", "price": 300.00},
         ]
     }
+
 
 @app.get("/api/v1/market/status")
 async def get_market_status():
     """Get market status"""
-    return {
-        "status": "open",
-        "next_close": "16:00 EST",
-        "timezone": "America/New_York"
-    }
+    return {"status": "open", "next_close": "16:00 EST", "timezone": "America/New_York"}
+
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

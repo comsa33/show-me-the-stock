@@ -2,68 +2,161 @@
 주식 관련 API 엔드포인트
 """
 
-from typing import List
+from typing import Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query
-from app.models.stock import (
-    StockSearchRequest, StockSearchResult, StockDataRequest, 
-    StockDataResponse, MultiStockDataResponse, MarketType, PeriodType,
-    APIResponse
-)
 from app.data.stock_data import StockDataFetcher
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# 전역 스톡 데이터 페처 인스턴스
 stock_fetcher = StockDataFetcher()
 
 
-@router.get("/search")
-async def search_stocks(
-    query: str = Query(..., min_length=1, max_length=100, description="검색어"),
-    market: str = Query("KR", description="시장 (KR/US)"),
-    limit: int = Query(default=20, ge=1, le=100, description="결과 수 제한")
-):
-    """주식 검색"""
-    try:
-        results = stock_fetcher.search_stocks(query, market, limit)
-        return {"results": results}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"검색 중 오류 발생: {str(e)}")
-
-
-@router.get("/list/{market}")
-async def get_stock_list(
+@router.get("/prices/{market}")
+async def get_stock_prices(
     market: str,
-    limit: int = Query(default=50, ge=1, le=500, description="결과 수 제한")
+    page: int = Query(default=1, ge=1, description="페이지 번호"),
+    limit: int = Query(default=20, ge=1, le=100, description="페이지당 종목 수"),
 ):
-    """시장별 주식 목록 조회"""
+    """시장별 주식 목록 조회 (페이지네이션)"""
     try:
-        if market.upper() == "KR":
-            symbols_dict = stock_fetcher.kospi_symbols
-        elif market.upper() == "US":
-            symbols_dict = stock_fetcher.nasdaq_symbols
-        else:
-            raise HTTPException(status_code=400, detail="지원하지 않는 시장입니다")
+        # 새로운 페이지네이션 API 사용
+        result = stock_fetcher.get_paginated_stocks(market, page, limit)
         
-        # 제한된 수만큼 반환
-        limited_items = list(symbols_dict.items())[:limit]
+        # 실시간 가격 정보 추가 (Mock 데이터)
+        for stock in result["stocks"]:
+            price_info = stock_fetcher.get_real_time_price(stock["symbol"], stock["market"])
+            stock.update({
+                "price": price_info["price"],
+                "change": price_info["change"],
+                "change_percent": price_info["change_percent"],
+                "volume": price_info["volume"]
+            })
         
         return {
             "market": market.upper(),
-            "total_available": len(symbols_dict),
-            "returned_count": len(limited_items),
-            "stocks": [
-                {
-                    "name": name,
-                    "symbol": symbol,
-                    "display": f"{name} ({symbol})"
-                }
-                for name, symbol in limited_items
-            ]
+            "page": result["page"],
+            "total_pages": result["total_pages"], 
+            "total_count": result["total_count"],
+            "limit": result["limit"],
+            "stocks": result["stocks"]
         }
-    
+
+    except Exception as e:
+        logger.error(f"주식 목록 조회 중 오류 발생: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"주식 목록 조회 중 오류 발생: {str(e)}"
+        )
+
+
+@router.get("/all/{market}")
+async def get_all_stocks(
+    market: str,
+    page: int = Query(default=1, ge=1, description="페이지 번호"),
+    limit: int = Query(default=50, ge=1, le=200, description="페이지당 종목 수"),
+):
+    """전체 종목 리스트 조회 (페이지네이션)"""
+    try:
+        if market.upper() == "KR":
+            all_stocks = stock_fetcher.get_all_kr_stocks()
+        elif market.upper() == "US":
+            all_stocks = stock_fetcher.get_all_us_stocks()
+        else:
+            raise HTTPException(status_code=400, detail="지원하지 않는 시장입니다 (KR/US)")
+        
+        # 페이지네이션 계산
+        total_count = len(all_stocks)
+        total_pages = (total_count + limit - 1) // limit
+        start_idx = (page - 1) * limit
+        end_idx = start_idx + limit
+        
+        paginated_stocks = all_stocks[start_idx:end_idx]
+        
+        return {
+            "market": market.upper(),
+            "page": page,
+            "total_pages": total_pages,
+            "total_count": total_count,
+            "limit": limit,
+            "stocks": paginated_stocks
+        }
+
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"주식 목록 조회 중 오류 발생: {str(e)}")
+        logger.error(f"전체 종목 조회 중 오류 발생: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"전체 종목 조회 중 오류 발생: {str(e)}"
+        )
+
+
+@router.get("/kospi")
+async def get_kospi_stocks(
+    page: int = Query(default=1, ge=1, description="페이지 번호"),
+    limit: int = Query(default=50, ge=1, le=200, description="페이지당 종목 수"),
+):
+    """KOSPI 종목 조회"""
+    try:
+        all_stocks = stock_fetcher.get_all_kospi_stocks()
+        
+        # 페이지네이션 계산
+        total_count = len(all_stocks)
+        total_pages = (total_count + limit - 1) // limit
+        start_idx = (page - 1) * limit
+        end_idx = start_idx + limit
+        
+        paginated_stocks = all_stocks[start_idx:end_idx]
+        
+        return {
+            "market": "KOSPI",
+            "page": page,
+            "total_pages": total_pages,
+            "total_count": total_count,
+            "limit": limit,
+            "stocks": paginated_stocks
+        }
+
+    except Exception as e:
+        logger.error(f"KOSPI 종목 조회 중 오류 발생: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"KOSPI 종목 조회 중 오류 발생: {str(e)}"
+        )
+
+
+@router.get("/kosdaq")
+async def get_kosdaq_stocks(
+    page: int = Query(default=1, ge=1, description="페이지 번호"),
+    limit: int = Query(default=50, ge=1, le=200, description="페이지당 종목 수"),
+):
+    """KOSDAQ 종목 조회"""
+    try:
+        all_stocks = stock_fetcher.get_all_kosdaq_stocks()
+        
+        # 페이지네이션 계산
+        total_count = len(all_stocks)
+        total_pages = (total_count + limit - 1) // limit
+        start_idx = (page - 1) * limit
+        end_idx = start_idx + limit
+        
+        paginated_stocks = all_stocks[start_idx:end_idx]
+        
+        return {
+            "market": "KOSDAQ",
+            "page": page,
+            "total_pages": total_pages,
+            "total_count": total_count,
+            "limit": limit,
+            "stocks": paginated_stocks
+        }
+
+    except Exception as e:
+        logger.error(f"KOSDAQ 종목 조회 중 오류 발생: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"KOSDAQ 종목 조회 중 오류 발생: {str(e)}"
+        )
 
 
 @router.get("/data/{symbol}")
@@ -71,178 +164,210 @@ async def get_stock_data(
     symbol: str,
     market: str = Query(..., description="시장 (KR/US)"),
     period: str = Query(default="1y", description="조회 기간"),
-    include_indicators: bool = Query(default=True, description="기술적 지표 포함 여부")
 ):
     """개별 주식 데이터 조회"""
     try:
         # 주식 데이터 조회
         data = stock_fetcher.get_stock_data(symbol, period, market)
         if data is None or data.empty:
-            raise HTTPException(status_code=404, detail=f"주식 데이터를 찾을 수 없습니다: {symbol}")
+            raise HTTPException(
+                status_code=404, detail=f"주식 데이터를 찾을 수 없습니다: {symbol}"
+            )
+
+        # 현재 가격 정보
+        current_price = float(data['Close'].iloc[-1])
         
-        # 기본 정보
-        result = {
+        # 차트 데이터 준비
+        chart_data = []
+        for idx, row in data.iterrows():
+            chart_data.append({
+                "Date": idx.strftime('%Y-%m-%d') if hasattr(idx, 'strftime') else str(idx),
+                "Open": float(row['Open']),
+                "High": float(row['High']),
+                "Low": float(row['Low']),
+                "Close": float(row['Close']),
+                "Volume": int(row['Volume'])
+            })
+
+        return {
             "symbol": symbol,
             "market": market.upper(),
             "period": period,
-            "data": data.to_dict("records"),
-            "current_price": float(data['Close'].iloc[-1]),
-            "change": float(data['Close'].iloc[-1] - data['Close'].iloc[-2]) if len(data) > 1 else 0,
-            "volume": int(data['Volume'].iloc[-1])
+            "current_price": current_price,
+            "data": chart_data,
+            "data_points": len(chart_data)
         }
-        
-        # 기술적 지표 추가
-        if include_indicators:
-            indicators = stock_fetcher.calculate_technical_indicators(data)
-            result["technical_indicators"] = indicators
-        
-        return result
-    
+
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"주식 데이터 조회 중 오류 발생: {str(e)}")
+        logger.error(f"주식 데이터 조회 중 오류 발생: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"주식 데이터 조회 중 오류 발생: {str(e)}"
+        )
 
 
-@router.get("/price/{symbol}")
-async def get_stock_price(
-    symbol: str,
-    market: str = Query(..., description="시장 (KR/US)")
+@router.get("/search")
+async def search_stocks(
+    query: str = Query(..., min_length=1, description="검색어"),
+    market: str = Query(default="ALL", description="시장 (KR/US/ALL)"),
+    page: int = Query(default=1, ge=1, description="페이지 번호"),
+    limit: int = Query(default=20, ge=1, le=100, description="페이지당 결과 수"),
 ):
-    """개별 주식 현재 가격 정보"""
+    """종목 검색"""
     try:
-        price_data = stock_fetcher.get_stock_price_data(symbol, market)
+        all_results = []
         
-        # 주식 이름 찾기
-        symbols_dict = stock_fetcher.kospi_symbols if market.upper() == "KR" else stock_fetcher.nasdaq_symbols
-        name = None
-        for stock_name, stock_symbol in symbols_dict.items():
-            if stock_symbol == symbol:
-                name = stock_name
-                break
+        if market.upper() in ["ALL", "KR"]:
+            kr_stocks = stock_fetcher.get_all_kr_stocks()
+            for stock in kr_stocks:
+                if (query.lower() in stock["name"].lower() or 
+                    query.lower() in stock["symbol"].lower()):
+                    all_results.append(stock)
+        
+        if market.upper() in ["ALL", "US"]:
+            us_stocks = stock_fetcher.get_all_us_stocks()
+            for stock in us_stocks:
+                if (query.lower() in stock["name"].lower() or 
+                    query.lower() in stock["symbol"].lower()):
+                    all_results.append(stock)
+        
+        # 페이지네이션 적용
+        total_count = len(all_results)
+        total_pages = (total_count + limit - 1) // limit
+        start_idx = (page - 1) * limit
+        end_idx = start_idx + limit
+        
+        paginated_results = all_results[start_idx:end_idx]
         
         return {
-            "symbol": symbol,
-            "name": name or symbol,
+            "query": query,
             "market": market.upper(),
-            "price": price_data["price"],
-            "change": price_data["change"],
-            "change_percent": price_data["change_percent"],
-            "volume": price_data["volume"]
+            "page": page,
+            "total_pages": total_pages,
+            "total_count": total_count,
+            "limit": limit,
+            "results": paginated_results
         }
-    
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"가격 정보 조회 중 오류 발생: {str(e)}")
+        logger.error(f"종목 검색 중 오류 발생: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"종목 검색 중 오류 발생: {str(e)}"
+        )
 
 
-@router.get("/popular")
+@router.get("/popular/{market}")
 async def get_popular_stocks(
-    market: str = Query("all", description="시장 (KR/US/all)"),
-    limit: int = Query(default=10, ge=1, le=50, description="결과 수 제한")
+    market: str,
+    limit: int = Query(default=10, ge=1, le=50, description="결과 수 제한"),
 ):
-    """인기 주식 목록"""
+    """인기 종목 조회"""
     try:
-        popular_stocks = stock_fetcher.get_popular_stocks(market, limit)
+        if market.upper() == "KR":
+            # 한국 대형주 위주로 반환
+            popular_symbols = [
+                "005930", "000660", "035420", "051910", "373220",
+                "068270", "006400", "005380", "005490", "000270"
+            ]
+            all_kr_stocks = stock_fetcher.get_all_kr_stocks()
+            popular_stocks = []
+            
+            for stock in all_kr_stocks:
+                if stock["symbol"] in popular_symbols:
+                    # 실시간 가격 정보 추가
+                    price_info = stock_fetcher.get_real_time_price(stock["symbol"], "KR")
+                    stock.update({
+                        "price": price_info["price"],
+                        "change": price_info["change"],
+                        "change_percent": price_info["change_percent"],
+                        "volume": price_info["volume"]
+                    })
+                    popular_stocks.append(stock)
+                
+                if len(popular_stocks) >= limit:
+                    break
+                    
+        elif market.upper() == "US":
+            # 미국 대형주 위주로 반환
+            popular_symbols = [
+                "AAPL", "MSFT", "GOOGL", "AMZN", "TSLA",
+                "META", "NVDA", "NFLX", "AMD", "INTC"
+            ]
+            all_us_stocks = stock_fetcher.get_all_us_stocks()
+            popular_stocks = []
+            
+            for stock in all_us_stocks:
+                if stock["symbol"] in popular_symbols:
+                    # 실시간 가격 정보 추가
+                    price_info = stock_fetcher.get_real_time_price(stock["symbol"], "US")
+                    stock.update({
+                        "price": price_info["price"],
+                        "change": price_info["change"],
+                        "change_percent": price_info["change_percent"],
+                        "volume": price_info["volume"]
+                    })
+                    popular_stocks.append(stock)
+                
+                if len(popular_stocks) >= limit:
+                    break
+        else:
+            raise HTTPException(status_code=400, detail="지원하지 않는 시장입니다 (KR/US)")
+        
         return {
             "market": market.upper(),
             "stocks": popular_stocks
         }
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"인기 주식 조회 중 오류 발생: {str(e)}")
 
-
-@router.get("/prices/{market}")
-async def get_market_prices(
-    market: str,
-    limit: int = Query(default=20, ge=1, le=100, description="결과 수 제한")
-):
-    """시장별 주식 가격 목록 조회"""
-    try:
-        if market.upper() == "KR":
-            symbols_dict = stock_fetcher.kospi_symbols
-        elif market.upper() == "US":
-            symbols_dict = stock_fetcher.nasdaq_symbols
-        else:
-            raise HTTPException(status_code=400, detail="지원하지 않는 시장입니다")
-        
-        stocks_with_prices = []
-        symbol_items = list(symbols_dict.items())[:limit]
-        
-        for name, symbol in symbol_items:
-            try:
-                price_data = stock_fetcher.get_stock_price_data(symbol, market.upper())
-                stocks_with_prices.append({
-                    "name": name,
-                    "symbol": symbol,
-                    "display": f"{name} ({symbol})",
-                    "market": market.upper(),
-                    "price": price_data["price"],
-                    "change": price_data["change"],
-                    "change_percent": price_data["change_percent"],
-                    "volume": price_data["volume"]
-                })
-            except Exception as e:
-                print(f"Error fetching price for {symbol}: {str(e)}")
-                # 가격 데이터 실패시 기본값으로 추가
-                stocks_with_prices.append({
-                    "name": name,
-                    "symbol": symbol,
-                    "display": f"{name} ({symbol})",
-                    "market": market.upper(),
-                    "price": 0,
-                    "change": 0,
-                    "change_percent": 0,
-                    "volume": 0
-                })
-        
-        return {
-            "market": market.upper(),
-            "total_available": len(symbols_dict),
-            "returned_count": len(stocks_with_prices),
-            "stocks": stocks_with_prices
-        }
-    
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"시장 가격 조회 중 오류 발생: {str(e)}")
+        logger.error(f"인기 종목 조회 중 오류 발생: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"인기 종목 조회 중 오류 발생: {str(e)}"
+        )
 
 
 @router.get("/market/status")
 async def get_market_status():
     """시장 상태 정보"""
     try:
-        status = stock_fetcher.get_market_status()
-        return status
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"시장 상태 조회 중 오류 발생: {str(e)}")
-
-
-@router.get("/technical/{symbol}")
-async def get_technical_indicators(
-    symbol: str,
-    market: str = Query(..., description="시장 (KR/US)"),
-    period: str = Query(default="6mo", description="분석 기간"),
-    indicators: str = Query(default="all", description="지표 타입 (all/ma/rsi/bollinger)")
-):
-    """기술적 지표 조회"""
-    try:
-        data = stock_fetcher.get_stock_data(symbol, period, market)
-        if data is None or data.empty:
-            raise HTTPException(status_code=404, detail=f"주식 데이터를 찾을 수 없습니다: {symbol}")
+        from datetime import datetime
+        import random
         
-        technical_data = stock_fetcher.calculate_technical_indicators(data, indicators)
+        # Mock 시장 상태 데이터
+        kospi_change = random.uniform(-2, 2)
+        nasdaq_change = random.uniform(-1.5, 1.5)
         
         return {
-            "symbol": symbol,
-            "market": market.upper(),
-            "period": period,
-            "indicators": technical_data
+            "timestamp": datetime.now().isoformat(),
+            "markets": {
+                "KOSPI": {
+                    "name": "코스피",
+                    "index": round(2500 + random.uniform(-100, 100), 2),
+                    "change": round(kospi_change, 2),
+                    "change_percent": round(kospi_change / 2500 * 100, 2),
+                    "status": "OPEN" if 9 <= datetime.now().hour < 16 else "CLOSED"
+                },
+                "KOSDAQ": {
+                    "name": "코스닥",
+                    "index": round(850 + random.uniform(-50, 50), 2),
+                    "change": round(kospi_change * 0.7, 2),
+                    "change_percent": round(kospi_change * 0.7 / 850 * 100, 2),
+                    "status": "OPEN" if 9 <= datetime.now().hour < 16 else "CLOSED"
+                },
+                "NASDAQ": {
+                    "name": "나스닥",
+                    "index": round(15000 + random.uniform(-500, 500), 2),
+                    "change": round(nasdaq_change * 100, 2),
+                    "change_percent": round(nasdaq_change, 2),
+                    "status": "OPEN" if 22 <= datetime.now().hour or datetime.now().hour < 5 else "CLOSED"
+                }
+            }
         }
-    
-    except HTTPException:
-        raise
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"기술적 지표 조회 중 오류 발생: {str(e)}")
+        logger.error(f"시장 상태 조회 중 오류 발생: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"시장 상태 조회 중 오류 발생: {str(e)}"
+        )

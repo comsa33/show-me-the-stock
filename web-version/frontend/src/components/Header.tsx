@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import NotificationPanel from './NotificationPanel';
+import SearchResults from './SearchResults';
 import './Header.css';
 
 interface HeaderProps {
@@ -9,6 +11,8 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   const { searchTerm, setSearchTerm, notifications } = useApp();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [localSearchTerm, setLocalSearchTerm] = useState('');
   return (
     <header className="header">
       <div className="header-content">
@@ -46,9 +50,34 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
               type="text" 
               placeholder="주식 검색..." 
               className="search-input"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={localSearchTerm}
+              onChange={(e) => {
+                setLocalSearchTerm(e.target.value);
+                setSearchTerm(e.target.value);
+              }}
+              onFocus={() => {
+                if (localSearchTerm.trim().length > 0) {
+                  setShowSearchResults(true);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && localSearchTerm.trim().length > 0) {
+                  setShowSearchResults(true);
+                }
+              }}
             />
+            {localSearchTerm.trim().length > 0 && (
+              <button 
+                className="search-clear-btn"
+                onClick={() => {
+                  setLocalSearchTerm('');
+                  setSearchTerm('');
+                  setShowSearchResults(false);
+                }}
+              >
+                ×
+              </button>
+            )}
           </div>
         </div>
 
@@ -73,30 +102,6 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
                 <span className="notification-badge">{notifications.length}</span>
               )}
             </button>
-            
-            {showNotifications && (
-              <div className="notification-dropdown">
-                <div className="notification-header">
-                  <h3>알림</h3>
-                  <button onClick={() => setShowNotifications(false)}>×</button>
-                </div>
-                <div className="notification-list">
-                  {notifications.length === 0 ? (
-                    <div className="no-notifications">새로운 알림이 없습니다.</div>
-                  ) : (
-                    notifications.map((notification) => (
-                      <div key={notification.id} className={`notification-item notification-${notification.type}`}>
-                        <div className="notification-title">{notification.title}</div>
-                        <div className="notification-message">{notification.message}</div>
-                        <div className="notification-time">
-                          {notification.timestamp.toLocaleTimeString()}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
           </div>
 
           <div className="user-profile">
@@ -106,6 +111,18 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
           </div>
         </div>
       </div>
+      
+      <NotificationPanel 
+        isOpen={showNotifications} 
+        onClose={() => setShowNotifications(false)} 
+      />
+      
+      {showSearchResults && (
+        <SearchResults 
+          query={localSearchTerm}
+          onClose={() => setShowSearchResults(false)}
+        />
+      )}
     </header>
   );
 };

@@ -4,22 +4,213 @@ from typing import Dict, List, Optional
 import FinanceDataReader as fdr
 import pandas as pd
 import yfinance as yf
+from pykrx import stock
 
 
 class StockDataFetcher:
     def __init__(self):
-        self.kospi_symbols = self._get_kospi_symbols()
-        self.nasdaq_symbols = self._get_popular_nasdaq_symbols()
+        self._kospi_cache = None
+        self._kosdaq_cache = None
+        self._us_cache = None
+        self._cache_time = None
+        self.cache_duration = 300  # 5분 캐시
 
-    def _get_kospi_symbols(self) -> Dict[str, str]:
-        """한국 주식 데이터 가져오기"""
-        return {
+    def _is_cache_valid(self) -> bool:
+        """캐시가 유효한지 확인"""
+        if self._cache_time is None:
+            return False
+        return (datetime.now() - self._cache_time).seconds < self.cache_duration
+
+    def get_all_kospi_stocks(self) -> List[Dict[str, str]]:
+        """전체 KOSPI 종목 가져오기"""
+        if self._kospi_cache is None or not self._is_cache_valid():
+            try:
+                # pykrx를 사용하여 전체 KOSPI 종목 가져오기
+                today = datetime.now().strftime('%Y%m%d')
+                kospi_list = stock.get_market_ticker_list(today, market="KOSPI")
+                
+                stocks = []
+                for ticker in kospi_list:
+                    try:
+                        name = stock.get_market_ticker_name(ticker)
+                        if name and len(name.strip()) > 0:
+                            stocks.append({
+                                "name": name,
+                                "symbol": ticker,
+                                "display": f"{name} ({ticker})",
+                                "market": "KR"
+                            })
+                    except:
+                        continue
+                
+                self._kospi_cache = stocks
+                self._cache_time = datetime.now()
+            except Exception as e:
+                print(f"KOSPI 데이터 로딩 실패: {e}")
+                # 실패시 기본 종목들 반환
+                self._kospi_cache = self._get_default_kr_stocks()
+        
+        return self._kospi_cache
+
+    def get_all_kosdaq_stocks(self) -> List[Dict[str, str]]:
+        """전체 KOSDAQ 종목 가져오기"""
+        if self._kosdaq_cache is None or not self._is_cache_valid():
+            try:
+                today = datetime.now().strftime('%Y%m%d')
+                kosdaq_list = stock.get_market_ticker_list(today, market="KOSDAQ")
+                
+                stocks = []
+                for ticker in kosdaq_list:
+                    try:
+                        name = stock.get_market_ticker_name(ticker)
+                        if name and len(name.strip()) > 0:
+                            stocks.append({
+                                "name": name,
+                                "symbol": ticker,
+                                "display": f"{name} ({ticker})",
+                                "market": "KR"
+                            })
+                    except:
+                        continue
+                
+                self._kosdaq_cache = stocks
+                self._cache_time = datetime.now()
+            except Exception as e:
+                print(f"KOSDAQ 데이터 로딩 실패: {e}")
+                self._kosdaq_cache = []
+        
+        return self._kosdaq_cache
+
+    def get_all_us_stocks(self) -> List[Dict[str, str]]:
+        """미국 주요 종목 가져오기"""
+        if self._us_cache is None or not self._is_cache_valid():
+            # S&P 500과 NASDAQ 100 주요 종목들
+            us_symbols = {
+                # Mega Cap Tech
+                "Apple Inc": "AAPL",
+                "Microsoft Corporation": "MSFT", 
+                "Alphabet Inc Class A": "GOOGL",
+                "Amazon.com Inc": "AMZN",
+                "Meta Platforms Inc": "META",
+                "Tesla Inc": "TSLA",
+                "NVIDIA Corporation": "NVDA",
+                "Netflix Inc": "NFLX",
+                "Adobe Inc": "ADBE",
+                "Salesforce Inc": "CRM",
+                
+                # Major Banks
+                "JPMorgan Chase & Co": "JPM",
+                "Bank of America Corp": "BAC",
+                "Wells Fargo & Company": "WFC",
+                "Goldman Sachs Group Inc": "GS",
+                "Morgan Stanley": "MS",
+                
+                # Healthcare & Pharma
+                "Johnson & Johnson": "JNJ",
+                "Pfizer Inc": "PFE",
+                "UnitedHealth Group Inc": "UNH",
+                "Merck & Co Inc": "MRK",
+                "Abbott Laboratories": "ABT",
+                
+                # Consumer & Retail
+                "Walmart Inc": "WMT",
+                "The Coca-Cola Company": "KO",
+                "PepsiCo Inc": "PEP",
+                "Procter & Gamble Co": "PG",
+                "Nike Inc": "NKE",
+                "McDonald's Corporation": "MCD",
+                "Starbucks Corporation": "SBUX",
+                
+                # Industrial & Energy
+                "ExxonMobil Corporation": "XOM",
+                "Chevron Corporation": "CVX",
+                "Caterpillar Inc": "CAT",
+                "Boeing Company": "BA",
+                "General Electric Company": "GE",
+                
+                # Semiconductor
+                "Intel Corporation": "INTC",
+                "Advanced Micro Devices": "AMD",
+                "Qualcomm Incorporated": "QCOM",
+                "Broadcom Inc": "AVGO",
+                "Taiwan Semiconductor": "TSM",
+                
+                # Communication & Media
+                "Verizon Communications": "VZ",
+                "AT&T Inc": "T",
+                "Comcast Corporation": "CMCSA",
+                "Walt Disney Company": "DIS",
+                
+                # Electric Vehicles & Clean Energy
+                "Ford Motor Company": "F",
+                "General Motors Company": "GM",
+                "Rivian Automotive Inc": "RIVN",
+                "Lucid Group Inc": "LCID",
+                
+                # Emerging Tech
+                "Palantir Technologies": "PLTR",
+                "Zoom Video Communications": "ZM",
+                "Spotify Technology SA": "SPOT",
+                "Snowflake Inc": "SNOW",
+                "CrowdStrike Holdings": "CRWD",
+                
+                # Biotech
+                "Moderna Inc": "MRNA",
+                "Gilead Sciences Inc": "GILD",
+                "Regeneron Pharmaceuticals": "REGN",
+                "Biogen Inc": "BIIB",
+                
+                # Financial Services
+                "Visa Inc": "V",
+                "Mastercard Incorporated": "MA",
+                "PayPal Holdings Inc": "PYPL",
+                "Square Inc": "SQ",
+                "American Express Company": "AXP",
+                
+                # Real Estate & REITs
+                "American Tower Corporation": "AMT",
+                "Prologis Inc": "PLD",
+                "Crown Castle International": "CCI",
+                
+                # Utilities
+                "NextEra Energy Inc": "NEE",
+                "Duke Energy Corporation": "DUK",
+                "Southern Company": "SO",
+                
+                # Materials
+                "Linde plc": "LIN",
+                "Air Products and Chemicals": "APD",
+                "Dow Inc": "DOW",
+                
+                # Aerospace & Defense
+                "Lockheed Martin Corporation": "LMT",
+                "Raytheon Technologies": "RTX",
+                "Northrop Grumman Corporation": "NOC"
+            }
+            
+            stocks = []
+            for name, symbol in us_symbols.items():
+                stocks.append({
+                    "name": name,
+                    "symbol": symbol,
+                    "display": f"{name} ({symbol})",
+                    "market": "US"
+                })
+            
+            self._us_cache = stocks
+            self._cache_time = datetime.now()
+        
+        return self._us_cache
+
+    def _get_default_kr_stocks(self) -> List[Dict[str, str]]:
+        """기본 한국 종목 (fallback)"""
+        default_stocks = {
             "삼성전자": "005930",
-            "SK하이닉스": "000660",
+            "SK하이닉스": "000660", 
             "NAVER": "035420",
             "LG화학": "051910",
             "LG에너지솔루션": "373220",
-            "Celltrion": "068270",
+            "셀트리온": "068270",
             "삼성SDI": "006400",
             "현대차": "005380",
             "POSCO홀딩스": "005490",
@@ -27,236 +218,122 @@ class StockDataFetcher:
             "LG전자": "066570",
             "삼성바이오로직스": "207940",
             "SK텔레콤": "017670",
-            "CJ제일제당": "097950",
-            "대한항공": "003490",
-            "신한지주회사": "055550",
-            "하나금융지주": "086790",
             "카카오": "035720",
-            "대우조선해양": "042660",
-            "에코프로비엠": "086520"
+            "신한지주": "055550",
+            "하나금융지주": "086790",
+            "KB금융": "105560",
+            "현대모비스": "012330",
+            "LG생활건강": "051900",
+            "한국전력": "015760"
         }
+        
+        stocks = []
+        for name, symbol in default_stocks.items():
+            stocks.append({
+                "name": name,
+                "symbol": symbol,
+                "display": f"{name} ({symbol})",
+                "market": "KR"
+            })
+        
+        return stocks
 
-    def _get_popular_nasdaq_symbols(self) -> Dict[str, str]:
-        """미국 주식 데이터 가져오기"""
+    def get_all_kr_stocks(self) -> List[Dict[str, str]]:
+        """한국 전체 종목 (KOSPI + KOSDAQ) 가져오기"""
+        kospi_stocks = self.get_all_kospi_stocks()
+        kosdaq_stocks = self.get_all_kosdaq_stocks()
+        return kospi_stocks + kosdaq_stocks
+
+    def get_paginated_stocks(self, market: str, page: int = 1, limit: int = 20) -> Dict:
+        """페이지네이션된 주식 데이터 반환"""
+        if market.upper() == "KR" or market.upper() == "KOSPI":
+            all_stocks = self.get_all_kr_stocks()
+        elif market.upper() == "US":
+            all_stocks = self.get_all_us_stocks()
+        else:
+            all_stocks = []
+        
+        total_count = len(all_stocks)
+        total_pages = (total_count + limit - 1) // limit
+        start_idx = (page - 1) * limit
+        end_idx = start_idx + limit
+        
+        paginated_stocks = all_stocks[start_idx:end_idx]
+        
         return {
-            # Big Tech
-            "Apple": "AAPL",
-            "Microsoft": "MSFT",
-            "Google (Alphabet)": "GOOGL",
-            "Amazon": "AMZN",
-            "Meta (Facebook)": "META",
-            "Tesla": "TSLA",
-            "NVIDIA": "NVDA",
-            "Netflix": "NFLX",
-            
-            # Semiconductor
-            "AMD": "AMD",
-            "Intel": "INTC",
-            "Qualcomm": "QCOM",
-            "Broadcom": "AVGO",
-            
-            # Financial
-            "Berkshire Hathaway": "BRK-B",
-            "JPMorgan Chase": "JPM",
-            "Visa": "V",
-            "Mastercard": "MA",
-            "PayPal": "PYPL",
-            
-            # Healthcare
-            "Johnson & Johnson": "JNJ",
-            "UnitedHealth": "UNH",
-            "Pfizer": "PFE",
-            "Moderna": "MRNA",
-            
-            # Consumer
-            "Coca-Cola": "KO",
-            "PepsiCo": "PEP",
-            "Walmart": "WMT",
-            "McDonald's": "MCD",
-            "Nike": "NKE",
-            "Disney": "DIS"
+            "stocks": paginated_stocks,
+            "page": page,
+            "total_pages": total_pages,
+            "total_count": total_count,
+            "limit": limit
         }
 
     def get_stock_data(self, symbol: str, period: str = "1y", market: str = "auto") -> Optional[pd.DataFrame]:
-        """주식 데이터 조회"""
+        """개별 종목 데이터 가져오기"""
         try:
             if market.upper() == "KR":
-                # 한국 주식 - FinanceDataReader 사용
+                # 한국 주식은 FinanceDataReader 사용
                 data = fdr.DataReader(symbol, start=self._get_start_date(period))
-                if data is not None and not data.empty:
-                    data = data.reset_index()
-                    # 컬럼명 표준화
-                    data.columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume', 'Change']
-                    return data
             else:
-                # 미국 주식 - yfinance 사용
+                # 미국 주식은 yfinance 사용
                 ticker = yf.Ticker(symbol)
                 data = ticker.history(period=period)
-                if data is not None and not data.empty:
-                    data = data.reset_index()
-                    # 컬럼명 표준화
-                    data.columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume', 'Dividends', 'Stock Splits']
-                    return data[['Date', 'Open', 'High', 'Low', 'Close', 'Volume']]
-                    
+            
+            if data.empty:
+                return None
+            
+            # 컬럼명 통일
+            if 'Adj Close' in data.columns:
+                data = data.drop('Adj Close', axis=1)
+            
+            return data
         except Exception as e:
-            print(f"Error fetching stock data for {symbol}: {str(e)}")
-            
-        return None
-
-    def get_stock_price_data(self, symbol: str, market: str = "KR") -> Dict:
-        """현재 주식 가격 정보 조회"""
-        try:
-            data = self.get_stock_data(symbol, "5d", market)
-            if data is None or data.empty:
-                return {"price": 0, "change": 0, "change_percent": 0, "volume": 0}
-            
-            current_price = data['Close'].iloc[-1]
-            prev_price = data['Close'].iloc[-2] if len(data) > 1 else current_price
-            change = current_price - prev_price
-            change_percent = (change / prev_price * 100) if prev_price > 0 else 0
-            volume = data['Volume'].iloc[-1]
-            
-            return {
-                "price": float(current_price),
-                "change": float(change),
-                "change_percent": float(change_percent),
-                "volume": int(volume)
-            }
-        except Exception as e:
-            print(f"Error fetching price data for {symbol}: {str(e)}")
-            return {"price": 0, "change": 0, "change_percent": 0, "volume": 0}
+            print(f"주식 데이터 로딩 실패 {symbol}: {e}")
+            return None
 
     def _get_start_date(self, period: str) -> str:
         """기간을 시작 날짜로 변환"""
-        now = datetime.now()
+        today = datetime.now()
+        
         if period == "1d":
-            start = now - timedelta(days=1)
+            start_date = today - timedelta(days=7)  # 1일 데이터를 위해 1주일 전부터
         elif period == "5d":
-            start = now - timedelta(days=5)
+            start_date = today - timedelta(days=14)
         elif period == "1mo":
-            start = now - timedelta(days=30)
+            start_date = today - timedelta(days=35)
         elif period == "3mo":
-            start = now - timedelta(days=90)
+            start_date = today - timedelta(days=100)
         elif period == "6mo":
-            start = now - timedelta(days=180)
+            start_date = today - timedelta(days=200)
         elif period == "1y":
-            start = now - timedelta(days=365)
+            start_date = today - timedelta(days=400)
         elif period == "2y":
-            start = now - timedelta(days=730)
+            start_date = today - timedelta(days=800)
         elif period == "5y":
-            start = now - timedelta(days=1825)
+            start_date = today - timedelta(days=2000)
         else:
-            start = now - timedelta(days=365)  # 기본값
+            start_date = today - timedelta(days=400)  # 기본값 1년
         
-        return start.strftime("%Y-%m-%d")
+        return start_date.strftime('%Y-%m-%d')
 
-    def search_stocks(self, query: str, market: str = "KR", limit: int = 10) -> List[Dict]:
-        """주식 검색"""
-        symbols = self.kospi_symbols if market.upper() == "KR" else self.nasdaq_symbols
-        results = []
+    def get_real_time_price(self, symbol: str, market: str = "auto") -> Dict:
+        """실시간 주가 정보 가져오기 (Mock 데이터)"""
+        # 실제 구현에서는 실시간 API를 사용해야 함
+        import random
         
-        query_lower = query.lower()
-        for name, symbol in symbols.items():
-            if (query_lower in name.lower() or 
-                query_lower in symbol.lower()):
-                results.append({
-                    "name": name,
-                    "symbol": symbol,
-                    "display": f"{name} ({symbol})",
-                    "market": market.upper()
-                })
-                
-        return results[:limit]
-
-    def get_market_status(self) -> Dict:
-        """시장 상태 조회"""
+        if market.upper() == "KR":
+            base_price = random.randint(10000, 100000)
+        else:
+            base_price = random.randint(50, 500)
+        
+        change = random.uniform(-5, 5)
+        change_percent = change / base_price * 100
+        
         return {
-            "kr_market": {
-                "status": "open" if 9 <= datetime.now().hour < 15.5 else "closed",
-                "open_time": "09:00",
-                "close_time": "15:30",
-                "timezone": "Asia/Seoul"
-            },
-            "us_market": {
-                "status": "open" if 9.5 <= datetime.now().hour < 16 else "closed",
-                "open_time": "09:30",
-                "close_time": "16:00", 
-                "timezone": "America/New_York"
-            }
+            "symbol": symbol,
+            "price": base_price,
+            "change": change,
+            "change_percent": change_percent,
+            "volume": random.randint(100000, 10000000),
+            "timestamp": datetime.now().isoformat()
         }
-
-    def calculate_technical_indicators(self, data: pd.DataFrame, indicators: str = "all") -> Dict:
-        """기술적 지표 계산"""
-        if data is None or data.empty:
-            return {}
-        
-        try:
-            result = {}
-            
-            # 이동평균선
-            if indicators in ["all", "ma"]:
-                result["ma5"] = data['Close'].rolling(5).mean().iloc[-1]
-                result["ma20"] = data['Close'].rolling(20).mean().iloc[-1]
-                result["ma60"] = data['Close'].rolling(60).mean().iloc[-1]
-            
-            # RSI (간단 버전)
-            if indicators in ["all", "rsi"]:
-                delta = data['Close'].diff()
-                gain = (delta.where(delta > 0, 0)).rolling(14).mean()
-                loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
-                rs = gain / loss
-                rsi = 100 - (100 / (1 + rs))
-                result["rsi"] = rsi.iloc[-1] if not rsi.empty else 50
-            
-            # 볼린저 밴드
-            if indicators in ["all", "bollinger"]:
-                ma20 = data['Close'].rolling(20).mean()
-                std20 = data['Close'].rolling(20).std()
-                result["bollinger_upper"] = (ma20 + (std20 * 2)).iloc[-1]
-                result["bollinger_lower"] = (ma20 - (std20 * 2)).iloc[-1]
-                result["bollinger_middle"] = ma20.iloc[-1]
-            
-            return result
-            
-        except Exception as e:
-            print(f"Error calculating technical indicators: {str(e)}")
-            return {}
-
-    def get_popular_stocks(self, market: str = "all", limit: int = 10) -> List[Dict]:
-        """인기 주식 목록 조회"""
-        try:
-            popular_stocks = []
-            
-            if market.upper() in ["KR", "ALL"]:
-                kr_popular = ["삼성전자", "SK하이닉스", "NAVER", "LG화학", "현대차"]
-                for name in kr_popular[:limit//2 if market.upper() == "ALL" else limit]:
-                    if name in self.kospi_symbols:
-                        symbol = self.kospi_symbols[name]
-                        price_data = self.get_stock_price_data(symbol, "KR")
-                        popular_stocks.append({
-                            "name": name,
-                            "symbol": symbol,
-                            "market": "KR",
-                            "price": price_data["price"],
-                            "change_percent": price_data["change_percent"]
-                        })
-            
-            if market.upper() in ["US", "ALL"]:
-                us_popular = ["Apple", "Microsoft", "Google (Alphabet)", "Amazon", "Tesla"]
-                for name in us_popular[:limit//2 if market.upper() == "ALL" else limit]:
-                    if name in self.nasdaq_symbols:
-                        symbol = self.nasdaq_symbols[name]
-                        price_data = self.get_stock_price_data(symbol, "US")
-                        popular_stocks.append({
-                            "name": name,
-                            "symbol": symbol,
-                            "market": "US",
-                            "price": price_data["price"],
-                            "change_percent": price_data["change_percent"]
-                        })
-            
-            return popular_stocks
-            
-        except Exception as e:
-            print(f"Error fetching popular stocks: {str(e)}")
-            return []

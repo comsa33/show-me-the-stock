@@ -11,9 +11,9 @@ interface SidebarProps {
   isOpen: boolean;
   selectedMarket: 'KR' | 'US';
   onMarketChange: (market: 'KR' | 'US') => void;
-  interestRates: {
-    korea: InterestRate;
-    usa: InterestRate;
+  interestRates?: {
+    korea?: InterestRate;
+    usa?: InterestRate;
   };
 }
 
@@ -98,7 +98,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <span className="rate-flag">🇰🇷</span>
                 <span className="rate-country">한국</span>
               </div>
-              <div className="rate-value">{interestRates.korea.rate.toFixed(2)}%</div>
+              <div className="rate-value">
+                {interestRates?.korea?.rate ? `${interestRates.korea.rate.toFixed(2)}%` : '로딩중...'}
+              </div>
               <div className="rate-desc">기준금리</div>
             </div>
             
@@ -107,7 +109,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <span className="rate-flag">🇺🇸</span>
                 <span className="rate-country">미국</span>
               </div>
-              <div className="rate-value">{interestRates.usa.rate.toFixed(2)}%</div>
+              <div className="rate-value">
+                {interestRates?.usa?.rate ? `${interestRates.usa.rate.toFixed(2)}%` : '로딩중...'}
+              </div>
               <div className="rate-desc">연방기금금리</div>
             </div>
           </div>

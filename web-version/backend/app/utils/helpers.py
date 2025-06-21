@@ -288,15 +288,17 @@ def get_market_status() -> Dict[str, Dict[str, str]]:
                 days_until_monday = (7 - current_time.weekday()) % 7
                 if days_until_monday == 0:  # 일요일인 경우
                     days_until_monday = 1
-                    
-                next_monday = (current_time + timedelta(days=days_until_monday)).replace(
-                    hour=open_time.hour, 
+
+                next_monday = (
+                    current_time + timedelta(days=days_until_monday)
+                ).replace(
+                    hour=open_time.hour,
                     minute=open_time.minute,
                     second=0,
-                    microsecond=0
+                    microsecond=0,
                 )
                 remaining = next_monday - current_time
-                
+
             elif current_time.weekday() < 5:  # 평일 (월-금)
                 # 금요일 오후인 경우 다음 월요일까지
                 if current_time.weekday() == 4 and current_time.hour >= close_time.hour:
@@ -305,7 +307,7 @@ def get_market_status() -> Dict[str, Dict[str, str]]:
                         hour=open_time.hour,
                         minute=open_time.minute,
                         second=0,
-                        microsecond=0
+                        microsecond=0,
                     )
                     remaining = next_monday - current_time
                 else:
@@ -319,17 +321,17 @@ def get_market_status() -> Dict[str, Dict[str, str]]:
                     else:
                         # 오늘 장 마감 후, 내일 장 시작까지
                         next_day = (current_time + timedelta(days=1)).replace(
-                            hour=open_time.hour, 
+                            hour=open_time.hour,
                             minute=open_time.minute,
                             second=0,
-                            microsecond=0
+                            microsecond=0,
                         )
                         remaining = next_day - current_time
 
             hours = remaining.total_seconds() // 3600
             days = int(hours // 24)
             hours = int(hours % 24)
-            
+
             if days > 0:
                 return f"장 시작까지 {days}일 {hours}시간"
             else:

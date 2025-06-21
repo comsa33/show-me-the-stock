@@ -1,11 +1,11 @@
 import hashlib
 import os
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
+import google.generativeai as genai
 import pandas as pd
 from dotenv import load_dotenv
-import google.generativeai as genai
 
 load_dotenv()
 
@@ -14,13 +14,15 @@ class GeminiStockAnalyzer:
     def __init__(self):
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
-            print("Warning: Gemini API 키가 설정되지 않았습니다. .env 파일을 확인해주세요.")
+            print(
+                "Warning: Gemini API 키가 설정되지 않았습니다. .env 파일을 확인해주세요."
+            )
             self.model = None
             return
 
         try:
             genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel('gemini-pro')
+            self.model = genai.GenerativeModel("gemini-pro")
         except Exception as e:
             print(f"Gemini 모델 초기화 실패: {str(e)}")
             self.model = None
@@ -28,12 +30,16 @@ class GeminiStockAnalyzer:
         # 캐시 저장소 (메모리 캐시 사용)
         self.ai_cache = {}
 
-    def _get_cache_key(self, data_hash: str, analysis_type: str, additional_info: str = "") -> str:
+    def _get_cache_key(
+        self, data_hash: str, analysis_type: str, additional_info: str = ""
+    ) -> str:
         """캐시 키 생성"""
         combined = f"{data_hash}_{analysis_type}_{additional_info}"
         return hashlib.md5(combined.encode()).hexdigest()
 
-    def _get_data_hash(self, stock_data: pd.DataFrame, stock_name: str, market: str) -> str:
+    def _get_data_hash(
+        self, stock_data: pd.DataFrame, stock_name: str, market: str
+    ) -> str:
         """주식 데이터의 해시 생성 (최근 데이터 기준)"""
         recent_data = stock_data.tail(5)  # 최근 5일 데이터만 사용
         data_str = f"{stock_name}_{market}_{recent_data.to_string()}"
@@ -59,7 +65,9 @@ class GeminiStockAnalyzer:
             "timestamp": datetime.now().isoformat(),
         }
 
-    def analyze_stock(self, stock_data: pd.DataFrame, stock_name: str, market: str) -> str:
+    def analyze_stock(
+        self, stock_data: pd.DataFrame, stock_name: str, market: str
+    ) -> str:
         """기본 주식 분석"""
         if self.model is None:
             return "AI 분석을 사용할 수 없습니다. API 키가 설정되지 않았습니다."
@@ -74,9 +82,9 @@ class GeminiStockAnalyzer:
         try:
             # 최근 데이터 요약
             recent_data = stock_data.tail(10)
-            current_price = recent_data['Close'].iloc[-1]
-            price_change = recent_data['Close'].pct_change().iloc[-1] * 100
-            volume = recent_data['Volume'].iloc[-1]
+            current_price = recent_data["Close"].iloc[-1]
+            price_change = recent_data["Close"].pct_change().iloc[-1] * 100
+            volume = recent_data["Volume"].iloc[-1]
 
             prompt = f"""
 다음 주식 정보를 분석해주세요:
@@ -103,7 +111,9 @@ class GeminiStockAnalyzer:
         except Exception as e:
             return f"분석 중 오류가 발생했습니다: {str(e)}"
 
-    def analyze_technical_indicators(self, stock_data: pd.DataFrame, stock_name: str, market: str) -> str:
+    def analyze_technical_indicators(
+        self, stock_data: pd.DataFrame, stock_name: str, market: str
+    ) -> str:
         """기술적 지표 분석"""
         if self.model is None:
             return "AI 분석을 사용할 수 없습니다. API 키가 설정되지 않았습니다."
@@ -117,13 +127,13 @@ class GeminiStockAnalyzer:
 
         try:
             # 간단한 기술적 지표 계산
-            stock_data['MA20'] = stock_data['Close'].rolling(20).mean()
-            stock_data['MA5'] = stock_data['Close'].rolling(5).mean()
-            
+            stock_data["MA20"] = stock_data["Close"].rolling(20).mean()
+            stock_data["MA5"] = stock_data["Close"].rolling(5).mean()
+
             recent_data = stock_data.tail(10)
-            current_price = recent_data['Close'].iloc[-1]
-            ma20 = recent_data['MA20'].iloc[-1]
-            ma5 = recent_data['MA5'].iloc[-1]
+            current_price = recent_data["Close"].iloc[-1]
+            ma20 = recent_data["MA20"].iloc[-1]
+            ma5 = recent_data["MA5"].iloc[-1]
 
             prompt = f"""
 다음 주식의 기술적 지표를 분석해주세요:
@@ -146,7 +156,9 @@ class GeminiStockAnalyzer:
         except Exception as e:
             return f"기술적 분석 중 오류가 발생했습니다: {str(e)}"
 
-    def analyze_market_insights(self, stock_data: pd.DataFrame, stock_name: str, market: str) -> str:
+    def analyze_market_insights(
+        self, stock_data: pd.DataFrame, stock_name: str, market: str
+    ) -> str:
         """시장 인사이트 분석"""
         if self.model is None:
             return "AI 분석을 사용할 수 없습니다. API 키가 설정되지 않았습니다."
@@ -161,8 +173,10 @@ class GeminiStockAnalyzer:
         try:
             # 시장 동향 분석을 위한 데이터 준비
             monthly_data = stock_data.tail(30)
-            monthly_return = (monthly_data['Close'].iloc[-1] / monthly_data['Close'].iloc[0] - 1) * 100
-            volatility = monthly_data['Close'].pct_change().std() * 100
+            monthly_return = (
+                monthly_data["Close"].iloc[-1] / monthly_data["Close"].iloc[0] - 1
+            ) * 100
+            volatility = monthly_data["Close"].pct_change().std() * 100
 
             prompt = f"""
 다음 주식의 시장 인사이트를 분석해주세요:
@@ -185,7 +199,9 @@ class GeminiStockAnalyzer:
         except Exception as e:
             return f"시장 인사이트 분석 중 오류가 발생했습니다: {str(e)}"
 
-    def analyze_market_overview(self, market_data: Dict[str, pd.DataFrame], market: str) -> str:
+    def analyze_market_overview(
+        self, market_data: Dict[str, pd.DataFrame], market: str
+    ) -> str:
         """시장 전체 개요 분석"""
         if self.model is None:
             return "AI 분석을 사용할 수 없습니다. API 키가 설정되지 않았습니다."
@@ -195,8 +211,10 @@ class GeminiStockAnalyzer:
             summary = []
             for symbol, data in market_data.items():
                 if not data.empty:
-                    current_price = data['Close'].iloc[-1]
-                    price_change = (data['Close'].iloc[-1] / data['Close'].iloc[0] - 1) * 100
+                    current_price = data["Close"].iloc[-1]
+                    price_change = (
+                        data["Close"].iloc[-1] / data["Close"].iloc[0] - 1
+                    ) * 100
                     summary.append(f"{symbol}: {price_change:.2f}%")
 
             prompt = f"""
