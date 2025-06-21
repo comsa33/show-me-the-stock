@@ -79,7 +79,6 @@ temp/
 tmp/
 
 # Package lock files (optional - depends on your preference)
-package-lock.json
 yarn.lock
 
 # Redis
