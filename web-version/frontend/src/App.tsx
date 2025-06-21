@@ -1,99 +1,88 @@
-import React, { Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from 'react-query';
-import { Toaster } from 'react-hot-toast';
+import React, { useEffect, useState } from 'react';
+import './App.css';
 
-// Components
-import Layout from './components/Layout/Layout';
-import LoadingSpinner from './components/UI/LoadingSpinner';
-import ErrorBoundary from './components/UI/ErrorBoundary';
-
-// Pages (Lazy loaded for better performance)
-const Dashboard = React.lazy(() => import('./pages/Dashboard'));
-const Analytics = React.lazy(() => import('./pages/Analytics'));
-const Favorites = React.lazy(() => import('./pages/Favorites'));
-const Settings = React.lazy(() => import('./pages/Settings'));
-
-// React Query client setup
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 2,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      cacheTime: 10 * 60 * 1000, // 10 minutes
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+interface ApiStatus {
+  backend: boolean;
+  stocks: boolean;
+  market: boolean;
+}
 
 function App() {
+  const [apiStatus, setApiStatus] = useState<ApiStatus>({
+    backend: false,
+    stocks: false,
+    market: false
+  });
+
+  useEffect(() => {
+    const checkApiStatus = async () => {
+      try {
+        // Check backend health
+        const healthResponse = await fetch('http://localhost:8000/health');
+        setApiStatus(prev => ({ ...prev, backend: healthResponse.ok }));
+
+        // Check stocks endpoint
+        const stocksResponse = await fetch('http://localhost:8000/api/v1/stocks');
+        setApiStatus(prev => ({ ...prev, stocks: stocksResponse.ok }));
+
+        // Check market status endpoint
+        const marketResponse = await fetch('http://localhost:8000/api/v1/market/status');
+        setApiStatus(prev => ({ ...prev, market: marketResponse.ok }));
+      } catch (error) {
+        console.error('API status check failed:', error);
+      }
+    };
+
+    checkApiStatus();
+  }, []);
+
+  const getStatusText = (status: boolean) => {
+    return status ? '✅ 연결됨' : '❌ 연결 실패';
+  };
+
+  const getStatusClass = (status: boolean) => {
+    return status ? 'status-card success' : 'status-card error';
+  };
+
   return (
-    <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <Router>
-          <div className=\"min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200\">
-            <Layout>
-              <Suspense 
-                fallback={
-                  <div className=\"flex items-center justify-center min-h-[60vh]\">
-                    <LoadingSpinner size=\"large\" />
-                  </div>
-                }
-              >
-                <Routes>
-                  <Route path=\"/\" element={<Dashboard />} />
-                  <Route path=\"/analytics\" element={<Analytics />} />
-                  <Route path=\"/favorites\" element={<Favorites />} />
-                  <Route path=\"/settings\" element={<Settings />} />
-                  {/* 404 fallback */}
-                  <Route path=\"*\" element={
-                    <div className=\"flex flex-col items-center justify-center min-h-[60vh] text-center\">
-                      <h1 className=\"text-4xl font-bold text-gray-900 dark:text-white mb-4\">
-                        404
-                      </h1>
-                      <p className=\"text-gray-600 dark:text-gray-400 mb-8\">
-                        페이지를 찾을 수 없습니다.
-                      </p>
-                      <a 
-                        href=\"/\" 
-                        className=\"px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors\"
-                      >
-                        홈으로 돌아가기
-                      </a>
-                    </div>
-                  } />
-                </Routes>
-              </Suspense>
-            </Layout>
+    <div className="App">
+      <header className="App-header">
+        <h1>🚀 Stock Dashboard</h1>
+        <p>AI 기반 주식 분석 대시보드 - Modern Web Architecture</p>
+        
+        <div className="status-grid">
+          <div className={getStatusClass(apiStatus.backend)}>
+            <h3>Backend API</h3>
+            <p>{getStatusText(apiStatus.backend)}</p>
+            <small>FastAPI 서버 상태</small>
           </div>
           
-          {/* Toast notifications */}
-          <Toaster
-            position=\"top-right\"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#363636',
-                color: '#fff',
-                borderRadius: '8px',
-              },
-              success: {
-                iconTheme: {
-                  primary: '#22c55e',
-                  secondary: '#fff',
-                },
-              },
-              error: {
-                iconTheme: {
-                  primary: '#ef4444',
-                  secondary: '#fff',
-                },
-              },
-            }}
-          />
-        </Router>
-      </QueryClientProvider>
-    </ErrorBoundary>
+          <div className={getStatusClass(apiStatus.stocks)}>
+            <h3>Stock Data</h3>
+            <p>{getStatusText(apiStatus.stocks)}</p>
+            <small>주식 데이터 API</small>
+          </div>
+          
+          <div className={getStatusClass(apiStatus.market)}>
+            <h3>Market Status</h3>
+            <p>{getStatusText(apiStatus.market)}</p>
+            <small>시장 상태 API</small>
+          </div>
+        </div>
+        
+        <div className="info-section">
+          <h2>시스템 정보</h2>
+          <ul>
+            <li>Frontend: React 19 + TypeScript</li>
+            <li>Backend: FastAPI + Python</li>
+            <li>Cache: Redis</li>
+            <li>Deployment: Kubernetes + Helm</li>
+          </ul>
+        </div>
+        
+        <p className="version">Version 2.0.0 - Ready for Kubernetes Deployment</p>
+      </header>
+    </div>
   );
 }
 

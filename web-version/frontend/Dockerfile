@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Install dependencies
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --only=production --legacy-peer-deps && npm cache clean --force
 
 # Development stage
 FROM node:18-alpine as development
@@ -14,7 +14,7 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 # Install all dependencies (including dev)
-RUN npm ci
+RUN npm install --legacy-peer-deps
 # Copy source code
 COPY . .
 # Expose port
@@ -27,7 +27,7 @@ FROM base as build
 # Copy source code
 COPY . .
 # Install all dependencies for build
-RUN npm ci
+RUN npm install --legacy-peer-deps
 # Build the app
 RUN npm run build
 

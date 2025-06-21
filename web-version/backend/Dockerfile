@@ -14,13 +14,13 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/* \
     && curl -LsSf https://astral.sh/uv/install.sh | sh \
-    && mv /root/.cargo/bin/uv /usr/local/bin/
+    && mv /root/.local/bin/uv /usr/local/bin/
 
 # Create app directory
 WORKDIR /app
 
 # Install Python dependencies with uv
-COPY pyproject.toml .
+COPY pyproject.toml README.md ./
 RUN uv pip install --system -e .
 
 # Development stage

@@ -1,6 +1,6 @@
 # Dependencies
 node_modules/
-web-version/frontend/node_modules/
+*/node_modules/
 
 # Python
 __pycache__/
