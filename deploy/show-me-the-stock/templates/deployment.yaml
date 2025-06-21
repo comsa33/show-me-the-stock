@@ -81,6 +81,10 @@ spec:
         env:
         - name: REACT_APP_API_URL
           value: "{{ .Values.frontend.env.REACT_APP_API_URL }}"
+        - name: BACKEND_HOST
+          value: "{{ .Values.frontend.env.BACKEND_HOST }}"
+        - name: BACKEND_PORT
+          value: "{{ .Values.frontend.env.BACKEND_PORT }}"
         readinessProbe:
           httpGet:
             path: /health
