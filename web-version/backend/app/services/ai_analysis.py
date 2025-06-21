@@ -110,21 +110,31 @@ class GeminiStockAnalyzer:
             # Google Search grounding 도구 설정
             grounding_tool = types.Tool(google_search=types.GoogleSearch())
             
-            config = types.GenerateContentConfig(
+            cfg1 = types.GenerateContentConfig(
                 tools=[grounding_tool],
-                response_mime_type="application/json",
-                response_schema=StockAnalysisResult,
             )
             
-            response = await self.client.models.generate_content(
+            # 1차: text + grounding
+            r1 = self.client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=analysis_prompt,
-                config=config,
+                config=cfg1,
+            )
+            
+            # 2차: JSON 재포맷
+            cfg2 = {
+                "response_mime_type": "application/json",
+                "response_schema": StockAnalysisResult
+            }
+            r2 = self.client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=f"아래 분석을 지정된 JSON 스키마에 맞춰 재정리:\n\n{r1.text}",
+                config=cfg2,
             )
             
             # JSON 파싱
-            analysis_result = response.parsed
-            
+            analysis_result = r2.parsed
+
             logger.info(f"Gemini analysis completed for {symbol}")
             return analysis_result
             
