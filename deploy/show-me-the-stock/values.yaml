@@ -25,6 +25,7 @@ backend:
     LOG_LEVEL: "INFO"
     STOCK_DATA_CACHE_TTL: "60"
     MAX_CHART_POINTS: "1000"
+    ALLOWED_ORIGINS: "[\"http://localhost:3000\", \"http://localhost:80\"]"
 
 # Frontend container configuration
 frontend:

@@ -56,7 +56,7 @@ spec:
         - name: SECRET_KEY
           value: "{{ .Values.secretKey }}"
         - name: ALLOWED_ORIGINS
-          value: "[\"http://localhost:80\", \"http://localhost:3000\"]"
+          value: {{ .Values.backend.env.ALLOWED_ORIGINS | quote }}
         readinessProbe:
           httpGet:
             path: /health
