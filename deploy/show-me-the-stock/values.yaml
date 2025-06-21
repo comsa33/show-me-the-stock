@@ -37,7 +37,7 @@ frontend:
     port: 80
     targetPort: 80
   env:
-    REACT_APP_API_URL: "http://localhost:8000"
+    REACT_APP_API_URL: "/api"
     BACKEND_HOST: "127.0.0.1"
     BACKEND_PORT: "8000"
 

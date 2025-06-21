@@ -4,7 +4,7 @@ API v1 라우터
 """
 
 from fastapi import APIRouter
-from app.api.v1.endpoints import stocks, stocks_v2, interest_rates
+from app.api.v1.endpoints import stocks, stocks_v2, interest_rates, ai_analysis
 
 api_router = APIRouter()
 
