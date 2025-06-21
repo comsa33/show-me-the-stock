@@ -39,6 +39,8 @@ spec:
           value: "{{ .Values.backend.env.PORT }}"
         - name: REDIS_URL
           value: "{{ .Values.backend.env.REDIS_URL }}"
+        - name: REDIS_PORT 
+          value: "6379"
         - name: CACHE_TTL
           value: "{{ .Values.backend.env.CACHE_TTL }}"
         - name: CACHE_ENABLED
