@@ -1,43 +1,56 @@
-# Multi-stage build for React frontend
-FROM node:18-alpine as base
+# base image - 설정과 공통 의존성 설치
+FROM node:18-alpine AS base
 
-# Set working directory
 WORKDIR /app
 
-# Install dependencies
-COPY package*.json ./
-RUN npm install --only=production --legacy-peer-deps && npm cache clean --force
+# npm-force-resolutions 사용을 위해 필요한 파일들 복사
+COPY package.json package-lock.json ./
 
-# Development stage
-FROM node:18-alpine as development
+# npm-force-resolutions 설치 및 실행 (resolutions 적용)
+RUN npm install --save-dev npm-force-resolutions \
+ && npx npm-force-resolutions \
+ && npm install --only=production --legacy-peer-deps \
+ && npm cache clean --force
+
+# development stage
+FROM node:18-alpine AS development
+
 WORKDIR /app
-# Copy package files
-COPY package*.json ./
-# Install all dependencies (including dev)
-RUN npm install --legacy-peer-deps
-# Copy source code
+
+# 패키지 정보 및 의존성 설치
+COPY package.json package-lock.json ./
+RUN npm install --save-dev npm-force-resolutions \
+ && npx npm-force-resolutions \
+ && npm install --legacy-peer-deps
+
+# 전체 소스 복사
 COPY . .
-# Expose port
+
 EXPOSE 3000
-# Development command
 CMD ["npm", "start"]
 
-# Build stage
-FROM base as build
-# Copy source code
+# build stage
+FROM base AS build
+
+# 소스코드 복사
 COPY . .
-# Install all dependencies for build
-RUN npm install --legacy-peer-deps
-# Build the app
+
+# 개발 의존성 포함 재설치 + resolutions 적용
+RUN npm install --save-dev npm-force-resolutions \
+ && npx npm-force-resolutions \
+ && npm install --legacy-peer-deps
+
+# 빌드 실행
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine as production
-# Copy built app from build stage
+# production stage
+FROM nginx:alpine AS production
+
+# 빌드된 정적 파일을 nginx에 복사
 COPY --from=build /app/build /usr/share/nginx/html
-# Copy nginx configuration
+
+# nginx 설정 복사
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-# Expose port
+
 EXPOSE 80
-# Start nginx
 CMD ["nginx", "-g", "daemon off;"]
