@@ -28,11 +28,20 @@ class TechnicalIndicator(BaseModel):
     description: str
 
 
+class MovingAverage(BaseModel):
+    signal: str
+    description: str
+
+
+class VolumeAnalysis(BaseModel):
+    trend: str
+    description: str
+
+
 class TechnicalAnalysis(BaseModel):
-    """기술적 분석 결과"""
     rsi: TechnicalIndicator
-    moving_average: Dict[str, str]  # signal, description
-    volume_analysis: Dict[str, str]  # trend, description
+    moving_average: MovingAverage
+    volume_analysis: VolumeAnalysis 
 
 
 class NewsAnalysis(BaseModel):
