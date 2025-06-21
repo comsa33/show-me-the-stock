@@ -23,19 +23,93 @@ spec:
         "kubernetes.io/os": linux
         "kubernetes.io/hostname": ruo-server1
       containers:
-      - name: {{ .Chart.Name }}
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
+      # Backend container
+      - name: backend
+        image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
         ports:
-        - containerPort: 8501
+        - containerPort: {{ .Values.backend.service.targetPort }}
+          name: backend-http
         env:
+        - name: ENVIRONMENT
+          value: "{{ .Values.backend.env.ENVIRONMENT }}"
+        - name: HOST
+          value: "{{ .Values.backend.env.HOST }}"
+        - name: PORT
+          value: "{{ .Values.backend.env.PORT }}"
+        - name: REDIS_URL
+          value: "{{ .Values.backend.env.REDIS_URL }}"
+        - name: CACHE_TTL
+          value: "{{ .Values.backend.env.CACHE_TTL }}"
+        - name: CACHE_ENABLED
+          value: "{{ .Values.backend.env.CACHE_ENABLED }}"
+        - name: LOG_LEVEL
+          value: "{{ .Values.backend.env.LOG_LEVEL }}"
+        - name: STOCK_DATA_CACHE_TTL
+          value: "{{ .Values.backend.env.STOCK_DATA_CACHE_TTL }}"
+        - name: MAX_CHART_POINTS
+          value: "{{ .Values.backend.env.MAX_CHART_POINTS }}"
         - name: GEMINI_API_KEY
           value: "{{ .Values.geminiApiKey }}"
-        - name: HUGGINGFACE_TOKEN
-          value: "{{ .Values.hfToken }}"
-        - name: STREAMLIT_BROWSER_GATHER_USAGE_STATS
-          value: "false"
-        - name: STREAMLIT_SERVER_HEADLESS
-          value: "true"
-        - name: STREAMLIT_SERVER_SESSION_TIMEOUT_SECONDS
-          value: "1800"
+        - name: ALPHA_VANTAGE_API_KEY
+          value: "{{ .Values.alphaVantageApiKey }}"
+        - name: SECRET_KEY
+          value: "{{ .Values.secretKey }}"
+        - name: ALLOWED_ORIGINS
+          value: "http://localhost:80,http://localhost:3000"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.backend.service.targetPort }}
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.backend.service.targetPort }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+      # Frontend container
+      - name: frontend
+        image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.frontend.service.targetPort }}
+          name: frontend-http
+        env:
+        - name: REACT_APP_API_URL
+          value: "{{ .Values.frontend.env.REACT_APP_API_URL }}"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.frontend.service.targetPort }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.frontend.service.targetPort }}
+          initialDelaySeconds: 15
+          periodSeconds: 10
+      {{- if .Values.redis.enabled }}
+      # Redis container
+      - name: redis
+        image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
+        ports:
+        - containerPort: {{ .Values.redis.service.port }}
+          name: redis
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      {{- end }}

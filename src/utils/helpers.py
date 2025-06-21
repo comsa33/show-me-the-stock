@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict
 
 import pandas as pd
@@ -249,22 +249,108 @@ def create_stock_with_interest_rate_chart(
     return fig
 
 
-def get_market_status() -> Dict[str, str]:
-    now = datetime.now()
+def get_market_status() -> Dict[str, Dict[str, str]]:
+    import pytz
 
-    # 한국 시장 (KST 기준)
-    kr_open = now.replace(hour=9, minute=0, second=0, microsecond=0)
-    kr_close = now.replace(hour=15, minute=20, second=0, microsecond=0)
+    # 한국 시간 (KST)
+    kr_tz = pytz.timezone("Asia/Seoul")
+    kr_now = datetime.now(kr_tz)
 
-    # 미국 시장 (EST 기준, 간단히 UTC+9 기준으로 계산)
-    us_open = now.replace(hour=23, minute=30, second=0, microsecond=0)
-    us_close = now.replace(hour=6, minute=0, second=0, microsecond=0)
+    # 미국 동부 시간 (EST/EDT)
+    us_tz = pytz.timezone("America/New_York")
+    us_now = datetime.now(us_tz)
 
-    kr_status = "장중" if kr_open <= now <= kr_close and now.weekday() < 5 else "장마감"
-    us_status = (
-        "장중"
-        if (now >= us_open or now <= us_close) and now.weekday() < 5
-        else "장마감"
-    )
+    # 한국 시장 시간 (09:00 - 15:20, 월-금)
+    kr_open = kr_now.replace(hour=9, minute=0, second=0, microsecond=0)
+    kr_close = kr_now.replace(hour=15, minute=20, second=0, microsecond=0)
+    kr_is_open = kr_open <= kr_now <= kr_close and kr_now.weekday() < 5
 
-    return {"KR": kr_status, "US": us_status}
+    # 미국 시장 시간 (09:30 - 16:00 EST/EDT, 월-금)
+    us_open = us_now.replace(hour=9, minute=30, second=0, microsecond=0)
+    us_close = us_now.replace(hour=16, minute=0, second=0, microsecond=0)
+    us_is_open = us_open <= us_now <= us_close and us_now.weekday() < 5
+
+    # 요일 이름
+    days_kr = ["월", "화", "수", "목", "금", "토", "일"]
+    days_en = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+    # 다음 거래일 정보
+    def get_next_trading_day_info(is_open, current_time, open_time, close_time):
+        if is_open:
+            remaining = close_time - current_time
+            hours = remaining.seconds // 3600
+            minutes = (remaining.seconds % 3600) // 60
+            return f"마감까지 {hours}시간 {minutes}분"
+        else:
+            # 주말인지 확인 (토요일=5, 일요일=6)
+            if current_time.weekday() >= 5:  # 주말
+                # 다음 월요일까지 계산
+                days_until_monday = (7 - current_time.weekday()) % 7
+                if days_until_monday == 0:  # 일요일인 경우
+                    days_until_monday = 1
+                    
+                next_monday = (current_time + timedelta(days=days_until_monday)).replace(
+                    hour=open_time.hour, 
+                    minute=open_time.minute,
+                    second=0,
+                    microsecond=0
+                )
+                remaining = next_monday - current_time
+                
+            elif current_time.weekday() < 5:  # 평일 (월-금)
+                # 금요일 오후인 경우 다음 월요일까지
+                if current_time.weekday() == 4 and current_time.hour >= close_time.hour:
+                    # 금요일 장마감 후
+                    next_monday = (current_time + timedelta(days=3)).replace(
+                        hour=open_time.hour,
+                        minute=open_time.minute,
+                        second=0,
+                        microsecond=0
+                    )
+                    remaining = next_monday - current_time
+                else:
+                    # 평일 장 시작 전이거나 장 마감 후
+                    if current_time.hour < open_time.hour or (
+                        current_time.hour == open_time.hour
+                        and current_time.minute < open_time.minute
+                    ):
+                        # 오늘 장 시작 전
+                        remaining = open_time - current_time
+                    else:
+                        # 오늘 장 마감 후, 내일 장 시작까지
+                        next_day = (current_time + timedelta(days=1)).replace(
+                            hour=open_time.hour, 
+                            minute=open_time.minute,
+                            second=0,
+                            microsecond=0
+                        )
+                        remaining = next_day - current_time
+
+            hours = remaining.total_seconds() // 3600
+            days = int(hours // 24)
+            hours = int(hours % 24)
+            
+            if days > 0:
+                return f"장 시작까지 {days}일 {hours}시간"
+            else:
+                return f"장 시작까지 {hours}시간"
+
+    kr_next_info = get_next_trading_day_info(kr_is_open, kr_now, kr_open, kr_close)
+    us_next_info = get_next_trading_day_info(us_is_open, us_now, us_open, us_close)
+
+    return {
+        "KR (KOSPI)": {
+            "status": "장중" if kr_is_open else "장마감",
+            "current_time": kr_now.strftime("%H:%M:%S KST"),
+            "day_info": f"{kr_now.strftime('%m/%d')} ({days_kr[kr_now.weekday()]})",
+            "trading_hours": "09:00 - 15:20 (월~금)",
+            "next_info": kr_next_info,
+        },
+        "US (NASDAQ)": {
+            "status": "장중" if us_is_open else "장마감",
+            "current_time": us_now.strftime("%H:%M:%S EST"),
+            "day_info": f"{us_now.strftime('%m/%d')} ({days_en[us_now.weekday()]})",
+            "trading_hours": "09:30 - 16:00 (월~금)",
+            "next_info": us_next_info,
+        },
+    }

@@ -1,4 +1,4 @@
-# Default values for retriever.
+# Default values for show-me-the-stock.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
@@ -6,15 +6,73 @@ namespace: show-me-the-stock
 
 replicaCount: 1
 
-image:
-  repository: 192.168.0.5:5000/show-me-the-stock
-  pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+# Backend container configuration
+backend:
+  image:
+    repository: 192.168.0.5:5000/show-me-the-stock-backend
+    pullPolicy: IfNotPresent
+    tag: ""
+  service:
+    port: 8000
+    targetPort: 8000
+  env:
+    ENVIRONMENT: production
+    HOST: "0.0.0.0"
+    PORT: "8000"
+    REDIS_URL: "redis://redis:6379"
+    CACHE_TTL: "300"
+    CACHE_ENABLED: "true"
+    LOG_LEVEL: "INFO"
+    STOCK_DATA_CACHE_TTL: "60"
+    MAX_CHART_POINTS: "1000"
 
+# Frontend container configuration
+frontend:
+  image:
+    repository: 192.168.0.5:5000/show-me-the-stock-frontend
+    pullPolicy: IfNotPresent
+    tag: ""
+  service:
+    port: 80
+    targetPort: 80
+  env:
+    REACT_APP_API_URL: "http://localhost:8000"
+
+# Redis configuration
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: "7-alpine"
+  service:
+    port: 6379
+
+# Service configuration
 service:
   type: LoadBalancer
-  port: 8501
+  backend:
+    nodePort: 30800
+  frontend:
+    nodePort: 30666
 
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: ai-stock.po24lio.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: ai-stock-tls
+  #    hosts:
+  #      - ai-stock.po24lio.com
+
+# Environment variables
 geminiApiKey: ""
-hfToken: ""
+alphaVantageApiKey: ""
+secretKey: ""
