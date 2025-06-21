@@ -28,14 +28,6 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         ports:
         - containerPort: 8501
-        resources:
-          limits:
-            cpu: "8"
-            memory: "10Gi"
-            nvidia.com/gpu: "1"
-          requests:
-            cpu: "2"
-            memory: "4Gi"
         env:
         - name: GEMINI_API_KEY
           value: "{{ .Values.geminiApiKey }}"
