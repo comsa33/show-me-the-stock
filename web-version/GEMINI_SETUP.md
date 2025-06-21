@@ -15,12 +15,12 @@
 cp .env.example .env
 
 # .env 파일 편집
-GOOGLE_API_KEY=your_actual_api_key_here
+GEMINI_API_KEY=your_actual_api_key_here
 ```
 
 ### 방법 2: 환경변수 직접 설정
 ```bash
-export GOOGLE_API_KEY=your_actual_api_key_here
+export GEMINI_API_KEY=your_actual_api_key_here
 docker compose up -d
 ```
 
@@ -72,7 +72,7 @@ docker compose logs backend
 
 # API Key 재설정
 docker compose down
-export GOOGLE_API_KEY=your_new_key
+export GEMINI_API_KEY=your_new_key
 docker compose up -d
 ```
 

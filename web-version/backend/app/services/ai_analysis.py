@@ -69,8 +69,8 @@ class GeminiStockAnalyzer:
         self.stock_fetcher = StockDataFetcher()
         
         if GEMINI_AVAILABLE:
-            api_key = os.getenv("GOOGLE_API_KEY")
-            logger.info(f"GOOGLE_API_KEY found: {bool(api_key and api_key.strip())}")
+            api_key = os.getenv("GEMINI_API_KEY")
+            logger.info(f"GEMINI_API_KEY found: {bool(api_key and api_key.strip())}")
             if api_key and api_key.strip():
                 try:
                     self.client = genai.Client(api_key=api_key)
@@ -78,7 +78,7 @@ class GeminiStockAnalyzer:
                 except Exception as e:
                     logger.error(f"Failed to initialize Gemini client: {e}")
             else:
-                logger.warning("GOOGLE_API_KEY not set or empty - using mock data")
+                logger.warning("GEMINI_API_KEY not set or empty - using mock data")
     
     async def analyze_stock(
         self,
