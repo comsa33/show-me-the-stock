@@ -1,0 +1,278 @@
+.market-overview {
+  margin-bottom: 24px;
+}
+
+.overview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.market-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.market-flag {
+  font-size: 24px;
+}
+
+.market-title h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+}
+
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.refresh-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.overview-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 24px;
+  transition: all 0.3s ease;
+}
+
+.overview-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0 0 16px 0;
+}
+
+/* Indices Card */
+.indices-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.index-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.index-item:last-child {
+  border-bottom: none;
+}
+
+.index-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.index-name {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
+
+.index-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+}
+
+.index-change {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Rate Card */
+.rate-display {
+  text-align: center;
+}
+
+.rate-value-large {
+  font-size: 36px;
+  font-weight: 700;
+  color: #4ade80;
+  margin-bottom: 8px;
+}
+
+.rate-description {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 16px;
+}
+
+.rate-status {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.rate-trend {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 12px;
+  background: rgba(148, 163, 184, 0.2);
+}
+
+.rate-update {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Status Card */
+.market-status {
+  text-align: center;
+}
+
+.status-indicator-large {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.status-dot-large {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.status-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: #4ade80;
+}
+
+.market-hours {
+  display: flex;
+  justify-content: space-around;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hours-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+}
+
+.hours-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.hours-time {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+}
+
+/* Volume Card */
+.volume-display {
+  text-align: center;
+}
+
+.volume-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 8px;
+}
+
+.volume-comparison {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.volume-change {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.volume-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.volume-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.volume-progress {
+  height: 100%;
+  background: linear-gradient(45deg, #667eea, #764ba2);
+  border-radius: 3px;
+  transition: width 0.8s ease;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .overview-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .overview-card {
+    padding: 20px;
+  }
+  
+  .market-title h2 {
+    font-size: 20px;
+  }
+  
+  .rate-value-large {
+    font-size: 28px;
+  }
+  
+  .volume-value {
+    font-size: 24px;
+  }
+}

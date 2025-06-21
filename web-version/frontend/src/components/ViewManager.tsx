@@ -1,0 +1,62 @@
+import React from 'react';
+import { useApp } from '../context/AppContext';
+import { ApiData } from './Dashboard';
+import StockAnalysisView from './views/StockAnalysisView';
+import PortfolioView from './views/PortfolioView';
+import WatchlistView from './views/WatchlistView';
+import NewsView from './views/NewsView';
+import ReportsView from './views/ReportsView';
+import MainContent from './MainContent';
+
+interface ViewManagerProps {
+  apiData: ApiData;
+  selectedMarket: 'KR' | 'US';
+  onRefresh: () => void;
+  currentPage?: number;
+  totalPages?: number;
+  totalCount?: number;
+  pageSize?: number;
+  onPageChange?: (page: number) => void;
+}
+
+const ViewManager: React.FC<ViewManagerProps> = ({ 
+  apiData, 
+  selectedMarket, 
+  onRefresh, 
+  currentPage, 
+  totalPages, 
+  totalCount, 
+  pageSize, 
+  onPageChange 
+}) => {
+  const { currentView } = useApp();
+
+  switch (currentView) {
+    case 'stocks':
+      return <StockAnalysisView apiData={apiData} selectedMarket={selectedMarket} onRefresh={onRefresh} />;
+    case 'portfolio':
+      return <PortfolioView selectedMarket={selectedMarket} />;
+    case 'watchlist':
+      return <WatchlistView selectedMarket={selectedMarket} />;
+    case 'news':
+      return <NewsView selectedMarket={selectedMarket} />;
+    case 'reports':
+      return <ReportsView selectedMarket={selectedMarket} />;
+    case 'dashboard':
+    default:
+      return (
+        <MainContent 
+          apiData={apiData} 
+          selectedMarket={selectedMarket} 
+          onRefresh={onRefresh}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          pageSize={pageSize}
+          onPageChange={onPageChange}
+        />
+      );
+  }
+};
+
+export default ViewManager;

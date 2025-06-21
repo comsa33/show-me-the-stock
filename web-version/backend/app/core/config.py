@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     
     # Redis 설정
     redis_url: str = Field(default="redis://localhost:6379", description="Redis URL")
+    redis_host: str = Field(default="localhost", description="Redis 호스트")
+    redis_port: int = Field(default=6379, description="Redis 포트")
+    redis_db: int = Field(default=0, description="Redis 데이터베이스 번호")
     redis_password: str = Field(default="", description="Redis 비밀번호")
     
     # 캐시 설정
