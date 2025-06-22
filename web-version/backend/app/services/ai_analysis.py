@@ -61,6 +61,13 @@ class AnalysisSummary(BaseModel):
     analysis_period: str
 
 
+class SourceCitation(BaseModel):
+    """출처 정보"""
+    title: str
+    url: str
+    snippet: str
+
+
 class StockAnalysisResult(BaseModel):
     """AI 주식 분석 전체 결과"""
     summary: AnalysisSummary
@@ -68,6 +75,7 @@ class StockAnalysisResult(BaseModel):
     news_analysis: NewsAnalysis
     risk_factors: List[str]
     ai_insights: List[str]
+    sources: List[SourceCitation] = []
 
 
 class GeminiStockAnalyzer:
@@ -93,7 +101,7 @@ class GeminiStockAnalyzer:
         self,
         symbol: str,
         market: str,
-        analysis_type: str = "short"
+        analysis_type: str = "beginner"
     ) -> StockAnalysisResult:
         """주식 AI 분석 실행"""
         
@@ -121,6 +129,9 @@ class GeminiStockAnalyzer:
                 config=cfg1,
             )
             
+            # grounding metadata에서 출처 추출
+            sources = self._extract_sources_from_grounding(r1)
+            
             # 2차: JSON 재포맷
             cfg2 = {
                 "response_mime_type": "application/json",
@@ -134,6 +145,9 @@ class GeminiStockAnalyzer:
             
             # JSON 파싱
             analysis_result = r2.parsed
+            
+            # 출처 정보 추가
+            analysis_result.sources = sources
 
             logger.info(f"Gemini analysis completed for {symbol}")
             return analysis_result
@@ -147,7 +161,13 @@ class GeminiStockAnalyzer:
         """분석에 필요한 주식 데이터 수집"""
         
         # 기간 설정
-        period = "5d" if analysis_type == "short" else "1mo"
+        # 분석 유형별 기간 설정
+        period_map = {
+            "beginner": "3d",    # 초보자: 3일 (단기 변동 패턴 학습)
+            "swing": "1mo",      # 스윙: 1개월 (중기 트렌드 파악)
+            "invest": "3mo"      # 투자: 3개월 (장기 트렌드 분석)
+        }
+        period = period_map.get(analysis_type, "3d")
         
         # 주가 데이터
         price_data = self.stock_fetcher.get_stock_data(symbol, period, market)
@@ -213,7 +233,13 @@ class GeminiStockAnalyzer:
         """Gemini 분석용 프롬프트 생성"""
         
         market_name = "한국" if market.upper() == "KR" else "미국"
-        period_desc = "1일" if analysis_type == "short" else "2주"
+        # 기간 설명
+        period_descriptions = {
+            "beginner": "최근 3일간",
+            "swing": "최근 1개월간", 
+            "invest": "최근 3개월간"
+        }
+        period_desc = period_descriptions.get(analysis_type, "최근 3일간")
         
         if not stock_data.get("data_available", False):
             return f"""
@@ -231,8 +257,32 @@ class GeminiStockAnalyzer:
         
         currency = "₩" if market.upper() == "KR" else "$"
         
+        # 분석 타입별 맞춤형 설명
+        analysis_descriptions = {
+            "beginner": {
+                "target_audience": "주식 초보자",
+                "focus": "쉬운 이해와 단기 패턴 학습",
+                "advice_style": "간단하고 직관적인 설명으로 기본 개념 위주",
+                "timeframe": "1-3일 단기 변동"
+            },
+            "swing": {
+                "target_audience": "스윙 트레이더",
+                "focus": "중기 트렌드와 기술적 지표 활용",
+                "advice_style": "차트 패턴과 기술적 분석 중심의 실용적 조언",
+                "timeframe": "1주-1개월 중기 트렌드"
+            },
+            "invest": {
+                "target_audience": "중장기 투자자",
+                "focus": "펀더멘털과 장기 성장 전망",
+                "advice_style": "기업 가치와 시장 동향을 고려한 투자 관점",
+                "timeframe": "3개월-1년 장기 전망"
+            }
+        }
+        
+        analysis_info = analysis_descriptions.get(analysis_type, analysis_descriptions["beginner"])
+        
         prompt = f"""
-주식 AI 분석 요청:
+주식 AI 분석 요청 - {analysis_info['target_audience']}용 분석
 
 **종목 정보:**
 - 종목: {symbol} ({market_name} 시장)
@@ -247,26 +297,66 @@ class GeminiStockAnalyzer:
 - 거래량 비율: {tech_indicators['volume_ratio']:.2f}
 
 **분석 요청:**
-위 데이터를 바탕으로 {symbol} 종목에 대한 종합적인 AI 분석을 수행해주세요.
+{analysis_info['target_audience']}를 위한 {symbol} 종목 분석을 수행해주세요.
 
-다음 항목들을 포함해서 분석해주세요:
+**분석 방향:**
+- 타겟: {analysis_info['target_audience']}
+- 초점: {analysis_info['focus']}
+- 조언 스타일: {analysis_info['advice_style']}
+- 시간 프레임: {analysis_info['timeframe']}
+
+**포함 항목:**
 1. 전체 투자 신호 (상승/하락/횡보)
 2. 신뢰도 (65-90% 범위)
 3. 투자 추천 (매수/매도/보유)
 4. 목표 주가 (현재가 기준 ±20% 범위)
-5. RSI 기반 기술적 분석
-6. 이동평균선 분석
+5. RSI 기반 기술적 분석 ({analysis_info['target_audience']} 수준에 맞춰)
+6. 이동평균선 분석 (쉬운 설명)
 7. 거래량 분석
 8. 최근 뉴스 감성 분석 (Google Search 활용)
 9. 주요 리스크 요인 3개
-10. AI 인사이트 3개
+10. AI 인사이트 3개 ({analysis_info['target_audience']} 관점)
 
 **응답 형식:**
-JSON 형태로 응답해주시고, 모든 수치와 분석 결과를 구체적으로 제공해주세요.
-뉴스 분석은 Google Search를 활용하여 최신 정보를 반영해주세요.
+JSON 형태로 응답하되, {analysis_info['target_audience']}가 이해하기 쉽도록 설명해주세요.
+뉴스 분석은 Google Search를 활용하여 최신 정보를 반영하고, 출처를 명확히 제공해주세요.
 """
         
         return prompt
+    
+    def _extract_sources_from_grounding(self, gemini_response) -> List[SourceCitation]:
+        """Gemini grounding metadata에서 출처 정보 추출"""
+        sources = []
+        
+        try:
+            # Gemini 응답의 grounding metadata 확인
+            if hasattr(gemini_response, 'candidates') and gemini_response.candidates:
+                candidate = gemini_response.candidates[0]
+                
+                if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
+                    # grounding_chunks에서 출처 추출
+                    if hasattr(candidate.grounding_metadata, 'grounding_chunks'):
+                        for chunk in candidate.grounding_metadata.grounding_chunks:
+                            if hasattr(chunk, 'web') and chunk.web:
+                                web_info = chunk.web
+                                source = SourceCitation(
+                                    title=getattr(web_info, 'title', '제목 없음'),
+                                    url=getattr(web_info, 'uri', ''),
+                                    snippet=getattr(web_info, 'snippet', '')[:200] + '...' if len(getattr(web_info, 'snippet', '')) > 200 else getattr(web_info, 'snippet', '')
+                                )
+                                sources.append(source)
+                    
+                    # search_entry_point에서 추가 출처 정보 추출
+                    if hasattr(candidate.grounding_metadata, 'search_entry_point') and candidate.grounding_metadata.search_entry_point:
+                        search_entry = candidate.grounding_metadata.search_entry_point
+                        if hasattr(search_entry, 'rendered_content'):
+                            # 검색 결과에서 추가 출처 추출 (필요시)
+                            pass
+                            
+        except Exception as e:
+            logger.warning(f"Failed to extract sources from grounding metadata: {e}")
+        
+        return sources[:5]  # 최대 5개 출처만 반환
     
     async def _generate_mock_analysis(self, symbol: str, market: str, analysis_type: str) -> StockAnalysisResult:
         """Mock AI 분석 결과 생성 (Gemini 사용 불가시 대체)"""
@@ -274,7 +364,8 @@ JSON 형태로 응답해주시고, 모든 수치와 분석 결과를 구체적�
         import random
         
         # 분석 기간 설정
-        if analysis_type == "short":
+        # 분석 유형별 프롬프트 커스터마이징
+        if analysis_type == "beginner":
             period_desc = "1일"
             data_period = "최근 1일 + 당일 뉴스"
         else:
@@ -306,6 +397,25 @@ JSON 형태로 응답해주시고, 모든 수치와 분석 결과를 구체적�
         
         recommendation = "매수" if price_trend == "상승" else "매도" if price_trend == "하락" else "보유"
         
+        # Mock 출처 생성
+        mock_sources = [
+            SourceCitation(
+                title=f"{symbol} 주식 분석 리포트 - 증권사 분석",
+                url="https://example.com/stock-analysis",
+                snippet="최근 실적 발표 후 주가 변동성이 확대되고 있으며, 기술적 지표상 단기 조정 가능성이 높아 보입니다."
+            ),
+            SourceCitation(
+                title=f"{symbol} 관련 최신 뉴스 - 경제신문",
+                url="https://example.com/financial-news",
+                snippet="업계 전문가들은 해당 종목의 펀더멘털이 양호하다고 평가하며, 중장기 투자 관점에서 매력적이라고 분석했습니다."
+            ),
+            SourceCitation(
+                title="시장 동향 분석 - 투자정보",
+                url="https://example.com/market-trends",
+                snippet="전체 시장 상황을 고려할 때, 해당 업종은 상대적으로 안정적인 성장세를 보이고 있어 투자자들의 관심이 집중되고 있습니다."
+            )
+        ]
+        
         return StockAnalysisResult(
             summary=AnalysisSummary(
                 overall_signal=price_trend,
@@ -320,14 +430,14 @@ JSON 형태로 응답해주시고, 모든 수치와 분석 결과를 구체적�
                     signal=rsi_signal,
                     description=f"RSI {rsi_value} - {'과열 구간' if rsi_value > 70 else '침체 구간' if rsi_value < 30 else '안정 구간'}"
                 ),
-                moving_average={
-                    "signal": ma_signal,
-                    "description": f"이동평균선 기준 {ma_signal} 신호 확인"
-                },
-                volume_analysis={
-                    "trend": random.choice(["증가", "감소", "평균"]),
-                    "description": "거래량 패턴 분석 결과"
-                }
+                moving_average=MovingAverage(
+                    signal=ma_signal,
+                    description=f"이동평균선 기준 {ma_signal} 신호 확인"
+                ),
+                volume_analysis=VolumeAnalysis(
+                    trend=random.choice(["증가", "감소", "평균"]),
+                    description="거래량 패턴 분석 결과"
+                )
             ),
             news_analysis=NewsAnalysis(
                 sentiment=news_sentiment,
@@ -346,7 +456,8 @@ JSON 형태로 응답해주시고, 모든 수치와 분석 결과를 구체적�
                 f"기술적 지표 신뢰도 {confidence}%",
                 f"뉴스 감성 {news_sentiment}적 영향",
                 "장기 투자 관점에서 검토 필요"
-            ][:random.randint(3, 4)]
+            ][:random.randint(3, 4)],
+            sources=mock_sources[:random.randint(2, 3)]
         )
 
 

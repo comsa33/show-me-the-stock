@@ -49,6 +49,12 @@ interface DetailedStockInfo {
   last_updated: string;
 }
 
+interface SourceCitation {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
 interface AnalysisData {
   symbol: string;
   market: string;
@@ -85,6 +91,7 @@ interface AnalysisData {
     };
     risk_factors: string[];
     ai_insights: string[];
+    sources: SourceCitation[];
   };
 }
 
@@ -100,7 +107,7 @@ const StockDetail: React.FC = () => {
   const [period, setPeriod] = useState('1y');
   const [showInterestRate, setShowInterestRate] = useState(false);
   const [interestRateData, setInterestRateData] = useState<Array<{ date: string; rate: number }>>([]);
-  const [analysisType, setAnalysisType] = useState<'short' | 'long'>('short');
+  const [analysisType, setAnalysisType] = useState<'beginner' | 'swing' | 'invest'>('beginner');
 
   const periods = [
     { value: '1d', label: '1일' },
@@ -189,7 +196,7 @@ const StockDetail: React.FC = () => {
     }
   };
 
-  const fetchAnalysis = async (type: 'short' | 'long') => {
+  const fetchAnalysis = async (type: 'beginner' | 'swing' | 'invest') => {
     if (!selectedStock) return;
     
     setAnalysisLoading(true);
@@ -421,16 +428,25 @@ const StockDetail: React.FC = () => {
             <div className="analysis-controls">
               <div className="analysis-type-selector">
                 <button 
-                  className={`analysis-btn ${analysisType === 'short' ? 'active' : ''}`}
-                  onClick={() => setAnalysisType('short')}
+                  className={`analysis-btn ${analysisType === 'beginner' ? 'active' : ''}`}
+                  onClick={() => setAnalysisType('beginner')}
+                  title="초보자를 위한 쉬운 분석 (1~3일)"
                 >
-                  단기 분석 (1일)
+                  📚 초보자 분석
                 </button>
                 <button 
-                  className={`analysis-btn ${analysisType === 'long' ? 'active' : ''}`}
-                  onClick={() => setAnalysisType('long')}
+                  className={`analysis-btn ${analysisType === 'swing' ? 'active' : ''}`}
+                  onClick={() => setAnalysisType('swing')}
+                  title="스윙 트레이딩 분석 (1주~1개월)"
                 >
-                  장기 분석 (2주)
+                  📈 스윙 분석
+                </button>
+                <button 
+                  className={`analysis-btn ${analysisType === 'invest' ? 'active' : ''}`}
+                  onClick={() => setAnalysisType('invest')}
+                  title="중장기 투자 분석 (3개월~1년)"
+                >
+                  💎 투자 분석
                 </button>
               </div>
               <button 
@@ -531,6 +547,35 @@ const StockDetail: React.FC = () => {
                     ))}
                   </ul>
                 </div>
+
+                {analysisData.analysis.sources && analysisData.analysis.sources.length > 0 && (
+                  <div className="analysis-section-item">
+                    <h5>📎 참고 자료 및 출처</h5>
+                    <div className="sources-list">
+                      {analysisData.analysis.sources.map((source, index) => (
+                        <div key={index} className="source-card">
+                          <div className="source-header">
+                            <a 
+                              href={source.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="source-title"
+                            >
+                              {source.title}
+                              <svg className="external-link-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                <polyline points="15,3 21,3 21,9"></polyline>
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                              </svg>
+                            </a>
+                          </div>
+                          <p className="source-snippet">{source.snippet}</p>
+                          <div className="source-url">{new URL(source.url).hostname}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

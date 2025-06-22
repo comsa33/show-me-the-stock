@@ -490,6 +490,83 @@
 .rsi-과매도 { color: #10b981; }
 .rsi-중립 { color: #fbbf24; }
 
+/* Sources Section */
+.sources-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.source-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.source-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.source-header {
+  margin-bottom: 12px;
+}
+
+.source-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #60a5fa;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.4;
+  transition: color 0.2s ease;
+}
+
+.source-title:hover {
+  color: #93c5fd;
+  text-decoration: underline;
+}
+
+.external-link-icon {
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+  flex-shrink: 0;
+}
+
+.source-title:hover .external-link-icon {
+  opacity: 1;
+}
+
+.source-snippet {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 12px 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.source-url {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  display: inline-block;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
 .sentiment-analysis {
   display: flex;
   flex-direction: column;
