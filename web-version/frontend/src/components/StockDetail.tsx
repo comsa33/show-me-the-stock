@@ -55,6 +55,13 @@ interface SourceCitation {
   snippet: string;
 }
 
+interface GroundingSupport {
+  start_index: number;
+  end_index: number;
+  text: string;
+  source_indices: number[];
+}
+
 interface AnalysisData {
   symbol: string;
   market: string;
@@ -92,6 +99,8 @@ interface AnalysisData {
     risk_factors: string[];
     ai_insights: string[];
     sources: SourceCitation[];
+    grounding_supports: GroundingSupport[];
+    original_text: string;
   };
 }
 
@@ -230,6 +239,74 @@ const StockDetail: React.FC = () => {
     return selectedStock.market === 'KR' 
       ? `₩${price.toLocaleString()}` 
       : `$${price.toFixed(2)}`;
+  };
+
+  // 풋노트가 포함된 텍스트 렌더링 함수
+  const renderTextWithFootnotes = (
+    text: string, 
+    groundingSupports: GroundingSupport[], 
+    sources: SourceCitation[]
+  ): JSX.Element => {
+    if (!groundingSupports || groundingSupports.length === 0) {
+      return <span>{text}</span>;
+    }
+
+    const elements: JSX.Element[] = [];
+    let lastIndex = 0;
+
+    // grounding supports를 시작 인덱스 순으로 정렬
+    const sortedSupports = [...groundingSupports].sort((a, b) => a.start_index - b.start_index);
+
+    sortedSupports.forEach((support, supportIndex) => {
+      // 이전 텍스트 추가
+      if (support.start_index > lastIndex) {
+        elements.push(
+          <span key={`text-${supportIndex}`}>
+            {text.substring(lastIndex, support.start_index)}
+          </span>
+        );
+      }
+
+      // 풋노트가 있는 텍스트 부분
+      const sourceNumbers = support.source_indices
+        .filter(index => index < sources.length)
+        .map(index => index + 1);
+
+      if (sourceNumbers.length > 0) {
+        elements.push(
+          <span key={`footnote-${supportIndex}`} className="footnote-text">
+            {support.text}
+            {sourceNumbers.map(num => (
+              <a 
+                key={num}
+                href={sources[num - 1]?.url || '#'} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="footnote-link"
+                title={sources[num - 1]?.title || ''}
+              >
+                [{num}]
+              </a>
+            ))}
+          </span>
+        );
+      } else {
+        elements.push(
+          <span key={`plain-${supportIndex}`}>{support.text}</span>
+        );
+      }
+
+      lastIndex = support.end_index;
+    });
+
+    // 남은 텍스트 추가
+    if (lastIndex < text.length) {
+      elements.push(
+        <span key="remaining">{text.substring(lastIndex)}</span>
+      );
+    }
+
+    return <span>{elements}</span>;
   };
 
   // 모의 금리 데이터 생성 함수
@@ -521,7 +598,12 @@ const StockDetail: React.FC = () => {
                         {analysisData.analysis.news_analysis.sentiment} ({analysisData.analysis.news_analysis.score}점)
                       </span>
                     </div>
-                    <p>{analysisData.analysis.news_analysis.summary}</p>
+                    <p>
+                      {analysisData.analysis.grounding_supports && analysisData.analysis.grounding_supports.length > 0 
+                        ? renderTextWithFootnotes(analysisData.analysis.news_analysis.summary, analysisData.analysis.grounding_supports, analysisData.analysis.sources)
+                        : analysisData.analysis.news_analysis.summary
+                      }
+                    </p>
                     <div className="key-topics">
                       {analysisData.analysis.news_analysis.key_topics.map((topic, index) => (
                         <span key={index} className="topic-tag">{topic}</span>
@@ -534,7 +616,12 @@ const StockDetail: React.FC = () => {
                   <h5>AI 인사이트</h5>
                   <ul className="insights-list">
                     {analysisData.analysis.ai_insights.map((insight, index) => (
-                      <li key={index}>{insight}</li>
+                      <li key={index}>
+                        {analysisData.analysis.grounding_supports && analysisData.analysis.grounding_supports.length > 0 
+                          ? renderTextWithFootnotes(insight, analysisData.analysis.grounding_supports, analysisData.analysis.sources)
+                          : insight
+                        }
+                      </li>
                     ))}
                   </ul>
                 </div>
@@ -555,6 +642,7 @@ const StockDetail: React.FC = () => {
                       {analysisData.analysis.sources.map((source, index) => (
                         <div key={index} className="source-card">
                           <div className="source-header">
+                            <span className="source-number">[{index + 1}]</span>
                             <a 
                               href={source.url} 
                               target="_blank" 
@@ -575,6 +663,16 @@ const StockDetail: React.FC = () => {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 개발 모드에서만 원본 텍스트 표시 */}
+                {process.env.NODE_ENV === 'development' && analysisData.analysis.original_text && (
+                  <div className="analysis-section-item">
+                    <h5>🔧 원본 텍스트 (개발용)</h5>
+                    <div className="original-text">
+                      <pre>{analysisData.analysis.original_text}</pre>
                     </div>
                   </div>
                 )}

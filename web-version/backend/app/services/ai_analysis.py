@@ -68,6 +68,14 @@ class SourceCitation(BaseModel):
     snippet: str
 
 
+class GroundingSupport(BaseModel):
+    """텍스트 세그먼트와 출처 매핑"""
+    start_index: int
+    end_index: int
+    text: str
+    source_indices: List[int]
+
+
 class StockAnalysisResult(BaseModel):
     """AI 주식 분석 전체 결과"""
     summary: AnalysisSummary
@@ -76,6 +84,8 @@ class StockAnalysisResult(BaseModel):
     risk_factors: List[str]
     ai_insights: List[str]
     sources: List[SourceCitation] = []
+    grounding_supports: List[GroundingSupport] = []
+    original_text: str = ""  # 원본 텍스트 (풋노트 적용 전)
 
 
 class GeminiStockAnalyzer:
@@ -129,8 +139,11 @@ class GeminiStockAnalyzer:
                 config=cfg1,
             )
             
-            # grounding metadata에서 출처 추출
-            sources = self._extract_sources_from_grounding(r1)
+            # grounding metadata에서 출처 및 텍스트 매핑 추출
+            sources, grounding_supports = self._extract_sources_from_grounding(r1)
+            
+            # 원본 텍스트 저장
+            original_text = r1.text if hasattr(r1, 'text') else ""
             
             # 2차: JSON 재포맷
             cfg2 = {
@@ -146,8 +159,12 @@ class GeminiStockAnalyzer:
             # JSON 파싱
             analysis_result = r2.parsed
             
-            # 출처 정보 추가
+            # 출처 및 grounding 정보 추가
             analysis_result.sources = sources
+            analysis_result.grounding_supports = [
+                GroundingSupport(**support) for support in grounding_supports
+            ]
+            analysis_result.original_text = original_text
 
             logger.info(f"Gemini analysis completed for {symbol}")
             return analysis_result
@@ -324,9 +341,10 @@ JSON 형태로 응답하되, {analysis_info['target_audience']}가 이해하기 
         
         return prompt
     
-    def _extract_sources_from_grounding(self, gemini_response) -> List[SourceCitation]:
-        """Gemini grounding metadata에서 출처 정보 추출"""
+    def _extract_sources_from_grounding(self, gemini_response) -> tuple[List[SourceCitation], List[dict]]:
+        """Gemini grounding metadata에서 출처 정보 및 텍스트 매핑 추출"""
         sources = []
+        grounding_supports = []
         
         try:
             # Gemini 응답의 grounding metadata 확인
@@ -334,9 +352,11 @@ JSON 형태로 응답하되, {analysis_info['target_audience']}가 이해하기 
                 candidate = gemini_response.candidates[0]
                 
                 if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
+                    grounding_metadata = candidate.grounding_metadata
+                    
                     # grounding_chunks에서 출처 추출
-                    if hasattr(candidate.grounding_metadata, 'grounding_chunks'):
-                        for chunk in candidate.grounding_metadata.grounding_chunks:
+                    if hasattr(grounding_metadata, 'grounding_chunks'):
+                        for i, chunk in enumerate(grounding_metadata.grounding_chunks):
                             if hasattr(chunk, 'web') and chunk.web:
                                 web_info = chunk.web
                                 source = SourceCitation(
@@ -346,17 +366,23 @@ JSON 형태로 응답하되, {analysis_info['target_audience']}가 이해하기 
                                 )
                                 sources.append(source)
                     
-                    # search_entry_point에서 추가 출처 정보 추출
-                    if hasattr(candidate.grounding_metadata, 'search_entry_point') and candidate.grounding_metadata.search_entry_point:
-                        search_entry = candidate.grounding_metadata.search_entry_point
-                        if hasattr(search_entry, 'rendered_content'):
-                            # 검색 결과에서 추가 출처 추출 (필요시)
-                            pass
+                    # grounding_supports에서 텍스트-출처 매핑 추출
+                    if hasattr(grounding_metadata, 'grounding_supports'):
+                        for support in grounding_metadata.grounding_supports:
+                            if hasattr(support, 'segment') and hasattr(support, 'grounding_chunk_indices'):
+                                segment = support.segment
+                                grounding_support = {
+                                    'start_index': getattr(segment, 'start_index', 0),
+                                    'end_index': getattr(segment, 'end_index', 0),
+                                    'text': getattr(segment, 'text', ''),
+                                    'source_indices': list(support.grounding_chunk_indices) if support.grounding_chunk_indices else []
+                                }
+                                grounding_supports.append(grounding_support)
                             
         except Exception as e:
             logger.warning(f"Failed to extract sources from grounding metadata: {e}")
         
-        return sources[:5]  # 최대 5개 출처만 반환
+        return sources[:5], grounding_supports  # 최대 5개 출처만 반환
     
     async def _generate_mock_analysis(self, symbol: str, market: str, analysis_type: str) -> StockAnalysisResult:
         """Mock AI 분석 결과 생성 (Gemini 사용 불가시 대체)"""
@@ -418,6 +444,22 @@ JSON 형태로 응답하되, {analysis_info['target_audience']}가 이해하기 
             )
         ]
         
+        # Mock grounding supports 생성 (AI 인사이트에 풋노트 적용 예시)
+        mock_grounding_supports = [
+            GroundingSupport(
+                start_index=0,
+                end_index=len(f"{period_desc} 기준 {price_trend} 전망"),
+                text=f"{period_desc} 기준 {price_trend} 전망",
+                source_indices=[0]
+            ),
+            GroundingSupport(
+                start_index=0,
+                end_index=len(f"뉴스 감성 {news_sentiment}적 영향"),
+                text=f"뉴스 감성 {news_sentiment}적 영향",
+                source_indices=[1]
+            )
+        ]
+        
         return StockAnalysisResult(
             summary=AnalysisSummary(
                 overall_signal=price_trend,
@@ -459,7 +501,9 @@ JSON 형태로 응답하되, {analysis_info['target_audience']}가 이해하기 
                 f"뉴스 감성 {news_sentiment}적 영향",
                 "장기 투자 관점에서 검토 필요"
             ][:random.randint(3, 4)],
-            sources=mock_sources[:random.randint(2, 3)]
+            sources=mock_sources[:random.randint(2, 3)],
+            grounding_supports=mock_grounding_supports,
+            original_text=f"Mock analysis for {symbol} - {period_desc} 기준 분석입니다. 실제 Gemini API 사용시 풋노트가 포함된 분석 결과를 제공합니다."
         )
 
 
