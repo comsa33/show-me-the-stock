@@ -130,6 +130,15 @@ const StockDetail: React.FC = () => {
       
       const data = await response.json();
       
+      // chart_data 유효성 검사
+      if (!data.chart_data || !Array.isArray(data.chart_data)) {
+        throw new Error(`Invalid chart_data: expected array, got ${typeof data.chart_data}`);
+      }
+      
+      if (data.chart_data.length === 0) {
+        throw new Error('차트 데이터가 비어있습니다.');
+      }
+      
       // v2 API 응답 형식을 기존 형식에 맞게 변환
       const transformedData = {
         symbol: data.symbol,

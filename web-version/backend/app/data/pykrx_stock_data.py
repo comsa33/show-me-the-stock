@@ -200,24 +200,38 @@ class PykrxStockDataFetcher:
         try:
             if market.upper() == "KR":
                 # pykrx 사용 - 올바른 파라미터 순서: get_market_ohlcv(start_date, end_date, ticker)
-                df = stock.get_market_ohlcv(start_date, end_date, symbol)
-                if df is not None and not df.empty:
-                    # pykrx 컬럼명 확인 후 영어로 변경
-                    logger.info(f"pykrx columns for {symbol}: {df.columns.tolist()}")
-                    logger.info(f"pykrx data shape: {df.shape}")
+                try:
+                    df = stock.get_market_ohlcv(start_date, end_date, symbol)
+                    logger.info(f"pykrx raw response for {symbol}: type={type(df)}, empty={df is None or (hasattr(df, 'empty') and df.empty)}")
                     
-                    # pykrx는 한글 컬럼명으로 반환: 시가, 고가, 저가, 종가, 거래량, 거래대금, 등락률
-                    expected_columns = ["시가", "고가", "저가", "종가", "거래량"]
-                    
-                    # 실제 컬럼이 있는지 확인
-                    if all(col in df.columns for col in expected_columns):
-                        # 필요한 컬럼만 선택하고 영어명으로 변경
-                        df_selected = df[expected_columns].copy()
-                        df_selected.columns = ["Open", "High", "Low", "Close", "Volume"]
-                        return df_selected
+                    if df is not None and not df.empty:
+                        # pykrx 컬럼명 확인 후 영어로 변경
+                        logger.info(f"pykrx columns for {symbol}: {df.columns.tolist()}")
+                        logger.info(f"pykrx data shape: {df.shape}")
+                        logger.info(f"pykrx first few rows: {df.head()}")
+                        
+                        # pykrx는 한글 컬럼명으로 반환: 시가, 고가, 저가, 종가, 거래량, 등락률 (6개 컬럼)
+                        required_columns = ["시가", "고가", "저가", "종가", "거래량"]
+                        
+                        # 필요한 컬럼이 모두 있는지 확인
+                        if all(col in df.columns for col in required_columns):
+                            # 필요한 컬럼만 선택하고 영어명으로 변경
+                            df_selected = df[required_columns].copy()
+                            df_selected.columns = ["Open", "High", "Low", "Close", "Volume"]
+                            logger.info(f"Successfully processed {symbol} data with {len(df_selected)} rows")
+                            return df_selected
+                        else:
+                            # 부분적으로라도 매칭되는 컬럼이 있는지 확인
+                            available_cols = df.columns.tolist()
+                            missing_cols = [col for col in required_columns if col not in available_cols]
+                            logger.error(f"Missing columns for {symbol}. Required: {required_columns}, Missing: {missing_cols}, Available: {available_cols}")
+                            return None
                     else:
-                        logger.error(f"Expected columns not found. Available columns: {df.columns.tolist()}")
+                        logger.warning(f"Empty or None dataframe returned for {symbol}")
                         return None
+                except Exception as e:
+                    logger.error(f"Error fetching pykrx data for {symbol}: {e}")
+                    raise e
             else:
                 # 미국 주식은 yfinance 사용
                 ticker = yf.Ticker(symbol)

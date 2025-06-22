@@ -2,9 +2,12 @@
 주식 관련 API 엔드포인트 v2 (pykrx 사용)
 """
 
+import logging
 from app.core.redis_client import RedisClient
 from app.data.pykrx_stock_data import PykrxStockDataFetcher
 from fastapi import APIRouter, Depends, HTTPException, Query
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -323,7 +326,7 @@ async def get_stock_data_v2(
                 }
             )
 
-        return {
+        result = {
             "symbol": symbol,
             "market": market.upper(),
             "period": period,
@@ -331,9 +334,14 @@ async def get_stock_data_v2(
             "change": change,
             "change_percent": change_percent,
             "volume": int(df["Volume"].iloc[-1]),
-            "chart_data": chart_data[-min(len(chart_data), 500)],  # 최대 500개 포인트
+            "chart_data": chart_data[-min(len(chart_data), 500):],  # 최대 500개 포인트 (슬라이싱)
             "data_points": len(chart_data),
         }
+        
+        # 응답 로깅
+        logger.info(f"API response for {symbol}: data_points={len(chart_data)}, chart_data_type={type(result['chart_data'])}, chart_data_len={len(result['chart_data'])}")
+        
+        return result
 
     except HTTPException:
         raise
