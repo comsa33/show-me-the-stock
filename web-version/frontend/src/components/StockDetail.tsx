@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { API_BASE } from '../config';
+import ProfessionalStockChart from './ProfessionalStockChart';
 import './StockDetail.css';
 
 interface StockData {
@@ -63,6 +64,7 @@ const StockDetail: React.FC = () => {
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [period, setPeriod] = useState('1y');
   const [showInterestRate, setShowInterestRate] = useState(false);
+  const [interestRateData, setInterestRateData] = useState<Array<{ date: string; rate: number }>>([]);
   const [analysisType, setAnalysisType] = useState<'short' | 'long'>('short');
 
   const periods = [
@@ -86,6 +88,8 @@ const StockDetail: React.FC = () => {
       );
       const data = await response.json();
       setStockData(data);
+      // 주식 데이터를 받은 후 금리 데이터 생성
+      generateInterestRateData(data);
     } catch (error) {
       console.error('주식 데이터 로딩 실패:', error);
     } finally {
@@ -128,9 +132,23 @@ const StockDetail: React.FC = () => {
       : `$${price.toFixed(2)}`;
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('ko-KR');
+  // 모의 금리 데이터 생성 함수
+  const generateInterestRateData = (stockData: StockData) => {
+    const baseRate = selectedStock.market === 'KR' ? 3.5 : 5.25; // 한국: 3.5%, 미국: 5.25%
+    const rateData = stockData.data.map((point, index) => {
+      // 시간에 따른 금리 변동 시뮬레이션 (실제로는 API에서 가져와야 함)
+      const variation = Math.sin(index / 30) * 0.5 + Math.random() * 0.2 - 0.1;
+      const rate = Math.max(0.1, baseRate + variation);
+      
+      return {
+        date: point.Date,
+        rate: parseFloat(rate.toFixed(2))
+      };
+    });
+    
+    setInterestRateData(rateData);
   };
+
 
   return (
     <div className="stock-detail-container slide-up">
@@ -190,12 +208,14 @@ const StockDetail: React.FC = () => {
             </div>
             
             <div className="chart-options">
-              <label className="checkbox-label">
+              <label className="toggle-switch-label">
                 <input 
                   type="checkbox" 
+                  className="toggle-input"
                   checked={showInterestRate}
                   onChange={(e) => setShowInterestRate(e.target.checked)}
                 />
+                <span className="toggle-slider"></span>
                 금리 오버레이
               </label>
             </div>
@@ -208,28 +228,15 @@ const StockDetail: React.FC = () => {
                 <p>차트 데이터 로딩 중...</p>
               </div>
             ) : stockData ? (
-              <div className="simple-chart">
-                <div className="chart-header">
-                  <h4>{selectedStock.name} 주가 차트</h4>
-                  <span>최근 {stockData.data.length}일간 데이터</span>
-                </div>
-                
-                <div className="price-chart">
-                  {stockData.data.slice(-30).map((point, index) => {
-                    const maxPrice = Math.max(...stockData.data.slice(-30).map(d => d.High));
-                    const minPrice = Math.min(...stockData.data.slice(-30).map(d => d.Low));
-                    const height = ((point.Close - minPrice) / (maxPrice - minPrice)) * 200;
-                    
-                    return (
-                      <div 
-                        key={index}
-                        className="price-bar"
-                        style={{ height: `${height}px` }}
-                        title={`${formatDate(point.Date)}: ${formatPrice(point.Close)}`}
-                      />
-                    );
-                  })}
-                </div>
+              <>
+                <ProfessionalStockChart 
+                  data={stockData.data}
+                  symbol={selectedStock.symbol}
+                  market={selectedStock.market}
+                  showInterestRate={showInterestRate}
+                  interestRateData={interestRateData}
+                  onToggleInterestRate={setShowInterestRate}
+                />
                 
                 <div className="chart-summary">
                   <div className="summary-item">
@@ -245,7 +252,7 @@ const StockDetail: React.FC = () => {
                     <span>{(stockData.data.reduce((sum, d) => sum + d.Volume, 0) / stockData.data.length).toLocaleString()}</span>
                   </div>
                 </div>
-              </div>
+              </>
             ) : (
               <div className="chart-error">
                 <p>차트 데이터를 불러올 수 없습니다.</p>
