@@ -202,7 +202,16 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
+}
+
+.status-dot-large.status-online {
+  background-color: #4ade80;
   animation: pulse 2s infinite;
+}
+
+.status-dot-large.status-offline {
+  background-color: #f87171;
+  animation: none;
 }
 
 .status-text {

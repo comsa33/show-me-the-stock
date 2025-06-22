@@ -364,13 +364,15 @@ JSON 형태로 응답하되, {analysis_info['target_audience']}가 이해하기 
         import random
         
         # 분석 기간 설정
-        # 분석 유형별 프롬프트 커스터마이징
-        if analysis_type == "beginner":
-            period_desc = "1일"
-            data_period = "최근 1일 + 당일 뉴스"
-        else:
-            period_desc = "2주"
-            data_period = "최근 2주 + 관련 뉴스"
+        period_map = {
+            "beginner": {"desc": "3일", "data_period": "최근 3일간 패턴 분석"},
+            "swing": {"desc": "1개월", "data_period": "최근 1개월 중기 트렌드 분석"},
+            "invest": {"desc": "3개월", "data_period": "최근 3개월 장기 전망 분석"}
+        }
+        
+        period_info = period_map.get(analysis_type, period_map["beginner"])
+        period_desc = period_info["desc"]
+        data_period = period_info["data_period"]
         
         # Mock 데이터 생성
         price_trend = random.choice(["상승", "하락", "횡보"])

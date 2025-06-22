@@ -146,7 +146,15 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
   const SimpleLineChart = () => (
     <div style={{ position: 'relative' }}>
       <ResponsiveContainer width="100%" height={400}>
-        <ComposedChart data={processedData} margin={{ top: 20, right: showInterestRate ? 60 : 30, left: 20, bottom: 20 }}>
+        <ComposedChart 
+          data={processedData} 
+          margin={{ 
+            top: 20, 
+            right: showInterestRate ? (window.innerWidth <= 768 ? 40 : 60) : 30, 
+            left: 20, 
+            bottom: 20 
+          }}
+        >
           {/* 가로줄만 표시되는 격자 */}
           <CartesianGrid horizontal={true} vertical={false} stroke="#f0f0f0" strokeDasharray="1 1" />
           
@@ -204,7 +212,12 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
               dataKey="interestRate" 
               stroke="#10b981" 
               strokeWidth={1.5}
-              dot={false}
+              dot={(dotProps: any) => {
+                if (dotProps.index === processedData.length - 1) {
+                  return <circle cx={dotProps.cx} cy={dotProps.cy} r={4} fill="#10b981" stroke="#ffffff" strokeWidth={2} />;
+                }
+                return <></>;
+              }}
               activeDot={{ r: 3, fill: '#10b981' }}
             />
           )}

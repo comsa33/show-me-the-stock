@@ -570,7 +570,9 @@ const StockDetail: React.FC = () => {
                             </a>
                           </div>
                           <p className="source-snippet">{source.snippet}</p>
-                          <div className="source-url">{new URL(source.url).hostname}</div>
+                          <div className="source-url">
+                            {source.url.startsWith('http') ? new URL(source.url).hostname : source.url}
+                          </div>
                         </div>
                       ))}
                     </div>

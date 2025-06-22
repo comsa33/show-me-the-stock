@@ -326,6 +326,11 @@
     min-width: 160px;
     font-size: 11px;
   }
+  
+  /* 모바일에서 우측 Y축 라벨 크기 줄이기 */
+  .recharts-yAxis.recharts-yAxisRight text {
+    font-size: 10px !important;
+  }
 }
 
 @media (max-width: 480px) {

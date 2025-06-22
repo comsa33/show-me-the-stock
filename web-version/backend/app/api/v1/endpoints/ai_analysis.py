@@ -18,14 +18,14 @@ router = APIRouter()
 async def analyze_stock(
     symbol: str,
     market: str = Query(..., description="시장 (KR/US)"),
-    analysis_type: str = Query("short", description="분석 타입 (short/long)"),
+    analysis_type: str = Query("beginner", description="분석 타입 (beginner/swing/invest)"),
 ):
     """
     Google Gemini를 사용한 AI 주식 분석
     Args:
         symbol: 종목 코드
         market: 시장 구분 (KR/US)
-        analysis_type: 분석 타입 (short: 1일, long: 2주)
+        analysis_type: 분석 타입 (beginner: 3일, swing: 1개월, invest: 3개월)
     """
     try:
         logger.info(f"Starting AI analysis for {symbol} ({market}) - {analysis_type}")
