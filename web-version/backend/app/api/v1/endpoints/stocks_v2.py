@@ -337,6 +337,165 @@ async def get_popular_stocks_v2(
         )
 
 
+@router.get("/detail/{symbol}")
+async def get_stock_detail_info(
+    symbol: str,
+    market: str = Query(..., description="시장 (KOSPI/KOSDAQ/US)"),
+    stock_fetcher: PykrxStockDataFetcher = Depends(get_stock_fetcher),
+):
+    """
+    상세 주식 정보 조회
+    Args:
+        symbol: 종목 코드
+        market: 시장 구분
+    Returns:
+        상세 주식 정보 (전일종가, 일일변동폭, 52주 변동폭, 시가총액, 평균거래량 등)
+    """
+    try:
+        import pandas as pd
+        from datetime import datetime, timedelta
+        from pykrx import stock
+        
+        today = datetime.now().strftime("%Y%m%d")
+        one_year_ago = (datetime.now() - timedelta(days=365)).strftime("%Y%m%d")
+        
+        market_code = "KR" if market.upper() in ["KOSPI", "KOSDAQ"] else "US"
+        
+        if market_code == "KR":
+            # 한국 주식 상세 정보
+            
+            # 1년간 OHLCV 데이터
+            df = stock_fetcher.get_stock_ohlcv(symbol, one_year_ago, today, "KR")
+            if df is None or df.empty:
+                raise HTTPException(status_code=404, detail=f"종목 데이터를 찾을 수 없습니다: {symbol}")
+            
+            # 기본 가격 정보
+            current_close = float(df["Close"].iloc[-1])
+            previous_close = float(df["Close"].iloc[-2]) if len(df) > 1 else current_close
+            current_high = float(df["High"].iloc[-1])
+            current_low = float(df["Low"].iloc[-1])
+            current_volume = int(df["Volume"].iloc[-1])
+            
+            # 52주 최고가/최저가
+            year_high = float(df["High"].max())
+            year_low = float(df["Low"].min())
+            
+            # 평균 거래량 (20일)
+            avg_volume_20d = int(df["Volume"].tail(20).mean()) if len(df) >= 20 else current_volume
+            
+            # 일일 변동폭
+            daily_range_low = current_low
+            daily_range_high = current_high
+            
+            # 시가총액 조회 시도
+            market_cap = None
+            try:
+                # pykrx를 통한 시가총액 조회
+                market_str = "KOSPI" if market.upper() == "KOSPI" else "KOSDAQ"
+                market_cap_data = stock.get_market_cap_by_date(today, today, market_str)
+                if not market_cap_data.empty and symbol in market_cap_data.index:
+                    market_cap = int(market_cap_data.loc[symbol, "시가총액"]) if "시가총액" in market_cap_data.columns else None
+            except Exception:
+                market_cap = None
+            
+            # PER/PBR 조회 시도
+            per, pbr = None, None
+            try:
+                fundamental_data = stock.get_market_fundamental_by_date(today, today, market_str)
+                if not fundamental_data.empty and symbol in fundamental_data.index:
+                    per = float(fundamental_data.loc[symbol, "PER"]) if "PER" in fundamental_data.columns else None
+                    pbr = float(fundamental_data.loc[symbol, "PBR"]) if "PBR" in fundamental_data.columns else None
+            except Exception:
+                per, pbr = None, None
+            
+            return {
+                "symbol": symbol,
+                "market": market.upper(),
+                "basic_info": {
+                    "current_price": current_close,
+                    "previous_close": previous_close,
+                    "change": current_close - previous_close,
+                    "change_percent": ((current_close - previous_close) / previous_close * 100) if previous_close > 0 else 0,
+                },
+                "price_ranges": {
+                    "daily_low": daily_range_low,
+                    "daily_high": daily_range_high,
+                    "daily_range": f"₩{daily_range_low:,.0f} - ₩{daily_range_high:,.0f}",
+                    "year_low": year_low,
+                    "year_high": year_high,
+                    "week_52_range": f"₩{year_low:,.0f} - ₩{year_high:,.0f}",
+                },
+                "trading_info": {
+                    "current_volume": current_volume,
+                    "avg_volume_20d": avg_volume_20d,
+                    "volume_ratio": (current_volume / avg_volume_20d) if avg_volume_20d > 0 else 1.0,
+                },
+                "financial_metrics": {
+                    "market_cap": market_cap,
+                    "market_cap_formatted": f"{market_cap/1000000000000:.2f}조 KRW" if market_cap else "N/A",
+                    "per": per,
+                    "pbr": pbr,
+                    "dividend_yield": None,  # pykrx에서 직접 지원 안함
+                },
+                "last_updated": today
+            }
+            
+        else:
+            # 미국 주식 - 제한된 정보만 제공
+            df = stock_fetcher.get_stock_ohlcv(symbol, one_year_ago, today, "US")
+            if df is None or df.empty:
+                raise HTTPException(status_code=404, detail=f"종목 데이터를 찾을 수 없습니다: {symbol}")
+            
+            current_close = float(df["Close"].iloc[-1])
+            previous_close = float(df["Close"].iloc[-2]) if len(df) > 1 else current_close
+            current_high = float(df["High"].iloc[-1])
+            current_low = float(df["Low"].iloc[-1])
+            current_volume = int(df["Volume"].iloc[-1])
+            
+            year_high = float(df["High"].max())
+            year_low = float(df["Low"].min())
+            avg_volume_20d = int(df["Volume"].tail(20).mean()) if len(df) >= 20 else current_volume
+            
+            return {
+                "symbol": symbol,
+                "market": market.upper(),
+                "basic_info": {
+                    "current_price": current_close,
+                    "previous_close": previous_close,
+                    "change": current_close - previous_close,
+                    "change_percent": ((current_close - previous_close) / previous_close * 100) if previous_close > 0 else 0,
+                },
+                "price_ranges": {
+                    "daily_low": current_low,
+                    "daily_high": current_high,
+                    "daily_range": f"${current_low:.2f} - ${current_high:.2f}",
+                    "year_low": year_low,
+                    "year_high": year_high,
+                    "week_52_range": f"${year_low:.2f} - ${year_high:.2f}",
+                },
+                "trading_info": {
+                    "current_volume": current_volume,
+                    "avg_volume_20d": avg_volume_20d,
+                    "volume_ratio": (current_volume / avg_volume_20d) if avg_volume_20d > 0 else 1.0,
+                },
+                "financial_metrics": {
+                    "market_cap": None,
+                    "market_cap_formatted": "N/A",
+                    "per": None,
+                    "pbr": None,
+                    "dividend_yield": None,
+                },
+                "last_updated": today
+            }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"상세 주식 정보 조회 중 오류 발생: {str(e)}"
+        )
+
+
 @router.get("/market/status")
 async def get_market_status_v2(
     stock_fetcher: PykrxStockDataFetcher = Depends(get_stock_fetcher),

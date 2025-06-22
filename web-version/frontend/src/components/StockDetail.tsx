@@ -17,6 +17,38 @@ interface StockData {
   current_price: number;
 }
 
+interface DetailedStockInfo {
+  symbol: string;
+  market: string;
+  basic_info: {
+    current_price: number;
+    previous_close: number;
+    change: number;
+    change_percent: number;
+  };
+  price_ranges: {
+    daily_low: number;
+    daily_high: number;
+    daily_range: string;
+    year_low: number;
+    year_high: number;
+    week_52_range: string;
+  };
+  trading_info: {
+    current_volume: number;
+    avg_volume_20d: number;
+    volume_ratio: number;
+  };
+  financial_metrics: {
+    market_cap: number | null;
+    market_cap_formatted: string;
+    per: number | null;
+    pbr: number | null;
+    dividend_yield: number | null;
+  };
+  last_updated: string;
+}
+
 interface AnalysisData {
   symbol: string;
   market: string;
@@ -59,8 +91,10 @@ interface AnalysisData {
 const StockDetail: React.FC = () => {
   const { selectedStock, currentView, setCurrentView } = useApp();
   const [stockData, setStockData] = useState<StockData | null>(null);
+  const [detailedInfo, setDetailedInfo] = useState<DetailedStockInfo | null>(null);
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [period, setPeriod] = useState('1y');
   const [showInterestRate, setShowInterestRate] = useState(false);
@@ -97,6 +131,23 @@ const StockDetail: React.FC = () => {
     }
   };
 
+  const fetchDetailedInfo = async () => {
+    if (!selectedStock) return;
+    
+    setDetailLoading(true);
+    try {
+      const response = await fetch(
+        `${API_BASE}/v1/stocks-v2/detail/${selectedStock.symbol}?market=${selectedStock.market}`
+      );
+      const data = await response.json();
+      setDetailedInfo(data);
+    } catch (error) {
+      console.error('상세 정보 로딩 실패:', error);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
   const fetchAnalysis = async (type: 'short' | 'long') => {
     if (!selectedStock) return;
     
@@ -118,6 +169,7 @@ const StockDetail: React.FC = () => {
   useEffect(() => {
     if (selectedStock && currentView === 'stocks') {
       fetchStockData();
+      fetchDetailedInfo();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStock, period, currentView]);
@@ -238,21 +290,73 @@ const StockDetail: React.FC = () => {
                   interestRateData={interestRateData}
                   onToggleInterestRate={setShowInterestRate}
                 />
-                
-                <div className="chart-summary">
-                  <div className="summary-item">
-                    <span>최고가</span>
-                    <span>{formatPrice(Math.max(...stockData.data.map(d => d.High)))}</span>
+
+                {/* 네이버 스타일 상세 정보 */}
+                {detailLoading ? (
+                  <div className="detail-info-loading">
+                    <div className="loading-spinner"></div>
+                    <p>상세 정보 로딩 중...</p>
                   </div>
-                  <div className="summary-item">
-                    <span>최저가</span>
-                    <span>{formatPrice(Math.min(...stockData.data.map(d => d.Low)))}</span>
+                ) : detailedInfo ? (
+                  <div className="stock-detail-info">
+                    <div className="detail-info-grid">
+                      <div className="info-card">
+                        <span className="info-label">전일 종가</span>
+                        <span className="info-value">
+                          {selectedStock.market === 'KR' 
+                            ? `₩${detailedInfo.basic_info.previous_close.toLocaleString()}`
+                            : `$${detailedInfo.basic_info.previous_close.toFixed(2)}`
+                          }
+                        </span>
+                      </div>
+                      
+                      <div className="info-card">
+                        <span className="info-label">일일 변동폭</span>
+                        <span className="info-value">{detailedInfo.price_ranges.daily_range}</span>
+                      </div>
+                      
+                      <div className="info-card">
+                        <span className="info-label">52주 변동폭</span>
+                        <span className="info-value">{detailedInfo.price_ranges.week_52_range}</span>
+                      </div>
+                      
+                      {detailedInfo.financial_metrics.market_cap && (
+                        <div className="info-card">
+                          <span className="info-label">시가총액</span>
+                          <span className="info-value">{detailedInfo.financial_metrics.market_cap_formatted}</span>
+                        </div>
+                      )}
+                      
+                      <div className="info-card">
+                        <span className="info-label">평균 거래량</span>
+                        <span className="info-value">
+                          {(detailedInfo.trading_info.avg_volume_20d / 10000).toFixed(1)}만
+                        </span>
+                      </div>
+                      
+                      {detailedInfo.financial_metrics.per && (
+                        <div className="info-card">
+                          <span className="info-label">주가수익률 (PER)</span>
+                          <span className="info-value">{detailedInfo.financial_metrics.per.toFixed(2)}</span>
+                        </div>
+                      )}
+                      
+                      {detailedInfo.financial_metrics.pbr && (
+                        <div className="info-card">
+                          <span className="info-label">주가순자산비율 (PBR)</span>
+                          <span className="info-value">{detailedInfo.financial_metrics.pbr.toFixed(2)}</span>
+                        </div>
+                      )}
+                      
+                      {detailedInfo.financial_metrics.dividend_yield && (
+                        <div className="info-card">
+                          <span className="info-label">배당수익률</span>
+                          <span className="info-value">{detailedInfo.financial_metrics.dividend_yield.toFixed(2)}%</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="summary-item">
-                    <span>평균 거래량</span>
-                    <span>{(stockData.data.reduce((sum, d) => sum + d.Volume, 0) / stockData.data.length).toLocaleString()}</span>
-                  </div>
-                </div>
+                ) : null}
               </>
             ) : (
               <div className="chart-error">

@@ -104,10 +104,22 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
           <div className="tooltip-content">
             <div className="price-info">
               <div className="price-row">
-                <span>주가:</span>
+                <span>종가:</span>
                 <span className={data.change >= 0 ? 'positive-price' : 'negative-price'}>
                   {formatPrice(data.Close)}
                 </span>
+              </div>
+              <div className="price-row">
+                <span>고가:</span>
+                <span className="high-price">{formatPrice(data.High)}</span>
+              </div>
+              <div className="price-row">
+                <span>저가:</span>
+                <span className="low-price">{formatPrice(data.Low)}</span>
+              </div>
+              <div className="price-row">
+                <span>시가:</span>
+                <span>{formatPrice(data.Open)}</span>
               </div>
               <div className="price-row">
                 <span>변동:</span>
@@ -159,7 +171,7 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
             <YAxis 
               yAxisId="right" 
               orientation="right"
-              tick={{ fontSize: 12, fill: '#82ca9d' }}
+              tick={{ fontSize: 12, fill: '#10b981' }}
               axisLine={false}
               tickLine={false}
               tickFormatter={(value) => `${value}%`}
@@ -190,11 +202,10 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
               yAxisId="right"
               type="monotone" 
               dataKey="interestRate" 
-              stroke="#82ca9d" 
-              strokeWidth={2}
+              stroke="#10b981" 
+              strokeWidth={1.5}
               dot={false}
-              strokeDasharray="5 5"
-              activeDot={{ r: 3, fill: '#82ca9d' }}
+              activeDot={{ r: 3, fill: '#10b981' }}
             />
           )}
         </ComposedChart>
@@ -218,7 +229,7 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
         </div>
         {showInterestRate && interestRateData.length > 0 && (
           <div className="legend-item">
-            <span className="legend-color legend-dashed" style={{ backgroundColor: '#82ca9d' }}></span>
+            <span className="legend-color" style={{ backgroundColor: '#10b981' }}></span>
             금리 ({market === 'KR' ? '한국은행 기준금리' : '연준 기준금리'})
           </div>
         )}

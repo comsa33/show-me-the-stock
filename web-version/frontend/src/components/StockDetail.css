@@ -506,3 +506,84 @@
   font-size: 14px;
   line-height: 1.5;
 }
+
+/* 네이버 스타일 상세 정보 */
+.stock-detail-info {
+  margin-top: 30px;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.detail-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.info-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.info-card:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.info-label {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
+
+.info-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  text-align: right;
+}
+
+.detail-info-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .detail-info-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .info-card {
+    padding: 14px 16px;
+  }
+  
+  .info-label {
+    font-size: 13px;
+  }
+  
+  .info-value {
+    font-size: 15px;
+  }
+  
+  .stock-detail-info {
+    margin-top: 20px;
+    padding: 20px;
+  }
+}
