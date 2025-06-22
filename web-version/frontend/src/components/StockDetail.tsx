@@ -246,12 +246,12 @@ const StockDetail: React.FC = () => {
     text: string, 
     groundingSupports: GroundingSupport[], 
     sources: SourceCitation[]
-  ): JSX.Element => {
+  ): React.ReactElement => {
     if (!groundingSupports || groundingSupports.length === 0) {
       return <span>{text}</span>;
     }
 
-    const elements: JSX.Element[] = [];
+    const elements: React.ReactElement[] = [];
     let lastIndex = 0;
 
     // grounding supports를 시작 인덱스 순으로 정렬

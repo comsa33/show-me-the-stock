@@ -9,7 +9,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
-  const { searchTerm, setSearchTerm, notifications } = useApp();
+  const { setSearchTerm, notifications } = useApp();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [localSearchTerm, setLocalSearchTerm] = useState('');

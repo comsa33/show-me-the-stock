@@ -280,6 +280,7 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
     fetchMarketIndices();
     fetchMarketStatus();
     fetchTradingVolume();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMarket]);
   
   const marketData = {
