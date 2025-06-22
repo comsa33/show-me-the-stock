@@ -182,7 +182,7 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
           <span className="market-flag">{currentMarket.flag}</span>
           <h2>{currentMarket.name} 개요</h2>
         </div>
-        <button className="refresh-btn" onClick={onRefresh}>
+        <button className="refresh-btn" onClick={() => { onRefresh(); fetchMarketIndices(); }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="23 4 23 10 17 10"></polyline>
             <polyline points="1 20 1 14 7 14"></polyline>
@@ -197,17 +197,25 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
         <div className="overview-card indices-card">
           <h3 className="card-title">주요 지수</h3>
           <div className="indices-list">
-            {currentMarket.indices.map((index, i) => (
-              <div key={i} className="index-item">
-                <div className="index-info">
-                  <span className="index-name">{index.name}</span>
-                  <span className="index-value">{index.value}</span>
+            {loading ? (
+              <div className="loading-indicator">지수 데이터 로딩 중...</div>
+            ) : (
+              currentMarket.indices.map((index, i) => (
+                <div key={i} className="index-item">
+                  <div className="index-info">
+                    <span className="index-name">
+                      {index.name}
+                      {index.data_source === 'real' && <span className="data-source-badge real">실시간</span>}
+                      {index.data_source === 'mock' && <span className="data-source-badge mock">샘플</span>}
+                    </span>
+                    <span className="index-value">{index.value}</span>
+                  </div>
+                  <span className={`index-change ${index.positive ? 'status-positive' : 'status-negative'}`}>
+                    {index.change}
+                  </span>
                 </div>
-                <span className={`index-change ${index.positive ? 'status-positive' : 'status-negative'}`}>
-                  {index.change}
-                </span>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
