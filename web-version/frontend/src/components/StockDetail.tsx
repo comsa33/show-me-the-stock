@@ -71,11 +71,11 @@ const StockDetail: React.FC = () => {
     { value: '1d', label: '1일' },
     { value: '5d', label: '5일' },
     { value: '1mo', label: '1개월' },
-    { value: '3mo', label: '3개월' },
     { value: '6mo', label: '6개월' },
+    { value: 'ytd', label: 'YTD' },
     { value: '1y', label: '1년' },
-    { value: '2y', label: '2년' },
-    { value: '5y', label: '5년' }
+    { value: '5y', label: '5년' },
+    { value: 'max', label: '최대' }
   ];
 
   const fetchStockData = async () => {
@@ -233,6 +233,7 @@ const StockDetail: React.FC = () => {
                   data={stockData.data}
                   symbol={selectedStock.symbol}
                   market={selectedStock.market}
+                  period={period}
                   showInterestRate={showInterestRate}
                   interestRateData={interestRateData}
                   onToggleInterestRate={setShowInterestRate}
