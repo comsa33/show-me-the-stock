@@ -26,14 +26,16 @@ async def get_stock_prices(
         # 새로운 페이지네이션 API 사용
         result = stock_fetcher.get_paginated_stocks(market, page, limit)
         
-        # 실시간 가격 정보 추가 (Mock 데이터)
+        # 실시간 가격 정보 추가 (실제 데이터)
         for stock in result["stocks"]:
             price_info = stock_fetcher.get_real_time_price(stock["symbol"], stock["market"])
             stock.update({
                 "price": price_info["price"],
                 "change": price_info["change"],
                 "change_percent": price_info["change_percent"],
-                "volume": price_info["volume"]
+                "volume": price_info["volume"],
+                "data_source": price_info.get("data_source", "unknown"),
+                "timestamp": price_info.get("timestamp")
             })
         
         return {

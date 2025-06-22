@@ -529,7 +529,7 @@ async def get_stock_detail_info(
             }
             
         else:
-            # 미국 주식 - 제한된 정보만 제공
+            # 미국 주식 - yfinance를 통한 상세 정보 제공
             df = stock_fetcher.get_stock_ohlcv(symbol, one_year_ago, today, "US")
             if df is None or df.empty:
                 raise HTTPException(status_code=404, detail=f"종목 데이터를 찾을 수 없습니다: {symbol}")
@@ -543,6 +543,52 @@ async def get_stock_detail_info(
             year_high = float(df["High"].max())
             year_low = float(df["Low"].min())
             avg_volume_20d = int(df["Volume"].tail(20).mean()) if len(df) >= 20 else current_volume
+            
+            # yfinance를 통한 추가 정보 조회
+            market_cap = None
+            per = None
+            pbr = None
+            dividend_yield = None
+            market_cap_formatted = "N/A"
+            
+            try:
+                import yfinance as yf
+                ticker_obj = yf.Ticker(symbol)
+                info = ticker_obj.info
+                
+                # 시가총액
+                if 'marketCap' in info and info['marketCap']:
+                    market_cap = info['marketCap']
+                    if market_cap >= 1_000_000_000_000:  # 1조 이상
+                        market_cap_formatted = f"${market_cap/1_000_000_000_000:.2f}T"
+                    elif market_cap >= 1_000_000_000:  # 10억 이상
+                        market_cap_formatted = f"${market_cap/1_000_000_000:.2f}B"
+                    elif market_cap >= 1_000_000:  # 100만 이상
+                        market_cap_formatted = f"${market_cap/1_000_000:.2f}M"
+                    else:
+                        market_cap_formatted = f"${market_cap:,.0f}"
+                
+                # PER (Price to Earnings Ratio)
+                if 'trailingPE' in info and info['trailingPE']:
+                    per = float(info['trailingPE'])
+                elif 'forwardPE' in info and info['forwardPE']:
+                    per = float(info['forwardPE'])
+                
+                # PBR (Price to Book Ratio)
+                if 'priceToBook' in info and info['priceToBook']:
+                    pbr = float(info['priceToBook'])
+                
+                # 배당수익률 (여러 필드 중 가장 정확한 것 선택)
+                if 'trailingAnnualDividendYield' in info and info['trailingAnnualDividendYield']:
+                    dividend_yield = float(info['trailingAnnualDividendYield']) * 100  # 퍼센트로 변환
+                elif 'dividendYield' in info and info['dividendYield']:
+                    dividend_yield = float(info['dividendYield'])  # 이미 퍼센트 형태
+                elif 'dividendRate' in info and info['dividendRate'] and 'currentPrice' in info and info['currentPrice']:
+                    # 배당률을 현재가로 나눠서 계산
+                    dividend_yield = (float(info['dividendRate']) / float(info['currentPrice'])) * 100
+                    
+            except Exception as e:
+                logger.warning(f"Failed to get additional US stock info for {symbol}: {e}")
             
             return {
                 "symbol": symbol,
@@ -567,11 +613,11 @@ async def get_stock_detail_info(
                     "volume_ratio": (current_volume / avg_volume_20d) if avg_volume_20d > 0 else 1.0,
                 },
                 "financial_metrics": {
-                    "market_cap": None,
-                    "market_cap_formatted": "N/A",
-                    "per": None,
-                    "pbr": None,
-                    "dividend_yield": None,
+                    "market_cap": market_cap,
+                    "market_cap_formatted": market_cap_formatted,
+                    "per": per,
+                    "pbr": pbr,
+                    "dividend_yield": dividend_yield,
                 },
                 "last_updated": today
             }

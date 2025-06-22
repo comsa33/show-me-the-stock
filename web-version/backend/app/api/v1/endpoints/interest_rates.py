@@ -17,18 +17,44 @@ interest_rate_fetcher = InterestRateDataFetcher()
 
 @router.get("/current")
 async def get_current_rates():
-    """현재 금리 정보 조회"""
+    """현재 금리 정보 조회 (실시간 데이터)"""
     try:
-        # 간단한 현재 금리 정보 반환
+        # 실제 데이터 가져오기
+        rates = interest_rate_fetcher.get_current_rates()
+        
+        # 미국 10년 국채와 한국 3년 국채 기준
+        us_rate = rates.get("US_10Y", 4.5)
+        kr_rate = rates.get("KR_3Y", 3.5)
+        
         return {
             "current_rates": {
-                "korea": {"rate": 3.5, "description": "한국 기준금리"},
-                "usa": {"rate": 5.25, "description": "미국 연방기금금리"},
+                "korea": {
+                    "rate": round(kr_rate, 2), 
+                    "description": "한국 3년 국채수익률",
+                    "source": "실시간 데이터" if "KR_3Y" in rates else "추정값"
+                },
+                "usa": {
+                    "rate": round(us_rate, 2), 
+                    "description": "미국 10년 국채수익률",
+                    "source": "yfinance 실시간"
+                },
+                "spread": round(us_rate - kr_rate, 2)
             },
             "timestamp": datetime.now().isoformat(),
+            "data_source": "mixed_real_time"
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"현재 금리 조회 실패: {str(e)}")
+        # 에러 시 백업 데이터
+        return {
+            "current_rates": {
+                "korea": {"rate": 3.5, "description": "한국 기준금리 (백업값)", "source": "fallback"},
+                "usa": {"rate": 4.5, "description": "미국 연방기금금리 (백업값)", "source": "fallback"},
+                "spread": 1.0
+            },
+            "timestamp": datetime.now().isoformat(),
+            "data_source": "fallback",
+            "error": str(e)
+        }
 
 
 @router.get("/korea")

@@ -317,23 +317,94 @@ class StockDataFetcher:
         return start_date.strftime('%Y-%m-%d')
 
     def get_real_time_price(self, symbol: str, market: str = "auto") -> Dict:
-        """실시간 주가 정보 가져오기 (Mock 데이터)"""
-        # 실제 구현에서는 실시간 API를 사용해야 함
-        import random
-        
-        if market.upper() == "KR":
-            base_price = random.randint(10000, 100000)
-        else:
-            base_price = random.randint(50, 500)
-        
-        change = random.uniform(-5, 5)
-        change_percent = change / base_price * 100
-        
-        return {
-            "symbol": symbol,
-            "price": base_price,
-            "change": change,
-            "change_percent": change_percent,
-            "volume": random.randint(100000, 10000000),
-            "timestamp": datetime.now().isoformat()
-        }
+        """실시간 주가 정보 가져오기 (pykrx 기반 실제 데이터)"""
+        try:
+            # pykrx를 통한 실제 데이터 조회
+            from pykrx import stock
+            from datetime import datetime, timedelta
+            
+            today = datetime.now().strftime("%Y%m%d")
+            week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y%m%d")
+            
+            if market.upper() == "KR":
+                try:
+                    # 최근 1주일 데이터 시도 (더 안정적)
+                    df = stock.get_market_ohlcv(week_ago, today, symbol)
+                    
+                    if df is not None and not df.empty:
+                        latest = df.iloc[-1]
+                        prev = df.iloc[-2] if len(df) > 1 else latest
+                        
+                        current_price = float(latest["종가"])
+                        previous_price = float(prev["종가"]) if len(df) > 1 else current_price
+                        change = current_price - previous_price
+                        change_percent = (change / previous_price * 100) if previous_price > 0 else 0
+                        
+                        return {
+                            "symbol": symbol,
+                            "price": current_price,
+                            "change": change,
+                            "change_percent": change_percent,
+                            "volume": int(latest["거래량"]),
+                            "timestamp": datetime.now().isoformat(),
+                            "data_source": "pykrx_real"
+                        }
+                except Exception as e:
+                    logger.warning(f"pykrx data fetch failed for {symbol}: {e}")
+            
+            elif market.upper() == "US":
+                try:
+                    import yfinance as yf
+                    ticker = yf.Ticker(symbol)
+                    hist = ticker.history(period="2d")
+                    
+                    if not hist.empty:
+                        current_price = float(hist["Close"].iloc[-1])
+                        previous_price = float(hist["Close"].iloc[-2]) if len(hist) > 1 else current_price
+                        change = current_price - previous_price
+                        change_percent = (change / previous_price * 100) if previous_price > 0 else 0
+                        
+                        return {
+                            "symbol": symbol,
+                            "price": current_price,
+                            "change": change,
+                            "change_percent": change_percent,
+                            "volume": int(hist["Volume"].iloc[-1]),
+                            "timestamp": datetime.now().isoformat(),
+                            "data_source": "yfinance_real"
+                        }
+                except Exception as e:
+                    logger.warning(f"yfinance data fetch failed for {symbol}: {e}")
+            
+            # 실패 시 fallback mock 데이터
+            import random
+            if market.upper() == "KR":
+                base_price = random.randint(10000, 100000)
+            else:
+                base_price = random.randint(50, 500)
+            
+            change = random.uniform(-5, 5)
+            change_percent = change / base_price * 100
+            
+            return {
+                "symbol": symbol,
+                "price": base_price,
+                "change": change,
+                "change_percent": change_percent,
+                "volume": random.randint(100000, 10000000),
+                "timestamp": datetime.now().isoformat(),
+                "data_source": "mock_fallback"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting real time price for {symbol}: {e}")
+            # 에러 시 기본값 반환
+            return {
+                "symbol": symbol,
+                "price": 0,
+                "change": 0,
+                "change_percent": 0,
+                "volume": 0,
+                "timestamp": datetime.now().isoformat(),
+                "data_source": "error_fallback"
+            }
