@@ -244,6 +244,34 @@
   gap: 15px;
 }
 
+.chart-error {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.chart-error .error-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.chart-error h3 {
+  margin: 0 0 12px 0;
+  color: #f87171;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.chart-error p {
+  margin: 0 0 24px 0;
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 400px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
 .simple-chart {
   flex: 1;
 }

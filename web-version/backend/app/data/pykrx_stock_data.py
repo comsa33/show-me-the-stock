@@ -199,21 +199,25 @@ class PykrxStockDataFetcher:
 
         try:
             if market.upper() == "KR":
-                # pykrx 사용
+                # pykrx 사용 - 올바른 파라미터 순서: get_market_ohlcv(start_date, end_date, ticker)
                 df = stock.get_market_ohlcv(start_date, end_date, symbol)
                 if df is not None and not df.empty:
-                    # 컬럼명 영어로 변경
-                    df.columns = [
-                        "Open",
-                        "High",
-                        "Low",
-                        "Close",
-                        "Volume",
-                        "Amount",
-                        "Change",
-                    ]
-                    df = df[["Open", "High", "Low", "Close", "Volume"]]  # 필요한 컬럼만
-                    return df
+                    # pykrx 컬럼명 확인 후 영어로 변경
+                    logger.info(f"pykrx columns for {symbol}: {df.columns.tolist()}")
+                    logger.info(f"pykrx data shape: {df.shape}")
+                    
+                    # pykrx는 한글 컬럼명으로 반환: 시가, 고가, 저가, 종가, 거래량, 거래대금, 등락률
+                    expected_columns = ["시가", "고가", "저가", "종가", "거래량"]
+                    
+                    # 실제 컬럼이 있는지 확인
+                    if all(col in df.columns for col in expected_columns):
+                        # 필요한 컬럼만 선택하고 영어명으로 변경
+                        df_selected = df[expected_columns].copy()
+                        df_selected.columns = ["Open", "High", "Low", "Close", "Volume"]
+                        return df_selected
+                    else:
+                        logger.error(f"Expected columns not found. Available columns: {df.columns.tolist()}")
+                        return None
             else:
                 # 미국 주식은 yfinance 사용
                 ticker = yf.Ticker(symbol)

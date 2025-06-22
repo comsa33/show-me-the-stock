@@ -248,13 +248,56 @@ async def get_stock_data_v2(
         end_date = datetime.now().strftime("%Y%m%d")
 
         # OHLCV 데이터 조회
-        market_code = "KR" if market.upper() in ["KOSPI", "KOSDAQ"] else "US"
-        df = stock_fetcher.get_stock_ohlcv(symbol, start_date, end_date, market_code)
-
+        market_code = "KR" if market.upper() in ["KOSPI", "KOSDAQ", "KR"] else "US"
+        
+        # KR 시장인 경우 KOSPI와 KOSDAQ 둘 다 시도
+        df = None
+        last_error = None
+        
+        if market_code == "KR":
+            # 특정 시장이 지정된 경우 해당 시장만 시도
+            if market.upper() in ["KOSPI", "KOSDAQ"]:
+                try:
+                    df = stock_fetcher.get_stock_ohlcv(symbol, start_date, end_date, market_code)
+                except Exception as e:
+                    last_error = e
+            else:
+                # 시장이 KR로 지정된 경우 직접 데이터 조회로 시도 (빠른 방식)
+                for specific_market in ["KOSPI", "KOSDAQ"]:
+                    try:
+                        df = stock_fetcher.get_stock_ohlcv(symbol, start_date, end_date, market_code)
+                        if df is not None and not df.empty:
+                            market = specific_market  # 찾은 시장으로 업데이트
+                            break
+                    except Exception as e:
+                        last_error = e
+                        continue
+        else:
+            # US 시장
+            try:
+                df = stock_fetcher.get_stock_ohlcv(symbol, start_date, end_date, market_code)
+            except Exception as e:
+                last_error = e
+        
+        # 데이터를 찾지 못한 경우 오류 처리
         if df is None or df.empty:
-            raise HTTPException(
-                status_code=404, detail=f"종목 데이터를 찾을 수 없습니다: {symbol}"
-            )
+            if last_error:
+                error_msg = str(last_error)
+                if "delisted" in error_msg.lower() or "no timezone found" in error_msg.lower():
+                    raise HTTPException(
+                        status_code=404, 
+                        detail=f"종목 '{symbol}'은 상장폐지되었거나 거래가 중단된 종목입니다."
+                    )
+                else:
+                    raise HTTPException(
+                        status_code=500, 
+                        detail=f"종목 데이터 조회 중 오류가 발생했습니다: {error_msg}"
+                    )
+            else:
+                raise HTTPException(
+                    status_code=404, 
+                    detail=f"종목 데이터를 찾을 수 없습니다. 종목코드 '{symbol}'이 유효하지 않거나 상장폐지된 종목일 수 있습니다."
+                )
 
         # 현재 가격 정보
         current_price = float(df["Close"].iloc[-1])
@@ -359,15 +402,52 @@ async def get_stock_detail_info(
         today = datetime.now().strftime("%Y%m%d")
         one_year_ago = (datetime.now() - timedelta(days=365)).strftime("%Y%m%d")
         
-        market_code = "KR" if market.upper() in ["KOSPI", "KOSDAQ"] else "US"
+        market_code = "KR" if market.upper() in ["KOSPI", "KOSDAQ", "KR"] else "US"
         
         if market_code == "KR":
             # 한국 주식 상세 정보
             
-            # 1년간 OHLCV 데이터
-            df = stock_fetcher.get_stock_ohlcv(symbol, one_year_ago, today, "KR")
+            # 1년간 OHLCV 데이터 - KR 시장인 경우 KOSPI와 KOSDAQ 둘 다 시도
+            df = None
+            last_error = None
+            
+            if market.upper() in ["KOSPI", "KOSDAQ"]:
+                # 특정 시장이 지정된 경우
+                try:
+                    df = stock_fetcher.get_stock_ohlcv(symbol, one_year_ago, today, "KR")
+                except Exception as e:
+                    last_error = e
+            else:
+                # 시장이 KR로 지정된 경우 직접 데이터 조회로 시도 (빠른 방식)
+                for specific_market in ["KOSPI", "KOSDAQ"]:
+                    try:
+                        df = stock_fetcher.get_stock_ohlcv(symbol, one_year_ago, today, "KR")
+                        if df is not None and not df.empty:
+                            market = specific_market  # 찾은 시장으로 업데이트
+                            break
+                    except Exception as e:
+                        last_error = e
+                        continue
+            
+            # 데이터를 찾지 못한 경우 오류 처리
             if df is None or df.empty:
-                raise HTTPException(status_code=404, detail=f"종목 데이터를 찾을 수 없습니다: {symbol}")
+                if last_error:
+                    error_msg = str(last_error)
+                    if "delisted" in error_msg.lower() or "no timezone found" in error_msg.lower():
+                        raise HTTPException(
+                            status_code=404, 
+                            detail=f"종목 '{symbol}'은 상장폐지되었거나 거래가 중단된 종목입니다."
+                        )
+                    else:
+                        raise HTTPException(
+                            status_code=500, 
+                            detail=f"종목 데이터 조회 중 오류가 발생했습니다: {error_msg}"
+                        )
+                else:
+                    raise HTTPException(
+                        status_code=404, 
+                        detail=f"종목 데이터를 찾을 수 없습니다. 종목코드 '{symbol}'이 유효하지 않거나 상장폐지된 종목일 수 있습니다."
+                    )
             
             # 기본 가격 정보
             current_close = float(df["Close"].iloc[-1])

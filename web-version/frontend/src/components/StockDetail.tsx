@@ -96,6 +96,7 @@ const StockDetail: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState('1y');
   const [showInterestRate, setShowInterestRate] = useState(false);
   const [interestRateData, setInterestRateData] = useState<Array<{ date: string; rate: number }>>([]);
@@ -116,16 +117,40 @@ const StockDetail: React.FC = () => {
     if (!selectedStock) return;
     
     setLoading(true);
+    setError(null);
     try {
       const response = await fetch(
-        `${API_BASE}/v1/stocks/data/${selectedStock.symbol}?market=${selectedStock.market}&period=${period}`
+        `${API_BASE}/v1/stocks/v2/data/${selectedStock.symbol}?market=${selectedStock.market}&period=${period}`
       );
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || '데이터를 불러올 수 없습니다.');
+      }
+      
       const data = await response.json();
-      setStockData(data);
+      
+      // v2 API 응답 형식을 기존 형식에 맞게 변환
+      const transformedData = {
+        symbol: data.symbol,
+        current_price: data.current_price,
+        data: data.chart_data.map((item: any) => ({
+          Date: item.date,
+          Open: item.open,
+          High: item.high,
+          Low: item.low,
+          Close: item.close,
+          Volume: item.volume
+        }))
+      };
+      
+      setStockData(transformedData);
       // 주식 데이터를 받은 후 금리 데이터 생성
-      generateInterestRateData(data);
+      generateInterestRateData(transformedData);
     } catch (error) {
       console.error('주식 데이터 로딩 실패:', error);
+      setError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
+      setStockData(null);
     } finally {
       setLoading(false);
     }
@@ -137,12 +162,19 @@ const StockDetail: React.FC = () => {
     setDetailLoading(true);
     try {
       const response = await fetch(
-        `${API_BASE}/v1/stocks-v2/detail/${selectedStock.symbol}?market=${selectedStock.market}`
+        `${API_BASE}/v1/stocks/v2/detail/${selectedStock.symbol}?market=${selectedStock.market}`
       );
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || '상세 정보를 불러올 수 없습니다.');
+      }
+      
       const data = await response.json();
       setDetailedInfo(data);
     } catch (error) {
       console.error('상세 정보 로딩 실패:', error);
+      setDetailedInfo(null);
     } finally {
       setDetailLoading(false);
     }
@@ -278,6 +310,13 @@ const StockDetail: React.FC = () => {
               <div className="chart-loading">
                 <div className="loading-spinner"></div>
                 <p>차트 데이터 로딩 중...</p>
+              </div>
+            ) : error ? (
+              <div className="chart-error">
+                <div className="error-icon">⚠️</div>
+                <h3>데이터를 불러올 수 없습니다</h3>
+                <p>{error}</p>
+                <button onClick={fetchStockData} className="btn-primary">다시 시도</button>
               </div>
             ) : stockData ? (
               <>
