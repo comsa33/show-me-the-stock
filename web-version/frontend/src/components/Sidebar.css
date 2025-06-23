@@ -12,9 +12,9 @@
 .sidebar {
   width: 320px;
   height: 100vh;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-overlay);
   backdrop-filter: blur(20px);
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: 1px solid var(--border-primary);
   padding: 94px 24px 24px 24px;
   overflow-y: auto;
   transition: transform 0.3s ease;
@@ -46,7 +46,7 @@
   gap: 12px;
   padding: 12px 16px;
   border-radius: 12px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text-secondary);
   text-decoration: none;
   transition: all 0.3s ease;
   font-weight: 500;
@@ -58,15 +58,15 @@
 }
 
 .nav-item:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
+  background: var(--bg-glass);
+  color: var(--text-primary);
   transform: translateX(4px);
 }
 
 .nav-item-active {
   background: linear-gradient(45deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
   border: 1px solid rgba(102, 126, 234, 0.3);
-  color: white;
+  color: var(--text-primary);
 }
 
 .nav-icon {
@@ -82,7 +82,7 @@
 .section-title {
   font-size: 16px;
   font-weight: 600;
-  color: white;
+  color: var(--text-primary);
   margin: 0 0 16px 0;
   padding-left: 4px;
 }
@@ -102,10 +102,10 @@
   align-items: center;
   justify-content: center;
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-primary);
   border-radius: 12px;
-  color: white;
+  color: var(--text-primary);
   cursor: pointer;
   transition: all 0.3s ease;
   text-align: center;
@@ -113,7 +113,7 @@
 }
 
 .market-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--bg-glass);
   transform: translateY(-2px);
 }
 
@@ -140,7 +140,7 @@
 
 .market-desc {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
 }
 
 .interest-rates {
@@ -154,15 +154,15 @@
 }
 
 .rate-card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-primary);
   border-radius: 12px;
   padding: 16px;
   transition: all 0.3s ease;
 }
 
 .rate-card:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--bg-glass);
   transform: translateY(-2px);
 }
 
@@ -179,20 +179,20 @@
 
 .rate-country {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
 .rate-value {
   font-size: 20px;
   font-weight: 700;
-  color: #4ade80;
+  color: var(--success-color);
   margin-bottom: 4px;
 }
 
 .rate-desc {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-tertiary);
 }
 
 .quick-stats {
@@ -206,27 +206,27 @@
 }
 
 .stat-item {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-primary);
   border-radius: 8px;
   padding: 12px;
   transition: all 0.3s ease;
 }
 
 .stat-item:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--bg-glass);
 }
 
 .stat-label {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
   margin-bottom: 4px;
 }
 
 .stat-value {
   font-size: 16px;
   font-weight: 600;
-  color: white;
+  color: var(--text-primary);
   margin-bottom: 2px;
 }
 
@@ -238,7 +238,7 @@
 .sidebar-footer {
   margin-top: auto;
   padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--border-primary);
 }
 
 .version-info {
@@ -246,7 +246,7 @@
   flex-direction: column;
   gap: 4px;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-tertiary);
   text-align: center;
 }
 

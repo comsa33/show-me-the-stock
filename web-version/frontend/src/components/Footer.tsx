@@ -36,7 +36,7 @@ const Footer: React.FC = () => {
         <div className="footer-section">
           <h4 className="section-title">Developer</h4>
           <p className="developer-name">이루오 (Ruo Lee)</p>
-          <p className="developer-role">Full Stack Developer</p>
+          <p className="developer-role">AI Developer</p>
         </div>
       </div>
       
@@ -46,7 +46,7 @@ const Footer: React.FC = () => {
             Made with <Heart size={14} className="heart-icon" /> by Ruo Lee
           </p>
           <p className="copyright">
-            © 2024 Stock Dashboard. All rights reserved.
+            © {new Date().getFullYear()} Stock Dashboard. All rights reserved.
           </p>
         </div>
       </div>
