@@ -1,5 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
+import { BarChart3, TrendingUp, Briefcase, Star, Newspaper, FileText } from 'lucide-react';
 import './Sidebar.css';
 
 interface InterestRate {
@@ -26,12 +27,12 @@ const Sidebar: React.FC<SidebarProps> = ({
   const { currentView, setCurrentView } = useApp();
   
   const menuItems = [
-    { id: 'dashboard', label: '대시보드', icon: '📊' },
-    { id: 'stocks', label: '주식 분석', icon: '📈' },
-    { id: 'portfolio', label: '포트폴리오', icon: '💼' },
-    { id: 'watchlist', label: '관심종목', icon: '⭐' },
-    { id: 'news', label: '뉴스', icon: '📰' },
-    { id: 'reports', label: '리포트', icon: '📋' },
+    { id: 'dashboard', label: '대시보드', icon: BarChart3 },
+    { id: 'stocks', label: '주식 분석', icon: TrendingUp },
+    { id: 'portfolio', label: '포트폴리오', icon: Briefcase },
+    { id: 'watchlist', label: '관심종목', icon: Star },
+    { id: 'news', label: '뉴스', icon: Newspaper },
+    { id: 'reports', label: '리포트', icon: FileText },
   ];
 
   const handleNavigation = (viewId: string) => {
@@ -47,17 +48,22 @@ const Sidebar: React.FC<SidebarProps> = ({
         {/* Navigation Menu */}
         <nav className="sidebar-nav">
           <ul className="nav-list">
-            {menuItems.map((item) => (
-              <li key={item.id}>
-                <button 
-                  onClick={() => handleNavigation(item.id)}
-                  className={`nav-item ${currentView === item.id ? 'nav-item-active' : ''}`}
-                >
-                  <span className="nav-icon">{item.icon}</span>
-                  <span className="nav-label">{item.label}</span>
-                </button>
-              </li>
-            ))}
+            {menuItems.map((item) => {
+              const IconComponent = item.icon;
+              return (
+                <li key={item.id}>
+                  <button 
+                    onClick={() => handleNavigation(item.id)}
+                    className={`nav-item ${currentView === item.id ? 'nav-item-active' : ''}`}
+                  >
+                    <span className="nav-icon">
+                      <IconComponent size={18} />
+                    </span>
+                    <span className="nav-label">{item.label}</span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </nav>
 
@@ -69,9 +75,8 @@ const Sidebar: React.FC<SidebarProps> = ({
               className={`market-btn ${selectedMarket === 'KR' ? 'market-btn-active' : ''}`}
               onClick={() => onMarketChange('KR')}
             >
-              <span className="market-flag">🇰🇷</span>
               <div className="market-info">
-                <span className="market-name">한국</span>
+                <span className="market-name">한국 KR</span>
                 <span className="market-desc">KOSPI/KOSDAQ</span>
               </div>
             </button>
@@ -80,9 +85,8 @@ const Sidebar: React.FC<SidebarProps> = ({
               className={`market-btn ${selectedMarket === 'US' ? 'market-btn-active' : ''}`}
               onClick={() => onMarketChange('US')}
             >
-              <span className="market-flag">🇺🇸</span>
               <div className="market-info">
-                <span className="market-name">미국</span>
+                <span className="market-name">미국 US</span>
                 <span className="market-desc">NASDAQ/NYSE</span>
               </div>
             </button>
@@ -95,8 +99,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <div className="rate-cards">
             <div className="rate-card">
               <div className="rate-header">
-                <span className="rate-flag">🇰🇷</span>
-                <span className="rate-country">한국</span>
+                <span className="rate-country">한국 KR</span>
               </div>
               <div className="rate-value">
                 {interestRates?.korea?.rate ? `${interestRates.korea.rate.toFixed(2)}%` : '로딩중...'}
@@ -106,8 +109,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             
             <div className="rate-card">
               <div className="rate-header">
-                <span className="rate-flag">🇺🇸</span>
-                <span className="rate-country">미국</span>
+                <span className="rate-country">미국 US</span>
               </div>
               <div className="rate-value">
                 {interestRates?.usa?.rate ? `${interestRates.usa.rate.toFixed(2)}%` : '로딩중...'}

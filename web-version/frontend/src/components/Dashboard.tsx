@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import ViewManager from './ViewManager';
+import Footer from './Footer';
 import { API_BASE } from '../config';
 import './Dashboard.css';
 
@@ -116,16 +117,19 @@ const Dashboard: React.FC = () => {
           interestRates={apiData.interestRates}
         />
 
-        <ViewManager
-          apiData={apiData}
-          selectedMarket={selectedMarket}
-          onRefresh={fetchData}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalCount={totalCount}
-          pageSize={pageSize}
-          onPageChange={handlePageChange}
-        />
+        <div className="main-content-wrapper">
+          <ViewManager
+            apiData={apiData}
+            selectedMarket={selectedMarket}
+            onRefresh={fetchData}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            pageSize={pageSize}
+            onPageChange={handlePageChange}
+          />
+          <Footer />
+        </div>
       </div>
     </div>
   );

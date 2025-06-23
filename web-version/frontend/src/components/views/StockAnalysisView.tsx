@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { ApiData } from '../Dashboard';
+import { TrendingUp, BarChart3, Bot, Newspaper, Target, ArrowLeft } from 'lucide-react';
 import './StockAnalysisView.css';
 
 interface StockAnalysisViewProps {
@@ -21,7 +22,10 @@ const StockAnalysisView: React.FC<StockAnalysisViewProps> = ({ apiData, selected
     <div className="stock-analysis-view">
       <div className="analysis-header">
         <div className="header-title">
-          <h2>📈 주식 분석</h2>
+          <h2 className="flex items-center gap-2">
+            <TrendingUp size={24} />
+            주식 분석
+          </h2>
           <p>AI를 활용한 실시간 주식 분석 및 예측</p>
         </div>
         <div className="analysis-controls">
@@ -62,12 +66,15 @@ const StockAnalysisView: React.FC<StockAnalysisViewProps> = ({ apiData, selected
             <div className="analysis-details">
               <div className="selected-stock-info">
                 <h3>{selectedStock.name} ({selectedStock.symbol})</h3>
-                <div className="market-badge">{selectedMarket === 'KR' ? '🇰🇷 한국' : '🇺🇸 미국'}</div>
+                <div className="market-badge">{selectedMarket === 'KR' ? '한국 KR' : '미국 US'}</div>
               </div>
 
               <div className="analysis-sections">
                 <div className="chart-section">
-                  <h4>📊 차트 분석</h4>
+                  <h4 className="flex items-center gap-2">
+                    <BarChart3 size={18} />
+                    차트 분석
+                  </h4>
                   <div className="chart-placeholder">
                     <div className="chart-mock">
                       <p>실시간 차트가 여기에 표시됩니다</p>
@@ -81,7 +88,10 @@ const StockAnalysisView: React.FC<StockAnalysisViewProps> = ({ apiData, selected
                 </div>
 
                 <div className="ai-analysis-section">
-                  <h4>🤖 AI 분석</h4>
+                  <h4 className="flex items-center gap-2">
+                    <Bot size={18} />
+                    AI 분석
+                  </h4>
                   <div className="ai-analysis-placeholder">
                     <div className="analysis-loading">
                       <div className="loading-spinner"></div>
@@ -89,15 +99,21 @@ const StockAnalysisView: React.FC<StockAnalysisViewProps> = ({ apiData, selected
                     </div>
                     <div className="analysis-features">
                       <div className="feature">
-                        <span className="feature-icon">📰</span>
+                        <span className="feature-icon">
+                          <Newspaper size={16} />
+                        </span>
                         <span>뉴스 감성 분석</span>
                       </div>
                       <div className="feature">
-                        <span className="feature-icon">📈</span>
+                        <span className="feature-icon">
+                          <TrendingUp size={16} />
+                        </span>
                         <span>기술적 지표 분석</span>
                       </div>
                       <div className="feature">
-                        <span className="feature-icon">🎯</span>
+                        <span className="feature-icon">
+                          <Target size={16} />
+                        </span>
                         <span>목표가 예측</span>
                       </div>
                     </div>
@@ -108,7 +124,7 @@ const StockAnalysisView: React.FC<StockAnalysisViewProps> = ({ apiData, selected
           ) : (
             <div className="no-stock-selected">
               <div className="empty-state">
-                <span className="empty-icon">📈</span>
+                <TrendingUp size={64} className="empty-icon" />
                 <h3>종목을 선택하세요</h3>
                 <p>분석할 종목을 왼쪽에서 선택해주세요</p>
               </div>

@@ -2,13 +2,27 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, #0a0e1a 0%, #1a1f2e 100%);
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
 }
 
 .dashboard-body {
   display: flex;
   flex: 1;
   overflow: hidden;
+  margin-left: 320px;
+}
+
+.main-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-body {
+    margin-left: 0;
+  }
 }
 
 /* Responsive Design */

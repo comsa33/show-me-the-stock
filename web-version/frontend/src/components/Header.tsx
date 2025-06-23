@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/ThemeContext';
 import NotificationPanel from './NotificationPanel';
 import SearchResults from './SearchResults';
+import { Menu, TrendingUp, Search, X, Bell, User, Sun, Moon } from 'lucide-react';
 import './Header.css';
 
 interface HeaderProps {
@@ -10,11 +12,41 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   const { setSearchTerm, notifications } = useApp();
+  const { theme, toggleTheme } = useTheme();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [localSearchTerm, setLocalSearchTerm] = useState('');
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  const [headerVisible, setHeaderVisible] = useState(true);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      // 모바일에서만 적용
+      if (window.innerWidth <= 768) {
+        setIsScrolled(currentScrollY > 50);
+        
+        // 스크롤 방향에 따라 헤더 표시/숨김
+        if (currentScrollY > lastScrollY && currentScrollY > 100) {
+          setHeaderVisible(false);
+        } else {
+          setHeaderVisible(true);
+        }
+      } else {
+        setIsScrolled(false);
+        setHeaderVisible(true);
+      }
+      
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY]);
   return (
-    <header className="header">
+    <header className={`header ${isScrolled ? 'header-compact' : ''} ${!headerVisible ? 'header-hidden' : ''}`}>
       <div className="header-content">
         {/* Left Section */}
         <div className="header-left">
@@ -23,15 +55,13 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             onClick={onToggleSidebar}
             aria-label="Toggle sidebar"
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="3" y1="6" x2="21" y2="6"></line>
-              <line x1="3" y1="12" x2="21" y2="12"></line>
-              <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
+            <Menu size={24} />
           </button>
           
-          <div className="logo">
-            <div className="logo-icon">📈</div>
+          <div className={`logo ${isScrolled ? 'logo-compact' : ''}`}>
+            <div className="logo-icon">
+              <TrendingUp size={isScrolled ? 28 : 32} className="gradient-text" />
+            </div>
             <div className="logo-text">
               <h1 className="logo-title gradient-text">Stock Dashboard</h1>
               <span className="logo-subtitle">AI-Powered Analytics</span>
@@ -42,10 +72,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
         {/* Center Section - Search */}
         <div className="header-center">
           <div className="search-container">
-            <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8"></circle>
-              <path d="m21 21-4.35-4.35"></path>
-            </svg>
+            <Search className="search-icon" size={20} />
             <input 
               type="text" 
               placeholder="주식 검색..." 
@@ -75,7 +102,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
                   setShowSearchResults(false);
                 }}
               >
-                ×
+                <X size={16} />
               </button>
             )}
           </div>
@@ -87,6 +114,14 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             <div className="status-dot status-online"></div>
             <span>실시간</span>
           </div>
+
+          <button 
+            className="theme-toggle-btn"
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+          >
+            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+          </button>
           
           <div className="notification-container">
             <button 
@@ -94,10 +129,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
               aria-label="Notifications"
               onClick={() => setShowNotifications(!showNotifications)}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-              </svg>
+              <Bell size={20} />
               {notifications.length > 0 && (
                 <span className="notification-badge">{notifications.length}</span>
               )}
@@ -106,7 +138,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
 
           <div className="user-profile">
             <div className="user-avatar">
-              <span>U</span>
+              <User size={20} />
             </div>
           </div>
         </div>
