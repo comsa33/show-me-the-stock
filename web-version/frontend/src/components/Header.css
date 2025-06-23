@@ -131,7 +131,7 @@
 .search-input:focus {
   outline: none;
   border-color: var(--accent-color);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   background: var(--bg-glass);
 }
 
@@ -274,7 +274,7 @@
 
 .user-avatar:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.25);
 }
 
 /* Notification Dropdown */

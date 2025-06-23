@@ -4,12 +4,12 @@
   justify-content: space-between;
   padding: 20px 0;
   margin-top: 24px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--border-secondary);
 }
 
 .pagination-info {
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
 }
 
 .pagination {
@@ -23,19 +23,19 @@
   align-items: center;
   gap: 6px;
   padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-primary);
   border-radius: 6px;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-secondary);
   font-size: 14px;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .pagination-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: white;
+  background: var(--bg-glass);
+  border-color: var(--border-primary);
+  color: var(--text-primary);
 }
 
 .pagination-btn:disabled {
@@ -56,10 +56,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-primary);
   border-radius: 6px;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-secondary);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -67,13 +67,13 @@
 }
 
 .pagination-page:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: white;
+  background: var(--bg-glass);
+  border-color: var(--border-primary);
+  color: var(--text-primary);
 }
 
 .pagination-page.active {
-  background: linear-gradient(45deg, #667eea, #764ba2);
+  background: var(--primary-gradient);
   border-color: transparent;
   color: white;
 }
@@ -84,7 +84,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-tertiary);
   font-size: 14px;
 }
 

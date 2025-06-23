@@ -50,9 +50,9 @@
 }
 
 .analysis-type-btn.active {
-  background: linear-gradient(45deg, #667eea, #764ba2);
+  background: var(--primary-gradient);
   border-color: transparent;
-  color: var(--text-primary);
+  color: white;
 }
 
 .analysis-content {
@@ -102,8 +102,9 @@
 }
 
 .stock-item.selected {
-  background: linear-gradient(45deg, #667eea, #764ba2);
+  background: var(--primary-gradient);
   border-color: transparent;
+  color: white;
 }
 
 .stock-name {

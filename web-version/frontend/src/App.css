@@ -1,7 +1,5 @@
 /* CSS Variables for Theme */
 :root {
-  --primary-gradient: linear-gradient(45deg, #667eea, #764ba2);
-  --accent-color: #667eea;
   --success-color: #4ade80;
   --error-color: #f87171;
   --warning-color: #fbbf24;
@@ -12,18 +10,20 @@
   --bg-primary: #ffffff;
   --bg-secondary: #f8fafc;
   --bg-tertiary: #f1f5f9;
-  --bg-overlay: rgba(0, 0, 0, 0.05);
-  --bg-glass: rgba(255, 255, 255, 0.8);
+  --bg-overlay: rgba(0, 0, 0, 0.04);
+  --bg-glass: rgba(255, 255, 255, 0.9);
   --text-primary: #1e293b;
-  --text-secondary: #64748b;
-  --text-tertiary: #94a3b8;
-  --border-primary: rgba(0, 0, 0, 0.1);
-  --border-secondary: rgba(0, 0, 0, 0.05);
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+  --border-primary: rgba(0, 0, 0, 0.12);
+  --border-secondary: rgba(0, 0, 0, 0.06);
   --shadow-color: rgba(0, 0, 0, 0.1);
   --success-color: #16a34a;
   --error-color: #dc2626;
   --warning-color: #d97706;
   --info-color: #2563eb;
+  --primary-gradient: linear-gradient(45deg, #3b82f6, #1d4ed8);
+  --accent-color: #3b82f6;
 }
 
 [data-theme="dark"] {
@@ -42,6 +42,8 @@
   --error-color: #f87171;
   --warning-color: #fbbf24;
   --info-color: #60a5fa;
+  --primary-gradient: linear-gradient(45deg, #667eea, #764ba2);
+  --accent-color: #667eea;
 }
 
 * {
@@ -74,17 +76,17 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--bg-overlay);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(45deg, #667eea, #764ba2);
+  background: var(--primary-gradient);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(45deg, #764ba2, #667eea);
+  background: var(--accent-color);
 }
 
 /* Animation Classes */
@@ -177,7 +179,7 @@ body {
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.25);
 }
 
 .btn-secondary {
@@ -241,7 +243,7 @@ body {
 .input-field:focus {
   outline: none;
   border-color: var(--accent-color);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .input-field::placeholder {

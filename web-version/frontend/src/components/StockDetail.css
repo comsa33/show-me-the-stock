@@ -163,8 +163,9 @@
 }
 
 .period-btn.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--primary-gradient);
   border-color: transparent;
+  color: white;
 }
 
 .chart-options {
@@ -185,7 +186,7 @@
 .checkbox-label input[type="checkbox"] {
   width: 16px;
   height: 16px;
-  accent-color: #667eea;
+  accent-color: var(--accent-color);
 }
 
 /* 새로운 토글 스위치 스타일 */
@@ -230,7 +231,7 @@
 }
 
 .toggle-input:checked + .toggle-slider {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--primary-gradient);
   border-color: transparent;
 }
 
@@ -249,7 +250,7 @@
 }
 
 .toggle-switch-label:hover .toggle-input:checked + .toggle-slider {
-  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+  background: var(--accent-color);
 }
 
 .chart-container {
@@ -331,14 +332,14 @@
 .price-bar {
   flex: 1;
   min-width: 3px;
-  background: linear-gradient(to top, #667eea, #764ba2);
+  background: var(--primary-gradient);
   border-radius: 2px;
   transition: all 0.3s ease;
   cursor: pointer;
 }
 
 .price-bar:hover {
-  background: linear-gradient(to top, #5a67d8, #6b46c1);
+  background: var(--accent-color);
   transform: scaleY(1.1);
 }
 
@@ -416,8 +417,9 @@
 }
 
 .analysis-btn.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--primary-gradient);
   border-color: transparent;
+  color: white;
 }
 
 .analysis-loading {
