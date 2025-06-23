@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE } from '../config';
+import { RefreshCw } from 'lucide-react';
 import './MarketOverview.css';
 
 interface InterestRate {
@@ -98,10 +99,19 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
     try {
       // 실제 구현에서는 종합 거래량 API를 호출
       // 현재는 주요 지수의 거래량을 합산하여 추정
-      const responses = await Promise.allSettled([
-        fetch(`${API_BASE}/v1/stocks/v2/data/^KS11?market=US&period=1d`), // KOSPI
-        fetch(`${API_BASE}/v1/stocks/v2/data/^KQ11?market=US&period=1d`), // KOSDAQ
-      ]);
+      let responses;
+      if (selectedMarket === 'KR') {
+        responses = await Promise.allSettled([
+          fetch(`${API_BASE}/v1/stocks/v2/data/^KS11?market=KOSPI&period=1d`), // KOSPI
+          fetch(`${API_BASE}/v1/stocks/v2/data/^KQ11?market=KOSDAQ&period=1d`), // KOSDAQ
+        ]);
+      } else {
+        responses = await Promise.allSettled([
+          fetch(`${API_BASE}/v1/stocks/v2/data/^IXIC?market=US&period=1d`), // NASDAQ
+          fetch(`${API_BASE}/v1/stocks/v2/data/^GSPC?market=US&period=1d`), // S&P 500
+          fetch(`${API_BASE}/v1/stocks/v2/data/^DJI?market=US&period=1d`),  // DOW
+        ]);
+      }
       
       let totalVolume = 0;
       let validResponses = 0;
@@ -122,34 +132,43 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
       }
       
       if (validResponses > 0) {
-        // 거래량을 억원 단위로 변환 (추정)
-        const volumeInBillions = Math.round(totalVolume / 1000000);
+        // 거래량 단위 변환 (시장별)
+        let volumeFormatted;
+        if (selectedMarket === 'KR') {
+          // 한국: 억원 단위
+          const volumeInBillions = Math.round(totalVolume / 1000000);
+          volumeFormatted = `${volumeInBillions.toLocaleString()}억원`;
+        } else {
+          // 미국: 백만주 단위
+          const volumeInMillions = Math.round(totalVolume / 1000000);
+          volumeFormatted = `${volumeInMillions.toLocaleString()}M`;
+        }
+        
         const changePercent = Math.random() * 30 - 15; // -15% ~ +15% 랜덤 변화율
+        const volumeValue = Math.round(totalVolume / 1000000);
         
         setTradingVolume({
-          current: volumeInBillions,
-          previous: Math.round(volumeInBillions / (1 + changePercent/100)),
+          current: volumeValue,
+          previous: Math.round(volumeValue / (1 + changePercent/100)),
           change_percent: changePercent,
-          formatted: `${volumeInBillions.toLocaleString()}억원`
+          formatted: volumeFormatted
         });
       } else {
-        // 실패시 Mock 데이터
-        setTradingVolume({
-          current: 1234,
-          previous: 1072,
-          change_percent: 15.2,
-          formatted: '1,234억원'
-        });
+        // 실패시 Mock 데이터 (시장별)
+        const mockData = selectedMarket === 'KR' 
+          ? { current: 1234, previous: 1072, change_percent: 15.2, formatted: '1,234억원' }
+          : { current: 3567, previous: 3201, change_percent: 11.4, formatted: '3,567M' };
+        
+        setTradingVolume(mockData);
       }
     } catch (error) {
       console.error('Failed to fetch trading volume:', error);
-      // 에러시 Mock 데이터
-      setTradingVolume({
-        current: 1234,
-        previous: 1072,
-        change_percent: 15.2,
-        formatted: '1,234억원'
-      });
+      // 에러시 Mock 데이터 (시장별)
+      const errorMockData = selectedMarket === 'KR' 
+        ? { current: 1234, previous: 1072, change_percent: 15.2, formatted: '1,234억원' }
+        : { current: 3567, previous: 3201, change_percent: 11.4, formatted: '3,567M' };
+      
+      setTradingVolume(errorMockData);
     }
   };
 
@@ -160,18 +179,30 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
       if (selectedMarket === 'KR') {
         // 한국 주요 지수 가져오기 (yfinance 사용)
         const responses = await Promise.all([
-          fetch(`${API_BASE}/v1/stocks/v2/data/^KS11?market=US&period=1d`), // KOSPI
-          fetch(`${API_BASE}/v1/stocks/v2/data/^KQ11?market=US&period=1d`), // KOSDAQ
+          fetch(`${API_BASE}/v1/stocks/v2/data/^KS11?market=KOSPI&period=1d`), // KOSPI
+          fetch(`${API_BASE}/v1/stocks/v2/data/^KQ11?market=KOSDAQ&period=1d`), // KOSDAQ
         ]);
         
-        const kospiData = responses[0].ok ? await responses[0].json() : null;
-        const kosdaqData = responses[1].ok ? await responses[1].json() : null;
+        let kospiData = null;
+        let kosdaqData = null;
+        
+        try {
+          kospiData = responses[0].ok ? await responses[0].json() : null;
+        } catch (error) {
+          console.warn('KOSPI API 응답 파싱 실패:', error);
+        }
+        
+        try {
+          kosdaqData = responses[1].ok ? await responses[1].json() : null;
+        } catch (error) {
+          console.warn('KOSDAQ API 응답 파싱 실패:', error);
+        }
         
         const newIndices: MarketIndex[] = [];
         
-        if (kospiData && kospiData.chart_data.length > 0) {
+        if (kospiData && kospiData.chart_data && kospiData.chart_data.length > 0) {
           const latest = kospiData.chart_data[kospiData.chart_data.length - 1];
-          const change = kospiData.change_percent;
+          const change = kospiData.change_percent || 0;
           newIndices.push({
             name: 'KOSPI',
             value: latest.close.toLocaleString(),
@@ -180,12 +211,13 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
             data_source: 'real'
           });
         } else {
+          console.warn('KOSPI 데이터 없음, Mock 데이터 사용');
           newIndices.push({ name: 'KOSPI', value: '2,580.45', change: '+1.2%', positive: true, data_source: 'mock' });
         }
         
-        if (kosdaqData && kosdaqData.chart_data.length > 0) {
+        if (kosdaqData && kosdaqData.chart_data && kosdaqData.chart_data.length > 0) {
           const latest = kosdaqData.chart_data[kosdaqData.chart_data.length - 1];
-          const change = kosdaqData.change_percent;
+          const change = kosdaqData.change_percent || 0;
           newIndices.push({
             name: 'KOSDAQ',
             value: latest.close.toLocaleString(),
@@ -194,6 +226,7 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
             data_source: 'real'
           });
         } else {
+          console.warn('KOSDAQ 데이터 없음, Mock 데이터 사용');
           newIndices.push({ name: 'KOSDAQ', value: '785.32', change: '+0.8%', positive: true, data_source: 'mock' });
         }
         
@@ -206,15 +239,33 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
           fetch(`${API_BASE}/v1/stocks/v2/data/^DJI?market=US&period=1d`),  // DOW
         ]);
         
-        const nasdaqData = responses[0].ok ? await responses[0].json() : null;
-        const spData = responses[1].ok ? await responses[1].json() : null;
-        const dowData = responses[2].ok ? await responses[2].json() : null;
+        let nasdaqData = null;
+        let spData = null;
+        let dowData = null;
+        
+        try {
+          nasdaqData = responses[0].ok ? await responses[0].json() : null;
+        } catch (error) {
+          console.warn('NASDAQ API 응답 파싱 실패:', error);
+        }
+        
+        try {
+          spData = responses[1].ok ? await responses[1].json() : null;
+        } catch (error) {
+          console.warn('S&P 500 API 응답 파싱 실패:', error);
+        }
+        
+        try {
+          dowData = responses[2].ok ? await responses[2].json() : null;
+        } catch (error) {
+          console.warn('DOW API 응답 파싱 실패:', error);
+        }
         
         const newIndices: MarketIndex[] = [];
         
-        if (nasdaqData && nasdaqData.chart_data.length > 0) {
+        if (nasdaqData && nasdaqData.chart_data && nasdaqData.chart_data.length > 0) {
           const latest = nasdaqData.chart_data[nasdaqData.chart_data.length - 1];
-          const change = nasdaqData.change_percent;
+          const change = nasdaqData.change_percent || 0;
           newIndices.push({
             name: 'NASDAQ',
             value: latest.close.toLocaleString(),
@@ -223,12 +274,13 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
             data_source: 'real'
           });
         } else {
+          console.warn('NASDAQ 데이터 없음, Mock 데이터 사용');
           newIndices.push({ name: 'NASDAQ', value: '15,240.83', change: '+0.8%', positive: true, data_source: 'mock' });
         }
         
-        if (spData && spData.chart_data.length > 0) {
+        if (spData && spData.chart_data && spData.chart_data.length > 0) {
           const latest = spData.chart_data[spData.chart_data.length - 1];
-          const change = spData.change_percent;
+          const change = spData.change_percent || 0;
           newIndices.push({
             name: 'S&P 500',
             value: latest.close.toLocaleString(),
@@ -237,12 +289,13 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
             data_source: 'real'
           });
         } else {
+          console.warn('S&P 500 데이터 없음, Mock 데이터 사용');
           newIndices.push({ name: 'S&P 500', value: '4,567.12', change: '+0.5%', positive: true, data_source: 'mock' });
         }
         
-        if (dowData && dowData.chart_data.length > 0) {
+        if (dowData && dowData.chart_data && dowData.chart_data.length > 0) {
           const latest = dowData.chart_data[dowData.chart_data.length - 1];
-          const change = dowData.change_percent;
+          const change = dowData.change_percent || 0;
           newIndices.push({
             name: 'DOW',
             value: latest.close.toLocaleString(),
@@ -251,6 +304,7 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
             data_source: 'real'
           });
         } else {
+          console.warn('DOW 데이터 없음, Mock 데이터 사용');
           newIndices.push({ name: 'DOW', value: '35,123.45', change: '-0.1%', positive: false, data_source: 'mock' });
         }
         
@@ -307,11 +361,7 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
           <h2>{currentMarket.name} 개요</h2>
         </div>
         <button className="refresh-btn" onClick={() => { onRefresh(); fetchMarketIndices(); fetchMarketStatus(); fetchTradingVolume(); }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="23 4 23 10 17 10"></polyline>
-            <polyline points="1 20 1 14 7 14"></polyline>
-            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
-          </svg>
+          <RefreshCw size={16} />
           새로고침
         </button>
       </div>
