@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { API_BASE } from '../config';
 import ProfessionalStockChart from './ProfessionalStockChart';
+import { BookOpen, TrendingUp, Gem, ArrowLeft } from 'lucide-react';
 import './StockDetail.css';
 
 interface StockData {
@@ -334,17 +335,14 @@ const StockDetail: React.FC = () => {
           className="back-button"
           onClick={() => setCurrentView('dashboard')}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="m12 19-7-7 7-7"/>
-            <path d="m19 12-7 7-7-7"/>
-          </svg>
+          <ArrowLeft size={16} />
           돌아가기
         </button>
         
         <div className="stock-header-info">
           <h2>{selectedStock.name}</h2>
           <span className="stock-symbol-large">{selectedStock.symbol}</span>
-          <span className="market-badge">{selectedStock.market === 'KR' ? '🇰🇷 한국' : '🇺🇸 미국'}</span>
+          <span className="market-badge">{selectedStock.market === 'KR' ? '한국' : '미국'}</span>
         </div>
 
         {stockData && (
@@ -509,21 +507,21 @@ const StockDetail: React.FC = () => {
                   onClick={() => setAnalysisType('beginner')}
                   title="초보자를 위한 쉬운 분석 (1~3일)"
                 >
-                  📚 초보자 분석
+                  <BookOpen size={16} /> 초보자 분석
                 </button>
                 <button 
                   className={`analysis-btn ${analysisType === 'swing' ? 'active' : ''}`}
                   onClick={() => setAnalysisType('swing')}
                   title="스윙 트레이딩 분석 (1주~1개월)"
                 >
-                  📈 스윙 분석
+                  <TrendingUp size={16} /> 스윙 분석
                 </button>
                 <button 
                   className={`analysis-btn ${analysisType === 'invest' ? 'active' : ''}`}
                   onClick={() => setAnalysisType('invest')}
                   title="중장기 투자 분석 (3개월~1년)"
                 >
-                  💎 투자 분석
+                  <Gem size={16} /> 투자 분석
                 </button>
               </div>
               <button 
