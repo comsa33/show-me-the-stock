@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Tuple
 from pydantic import BaseModel
 
 from app.data.stock_data import StockDataFetcher
+from app.services.real_financial_data import real_financial_service
 
 logger = logging.getLogger(__name__)
 
@@ -111,22 +112,27 @@ class QuantAnalysisService:
         """개별 종목 퀀트 지표 계산"""
         
         try:
-            # 주가 데이터 가져오기
+            # 실제 재무 데이터 가져오기
+            financial_data = real_financial_service.get_financial_data(symbol, market)
+            
+            # 주가 데이터 가져오기 (기술적 지표 계산용)
             price_data = self.stock_fetcher.get_stock_data(symbol, "1y", market)
             if price_data is None or price_data.empty:
-                return None
+                # 주가 데이터가 없어도 재무 데이터로 기본 지표는 계산 가능
+                momentum_3m = 0.0
+                volatility = 20.0  # 기본값
+            else:
+                # 기술적 지표 계산
+                momentum_3m = self._calculate_momentum(price_data, 60)  # 3개월
+                volatility = self._calculate_volatility(price_data)
             
-            # 재무 지표 계산 (실제로는 재무제표 데이터가 필요하지만 여기서는 추정)
-            per = self._calculate_per(price_data, symbol, market)
-            pbr = self._calculate_pbr(price_data, symbol, market)
-            roe = self._calculate_roe(symbol, market)
-            roa = self._calculate_roa(symbol, market)
-            debt_ratio = self._calculate_debt_ratio(symbol, market)
-            
-            # 기술적 지표 계산
-            momentum_3m = self._calculate_momentum(price_data, 60)  # 3개월
-            volatility = self._calculate_volatility(price_data)
-            market_cap = self._estimate_market_cap(price_data, symbol, market)
+            # 실제 재무 지표 사용
+            per = financial_data['per']
+            pbr = financial_data['pbr'] 
+            roe = financial_data['roe']
+            roa = financial_data['roa']
+            debt_ratio = financial_data['debt_ratio']
+            market_cap = financial_data['market_cap']
             
             # 퀀트 점수 계산
             quant_score = self._calculate_quant_score(
@@ -156,68 +162,6 @@ class QuantAnalysisService:
             logger.error(f"종목 {symbol} 지표 계산 실패: {e}")
             return None
     
-    def _calculate_per(self, price_data: pd.DataFrame, symbol: str, market: str) -> float:
-        """PER 계산 (가격/수익 비율)"""
-        try:
-            # 실제로는 재무제표에서 EPS를 가져와야 하지만, 여기서는 추정
-            current_price = float(price_data['Close'].iloc[-1])
-            
-            # 시장별 평균 PER 범위 내에서 랜덤 생성 (실제 구현시 재무데이터 API 필요)
-            if market.upper() == "KR":
-                # 한국 시장 평균 PER: 8-25
-                estimated_eps = current_price / np.random.uniform(8, 25)
-            else:
-                # 미국 시장 평균 PER: 15-30
-                estimated_eps = current_price / np.random.uniform(15, 30)
-            
-            per = current_price / estimated_eps if estimated_eps > 0 else 0
-            return round(per, 2)
-            
-        except Exception:
-            return np.random.uniform(10, 30)
-    
-    def _calculate_pbr(self, price_data: pd.DataFrame, symbol: str, market: str) -> float:
-        """PBR 계산 (가격/장부가치 비율)"""
-        try:
-            current_price = float(price_data['Close'].iloc[-1])
-            
-            # 실제로는 재무제표에서 BPS를 가져와야 함
-            if market.upper() == "KR":
-                estimated_bps = current_price / np.random.uniform(0.8, 3.5)
-            else:
-                estimated_bps = current_price / np.random.uniform(1.5, 5.0)
-            
-            pbr = current_price / estimated_bps if estimated_bps > 0 else 0
-            return round(pbr, 2)
-            
-        except Exception:
-            return np.random.uniform(0.5, 4.0)
-    
-    def _calculate_roe(self, symbol: str, market: str) -> float:
-        """ROE 계산 (자기자본이익률)"""
-        # 실제로는 재무제표 데이터 필요
-        if market.upper() == "KR":
-            roe = np.random.uniform(5, 25)
-        else:
-            roe = np.random.uniform(8, 30)
-        
-        return round(roe, 2)
-    
-    def _calculate_roa(self, symbol: str, market: str) -> float:
-        """ROA 계산 (총자산이익률)"""
-        # 실제로는 재무제표 데이터 필요
-        if market.upper() == "KR":
-            roa = np.random.uniform(2, 15)
-        else:
-            roa = np.random.uniform(3, 20)
-        
-        return round(roa, 2)
-    
-    def _calculate_debt_ratio(self, symbol: str, market: str) -> float:
-        """부채비율 계산"""
-        # 실제로는 재무제표 데이터 필요
-        debt_ratio = np.random.uniform(10, 80)
-        return round(debt_ratio, 2)
     
     def _calculate_momentum(self, price_data: pd.DataFrame, period: int) -> float:
         """모멘텀 계산 (N일 수익률)"""
@@ -247,27 +191,6 @@ class QuantAnalysisService:
         except Exception:
             return round(np.random.uniform(15, 40), 2)
     
-    def _estimate_market_cap(self, price_data: pd.DataFrame, symbol: str, market: str) -> float:
-        """시가총액 추정 (억원/백만달러)"""
-        try:
-            current_price = float(price_data['Close'].iloc[-1])
-            
-            if market.upper() == "KR":
-                # 한국: 억원 단위로 반환
-                estimated_shares = np.random.uniform(100000, 5000000)  # 발행주식수 추정
-                market_cap = (current_price * estimated_shares) / 100000000  # 억원
-            else:
-                # 미국: 백만달러 단위로 반환
-                estimated_shares = np.random.uniform(100000, 10000000)
-                market_cap = (current_price * estimated_shares) / 1000000  # 백만달러
-            
-            return round(market_cap, 0)
-            
-        except Exception:
-            if market.upper() == "KR":
-                return round(np.random.uniform(1000, 100000), 0)  # 1천억 ~ 10조원
-            else:
-                return round(np.random.uniform(1000, 1000000), 0)  # 10억 ~ 1조달러
     
     def _calculate_quant_score(
         self, 
