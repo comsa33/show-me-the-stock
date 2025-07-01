@@ -177,138 +177,91 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
     setLoading(true);
     try {
       if (selectedMarket === 'KR') {
-        // 한국 주요 지수 가져오기 (yfinance 사용)
-        const responses = await Promise.all([
-          fetch(`${API_BASE}/v1/stocks/v2/data/^KS11?market=KOSPI&period=1d`), // KOSPI
-          fetch(`${API_BASE}/v1/stocks/v2/data/^KQ11?market=KOSDAQ&period=1d`), // KOSDAQ
-        ]);
+        // 한국 주요 지수 가져오기 (새로운 index API 사용)
+        const response = await fetch(`${API_BASE}/v1/indices/korean`);
         
-        let kospiData = null;
-        let kosdaqData = null;
-        
-        try {
-          kospiData = responses[0].ok ? await responses[0].json() : null;
-        } catch (error) {
-          console.warn('KOSPI API 응답 파싱 실패:', error);
-        }
-        
-        try {
-          kosdaqData = responses[1].ok ? await responses[1].json() : null;
-        } catch (error) {
-          console.warn('KOSDAQ API 응답 파싱 실패:', error);
-        }
-        
-        const newIndices: MarketIndex[] = [];
-        
-        if (kospiData && kospiData.chart_data && kospiData.chart_data.length > 0) {
-          const latest = kospiData.chart_data[kospiData.chart_data.length - 1];
-          const change = kospiData.change_percent || 0;
-          newIndices.push({
-            name: 'KOSPI',
-            value: latest.close.toLocaleString(),
-            change: `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`,
-            positive: change >= 0,
-            data_source: 'real'
-          });
+        if (response.ok) {
+          const data = await response.json();
+          const newIndices: MarketIndex[] = [];
+          
+          // KOSPI와 KOSDAQ만 표시
+          const targetIndices = ['KOSPI', 'KOSDAQ'];
+          
+          for (const targetName of targetIndices) {
+            const indexData = data.indices.find((idx: any) => idx.name === targetName);
+            if (indexData) {
+              newIndices.push({
+                name: indexData.name,
+                value: indexData.value.toLocaleString(),
+                change: `${indexData.change >= 0 ? '+' : ''}${indexData.change_percent.toFixed(2)}%`,
+                positive: indexData.change_percent >= 0,
+                data_source: 'real'
+              });
+            }
+          }
+          
+          if (newIndices.length > 0) {
+            setIndices(newIndices);
+          } else {
+            console.warn('한국 지수 데이터 파싱 실패, Mock 데이터 사용');
+            setIndices([
+              { name: 'KOSPI', value: '3,089.65', change: '+0.58%', positive: true, data_source: 'mock' },
+              { name: 'KOSDAQ', value: '783.67', change: '+0.28%', positive: true, data_source: 'mock' }
+            ]);
+          }
         } else {
-          console.warn('KOSPI 데이터 없음, Mock 데이터 사용');
-          newIndices.push({ name: 'KOSPI', value: '2,580.45', change: '+1.2%', positive: true, data_source: 'mock' });
+          console.warn('한국 지수 API 호출 실패, Mock 데이터 사용');
+          setIndices([
+            { name: 'KOSPI', value: '3,089.65', change: '+0.58%', positive: true, data_source: 'mock' },
+            { name: 'KOSDAQ', value: '783.67', change: '+0.28%', positive: true, data_source: 'mock' }
+          ]);
         }
-        
-        if (kosdaqData && kosdaqData.chart_data && kosdaqData.chart_data.length > 0) {
-          const latest = kosdaqData.chart_data[kosdaqData.chart_data.length - 1];
-          const change = kosdaqData.change_percent || 0;
-          newIndices.push({
-            name: 'KOSDAQ',
-            value: latest.close.toLocaleString(),
-            change: `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`,
-            positive: change >= 0,
-            data_source: 'real'
-          });
-        } else {
-          console.warn('KOSDAQ 데이터 없음, Mock 데이터 사용');
-          newIndices.push({ name: 'KOSDAQ', value: '785.32', change: '+0.8%', positive: true, data_source: 'mock' });
-        }
-        
-        setIndices(newIndices);
       } else {
-        // 미국 주요 지수 가져오기
-        const responses = await Promise.all([
-          fetch(`${API_BASE}/v1/stocks/v2/data/^IXIC?market=US&period=1d`), // NASDAQ
-          fetch(`${API_BASE}/v1/stocks/v2/data/^GSPC?market=US&period=1d`), // S&P 500
-          fetch(`${API_BASE}/v1/stocks/v2/data/^DJI?market=US&period=1d`),  // DOW
-        ]);
+        // 미국 주요 지수 가져오기 (새로운 index API 사용)
+        const response = await fetch(`${API_BASE}/v1/indices/us`);
         
-        let nasdaqData = null;
-        let spData = null;
-        let dowData = null;
-        
-        try {
-          nasdaqData = responses[0].ok ? await responses[0].json() : null;
-        } catch (error) {
-          console.warn('NASDAQ API 응답 파싱 실패:', error);
-        }
-        
-        try {
-          spData = responses[1].ok ? await responses[1].json() : null;
-        } catch (error) {
-          console.warn('S&P 500 API 응답 파싱 실패:', error);
-        }
-        
-        try {
-          dowData = responses[2].ok ? await responses[2].json() : null;
-        } catch (error) {
-          console.warn('DOW API 응답 파싱 실패:', error);
-        }
-        
-        const newIndices: MarketIndex[] = [];
-        
-        if (nasdaqData && nasdaqData.chart_data && nasdaqData.chart_data.length > 0) {
-          const latest = nasdaqData.chart_data[nasdaqData.chart_data.length - 1];
-          const change = nasdaqData.change_percent || 0;
-          newIndices.push({
-            name: 'NASDAQ',
-            value: latest.close.toLocaleString(),
-            change: `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`,
-            positive: change >= 0,
-            data_source: 'real'
-          });
+        if (response.ok) {
+          const data = await response.json();
+          const newIndices: MarketIndex[] = [];
+          
+          // NASDAQ, S&P500, DowJones만 표시
+          const targetIndices = ['NASDAQ', 'S&P500', 'DowJones'];
+          const nameMapping: { [key: string]: string } = {
+            'S&P500': 'S&P 500',
+            'DowJones': 'DOW'
+          };
+          
+          for (const targetName of targetIndices) {
+            const indexData = data.indices.find((idx: any) => idx.name === targetName);
+            if (indexData) {
+              newIndices.push({
+                name: nameMapping[indexData.name] || indexData.name,
+                value: indexData.value.toLocaleString(),
+                change: `${indexData.change >= 0 ? '+' : ''}${indexData.change_percent.toFixed(2)}%`,
+                positive: indexData.change_percent >= 0,
+                data_source: 'real'
+              });
+            }
+          }
+          
+          if (newIndices.length > 0) {
+            setIndices(newIndices);
+          } else {
+            console.warn('미국 지수 데이터 파싱 실패, Mock 데이터 사용');
+            setIndices([
+              { name: 'NASDAQ', value: '20,202.89', change: '-0.82%', positive: false, data_source: 'mock' },
+              { name: 'S&P 500', value: '6,198.01', change: '-0.11%', positive: false, data_source: 'mock' },
+              { name: 'DOW', value: '44,565.07', change: '+0.25%', positive: true, data_source: 'mock' }
+            ]);
+          }
         } else {
-          console.warn('NASDAQ 데이터 없음, Mock 데이터 사용');
-          newIndices.push({ name: 'NASDAQ', value: '15,240.83', change: '+0.8%', positive: true, data_source: 'mock' });
+          console.warn('미국 지수 API 호출 실패, Mock 데이터 사용');
+          setIndices([
+            { name: 'NASDAQ', value: '20,202.89', change: '-0.82%', positive: false, data_source: 'mock' },
+            { name: 'S&P 500', value: '6,198.01', change: '-0.11%', positive: false, data_source: 'mock' },
+            { name: 'DOW', value: '44,565.07', change: '+0.25%', positive: true, data_source: 'mock' }
+          ]);
         }
-        
-        if (spData && spData.chart_data && spData.chart_data.length > 0) {
-          const latest = spData.chart_data[spData.chart_data.length - 1];
-          const change = spData.change_percent || 0;
-          newIndices.push({
-            name: 'S&P 500',
-            value: latest.close.toLocaleString(),
-            change: `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`,
-            positive: change >= 0,
-            data_source: 'real'
-          });
-        } else {
-          console.warn('S&P 500 데이터 없음, Mock 데이터 사용');
-          newIndices.push({ name: 'S&P 500', value: '4,567.12', change: '+0.5%', positive: true, data_source: 'mock' });
-        }
-        
-        if (dowData && dowData.chart_data && dowData.chart_data.length > 0) {
-          const latest = dowData.chart_data[dowData.chart_data.length - 1];
-          const change = dowData.change_percent || 0;
-          newIndices.push({
-            name: 'DOW',
-            value: latest.close.toLocaleString(),
-            change: `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`,
-            positive: change >= 0,
-            data_source: 'real'
-          });
-        } else {
-          console.warn('DOW 데이터 없음, Mock 데이터 사용');
-          newIndices.push({ name: 'DOW', value: '35,123.45', change: '-0.1%', positive: false, data_source: 'mock' });
-        }
-        
-        setIndices(newIndices);
       }
     } catch (error) {
       console.error('Failed to fetch market indices:', error);
