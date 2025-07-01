@@ -274,6 +274,24 @@
   color: var(--error-color);
 }
 
+.data-status {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.data-status.full {
+  background: var(--success-bg);
+  color: var(--success-color);
+}
+
+.data-status.limited {
+  background: var(--warning-bg);
+  color: var(--warning-color);
+}
+
 /* 팩터 전략 탭 */
 .quant-strategies {
   max-width: 1400px;

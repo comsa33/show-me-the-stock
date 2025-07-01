@@ -12,14 +12,16 @@ interface QuantIndicator {
   market: string;
   per: number;
   pbr: number;
-  roe: number;
-  roa: number;
-  debtRatio: number;
-  momentum3m: number;
-  marketCap: number;
+  eps: number;
+  bps: number;
+  current_price: number;
+  market_cap: number;
+  estimated_roe: number;
+  momentum_3m: number;
   volatility: number;
-  quantScore: number;
+  limited_quant_score: number;
   recommendation: 'BUY' | 'HOLD' | 'SELL';
+  data_completeness: 'FULL' | 'LIMITED';
 }
 
 interface FactorStrategy {
@@ -46,7 +48,7 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
   const [quantData, setQuantData] = useState<QuantIndicator[]>([]);
   const [strategies, setStrategies] = useState<FactorStrategy[]>([]);
   const [backtestResults, setBacktestResults] = useState<BacktestResult[]>([]);
-  const [sortField, setSortField] = useState<keyof QuantIndicator>('quantScore');
+  const [sortField, setSortField] = useState<keyof QuantIndicator>('limited_quant_score');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [filters, setFilters] = useState({
     per: { min: 0, max: 50 },
@@ -127,18 +129,15 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
         const per = Math.random() * 40 + 5;
         const pbr = Math.random() * 4 + 0.5;
         const roe = Math.random() * 30 + 5;
-        const roa = Math.random() * 15 + 2;
-        const debtRatio = Math.random() * 80 + 10;
         const momentum3m = (Math.random() - 0.5) * 40;
         const marketCap = Math.random() * 500000 + 10000;
         const volatility = Math.random() * 30 + 10;
+        const currentPrice = selectedMarket === 'KR' ? Math.random() * 50000 + 10000 : Math.random() * 300 + 50;
         
         const quantScore = Math.max(0, Math.min(100, 
           (1 / per) * 100 + 
           (1 / pbr) * 50 + 
           roe * 2 + 
-          roa * 3 + 
-          (100 - debtRatio) * 0.5 +
           momentum3m * 0.5 +
           (50 - volatility) * 0.5
         ));
@@ -153,14 +152,16 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
           market: selectedMarket,
           per: Number(per.toFixed(2)),
           pbr: Number(pbr.toFixed(2)),
-          roe: Number(roe.toFixed(2)),
-          roa: Number(roa.toFixed(2)),
-          debtRatio: Number(debtRatio.toFixed(2)),
-          momentum3m: Number(momentum3m.toFixed(2)),
-          marketCap: Number(marketCap.toFixed(0)),
+          eps: Number((currentPrice / per).toFixed(0)),
+          bps: Number((currentPrice / pbr).toFixed(0)),
+          current_price: Number(currentPrice.toFixed(2)),
+          market_cap: Number(marketCap.toFixed(0)),
+          estimated_roe: Number(roe.toFixed(2)),
+          momentum_3m: Number(momentum3m.toFixed(2)),
           volatility: Number(volatility.toFixed(2)),
-          quantScore: Number(quantScore.toFixed(1)),
-          recommendation
+          limited_quant_score: Number(quantScore.toFixed(1)),
+          recommendation,
+          data_completeness: 'LIMITED' as const
         });
       }
       setQuantData(mockData);
@@ -183,8 +184,8 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
     .filter(item => 
       item.per >= filters.per.min && item.per <= filters.per.max &&
       item.pbr >= filters.pbr.min && item.pbr <= filters.pbr.max &&
-      item.roe >= filters.roe.min && item.roe <= filters.roe.max &&
-      item.marketCap >= filters.marketCap.min && item.marketCap <= filters.marketCap.max
+      item.estimated_roe >= filters.roe.min && item.estimated_roe <= filters.roe.max &&
+      item.market_cap >= filters.marketCap.min && item.market_cap <= filters.marketCap.max
     )
     .sort((a, b) => {
       const aValue = a[sortField];
@@ -299,23 +300,26 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
               <th onClick={() => handleSort('pbr')}>
                 PBR <SortIcon field="pbr" />
               </th>
-              <th onClick={() => handleSort('roe')}>
-                ROE(%) <SortIcon field="roe" />
+              <th onClick={() => handleSort('estimated_roe')}>
+                추정ROE(%) <SortIcon field="estimated_roe" />
               </th>
-              <th onClick={() => handleSort('roa')}>
-                ROA(%) <SortIcon field="roa" />
+              <th onClick={() => handleSort('eps')}>
+                EPS <SortIcon field="eps" />
               </th>
-              <th onClick={() => handleSort('debtRatio')}>
-                부채비율(%) <SortIcon field="debtRatio" />
+              <th onClick={() => handleSort('current_price')}>
+                현재가 <SortIcon field="current_price" />
               </th>
-              <th onClick={() => handleSort('momentum3m')}>
-                3개월 수익률(%) <SortIcon field="momentum3m" />
+              <th onClick={() => handleSort('momentum_3m')}>
+                3개월 수익률(%) <SortIcon field="momentum_3m" />
               </th>
               <th onClick={() => handleSort('volatility')}>
                 변동성(%) <SortIcon field="volatility" />
               </th>
-              <th onClick={() => handleSort('quantScore')}>
-                퀀트 점수 <SortIcon field="quantScore" />
+              <th onClick={() => handleSort('limited_quant_score')}>
+                퀀트 점수 <SortIcon field="limited_quant_score" />
+              </th>
+              <th>
+                데이터 상태
               </th>
               <th>추천</th>
             </tr>
@@ -331,27 +335,28 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
                 </td>
                 <td>{item.per}</td>
                 <td>{item.pbr}</td>
-                <td className={item.roe > 15 ? 'positive' : item.roe < 5 ? 'negative' : ''}>
-                  {item.roe}
+                <td className={item.estimated_roe > 15 ? 'positive' : item.estimated_roe < 5 ? 'negative' : ''}>
+                  {item.estimated_roe}
                 </td>
-                <td className={item.roa > 10 ? 'positive' : item.roa < 3 ? 'negative' : ''}>
-                  {item.roa}
-                </td>
-                <td className={item.debtRatio < 30 ? 'positive' : item.debtRatio > 70 ? 'negative' : ''}>
-                  {item.debtRatio}
-                </td>
-                <td className={item.momentum3m > 0 ? 'positive' : 'negative'}>
-                  {item.momentum3m > 0 ? '+' : ''}{item.momentum3m}
+                <td>{item.eps.toLocaleString()}</td>
+                <td>{item.current_price.toLocaleString()}</td>
+                <td className={item.momentum_3m > 0 ? 'positive' : 'negative'}>
+                  {item.momentum_3m > 0 ? '+' : ''}{item.momentum_3m}
                 </td>
                 <td className={item.volatility < 20 ? 'positive' : item.volatility > 30 ? 'negative' : ''}>
                   {item.volatility}
                 </td>
                 <td>
                   <div className="quant-score">
-                    <span className={`score ${item.quantScore > 70 ? 'high' : item.quantScore > 40 ? 'medium' : 'low'}`}>
-                      {item.quantScore}
+                    <span className={`score ${item.limited_quant_score > 70 ? 'high' : item.limited_quant_score > 40 ? 'medium' : 'low'}`}>
+                      {item.limited_quant_score}
                     </span>
                   </div>
+                </td>
+                <td>
+                  <span className={`data-status ${item.data_completeness === 'FULL' ? 'full' : 'limited'}`}>
+                    {item.data_completeness === 'FULL' ? '완전' : '제한적'}
+                  </span>
                 </td>
                 <td>
                   <span className={`recommendation ${item.recommendation.toLowerCase()}`}>

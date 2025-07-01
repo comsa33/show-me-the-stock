@@ -7,13 +7,14 @@ from typing import List, Optional
 import logging
 
 from app.services.quant_service import quant_service, QuantIndicator, BacktestResult
+from app.services.limited_quant_service import limited_quant_service, LimitedQuantIndicator
 from app.services.recommendation_service import recommendation_service, InvestmentProfile, StockRecommendation, PortfolioRecommendation
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/indicators", response_model=List[QuantIndicator])
+@router.get("/indicators", response_model=List[LimitedQuantIndicator])
 async def get_quant_indicators(
     market: str = Query("KR", description="시장 (KR/US)"),
     limit: int = Query(50, description="반환할 종목 수", ge=1, le=100),
@@ -32,8 +33,8 @@ async def get_quant_indicators(
     주요 재무 지표와 기술적 지표를 계산하여 종합 퀀트 점수와 함께 반환합니다.
     """
     try:
-        # 퀀트 지표 데이터 가져오기
-        indicators = await quant_service.get_quant_indicators(market, limit * 2)  # 필터링을 위해 더 많이 가져옴
+        # 제한된 실제 데이터로 퀀트 지표 계산
+        indicators = await limited_quant_service.get_limited_quant_indicators(market, limit * 2)
         
         # 필터링 적용
         filtered_indicators = []
@@ -60,15 +61,13 @@ async def get_quant_indicators(
         reverse = sort_order.lower() == "desc"
         
         if sort_by == "quant_score":
-            filtered_indicators.sort(key=lambda x: x.quant_score, reverse=reverse)
+            filtered_indicators.sort(key=lambda x: x.limited_quant_score, reverse=reverse)
         elif sort_by == "per":
             filtered_indicators.sort(key=lambda x: x.per, reverse=reverse)
         elif sort_by == "pbr":
             filtered_indicators.sort(key=lambda x: x.pbr, reverse=reverse)
         elif sort_by == "roe":
-            filtered_indicators.sort(key=lambda x: x.roe, reverse=reverse)
-        elif sort_by == "roa":
-            filtered_indicators.sort(key=lambda x: x.roa, reverse=reverse)
+            filtered_indicators.sort(key=lambda x: x.estimated_roe, reverse=reverse)
         elif sort_by == "momentum_3m":
             filtered_indicators.sort(key=lambda x: x.momentum_3m, reverse=reverse)
         elif sort_by == "volatility":
@@ -89,7 +88,7 @@ async def get_quant_indicators(
         raise HTTPException(status_code=500, detail="퀀트 지표 조회에 실패했습니다.")
 
 
-@router.get("/indicators/{symbol}", response_model=QuantIndicator)
+@router.get("/indicators/{symbol}", response_model=LimitedQuantIndicator)
 async def get_stock_quant_indicator(
     symbol: str,
     market: str = Query("KR", description="시장 (KR/US)")
@@ -99,7 +98,7 @@ async def get_stock_quant_indicator(
     """
     try:
         # 전체 지표에서 해당 종목 찾기
-        indicators = await quant_service.get_quant_indicators(market, 200)
+        indicators = await limited_quant_service.get_limited_quant_indicators(market, 200)
         
         for indicator in indicators:
             if indicator.symbol == symbol:
