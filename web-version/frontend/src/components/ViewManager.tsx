@@ -5,6 +5,7 @@ import PortfolioView from './views/PortfolioView';
 import WatchlistView from './views/WatchlistView';
 import NewsView from './views/NewsView';
 import ReportsView from './views/ReportsView';
+import QuantView from './views/QuantView';
 import MainContent from './MainContent';
 import StockDetail from './StockDetail';
 
@@ -34,6 +35,8 @@ const ViewManager: React.FC<ViewManagerProps> = ({
   switch (currentView) {
     case 'stocks':
       return <StockDetail />;
+    case 'quant':
+      return <QuantView selectedMarket={selectedMarket} />;
     case 'portfolio':
       return <PortfolioView selectedMarket={selectedMarket} />;
     case 'watchlist':

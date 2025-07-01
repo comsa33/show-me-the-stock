@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-export type ViewType = 'dashboard' | 'stocks' | 'portfolio' | 'watchlist' | 'news' | 'reports';
+export type ViewType = 'dashboard' | 'stocks' | 'quant' | 'portfolio' | 'watchlist' | 'news' | 'reports';
 
 interface Stock {
   name: string;
