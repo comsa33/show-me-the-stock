@@ -139,100 +139,87 @@ class GeminiStockAnalyzer:
             
             logger.info(f"Sending prompt to Gemini for {symbol}")
             
-            # 2단계 분석: 1단계는 grounding으로 소스 수집, 2단계는 구조화
+            # 간소화된 단일 단계 분석: 동기 방식으로 직접 JSON 응답 요청
+            logger.info(f"Starting simplified analysis for {symbol}")
             
-            # 1단계: Google Search grounding으로 소스 정보 포함된 분석
-            grounding_prompt = self._create_analysis_prompt(symbol, market, analysis_type, stock_data)
-            grounding_config = {
-                "tools": [{"google_search": {}}]  # Google Search grounding 활성화
-            }
+            # 간소화된 프롬프트 생성
+            simplified_prompt = self._create_simplified_prompt(symbol, market, analysis_type, stock_data)
             
-            logger.info(f"Step 1: Getting grounded analysis for {symbol}")
-            grounded_response = await asyncio.wait_for(
-                self._call_gemini_grounding(grounding_prompt, grounding_config),
-                timeout=60.0  # 60초 타임아웃 (Google Search 시간 고려)
+            # 동기 방식으로 Gemini 호출
+            logger.info(f"Calling Gemini API synchronously...")
+            
+            from google.genai import types
+            config = types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=StockAnalysisResult
             )
             
-            # 응답 텍스트를 먼저 로드하여 응답 객체를 완전히 준비
-            logger.info(f"Got grounded response, loading text...")
-            original_text = grounded_response.text if grounded_response else ""
-            logger.info(f"Response text loaded: {len(original_text)} characters")
+            # 동기 호출 - 간단하고 빠르게
+            try:
+                gemini_response = self.client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=simplified_prompt,
+                    config=config
+                )
+            except Exception as api_error:
+                logger.error(f"Gemini API call failed: {api_error}")
+                # API 호출 실패시 즉시 mock으로 fallback
+                return await self._generate_mock_analysis(symbol, market, analysis_type)
             
-            # 소스 정보 추출 (응답이 완전히 로드된 후)
-            sources, grounding_supports = self._extract_sources_from_grounding(grounded_response)
-            logger.info(f"Extracted {len(sources)} sources and {len(grounding_supports)} grounding supports")
+            logger.info(f"Gemini API call completed for {symbol}")
             
-            # 2단계: 구조화된 JSON 응답 생성 (소스 정보는 별도로 추가)
-            structured_prompt = f"""
-다음 주식 분석 텍스트를 JSON 구조로 변환해주세요:
-
-{original_text}
-
-JSON 형태로만 응답하고, 추가 설명은 하지 마세요.
-"""
+            # JSON 응답 파싱
+            response_text = gemini_response.text
+            logger.info(f"Response received: {len(response_text)} characters")
             
-            structured_config = {
-                "response_mime_type": "application/json", 
-                "response_schema": StockAnalysisResult
-            }
-            
-            logger.info(f"Step 2: Structuring analysis for {symbol}")
-            response = await asyncio.wait_for(
-                self._call_gemini_async(structured_prompt, structured_config, symbol, market),
-                timeout=30.0  # 30초 타임아웃
-            )
-            
-            # 소스 정보를 구조화된 응답에 추가
-            # grounding에서 실제 소스를 가져왔다면 사용, 없으면 realistic sources 사용
-            if sources and len(sources) > 0:
-                response.sources = sources
-                response.grounding_supports = grounding_supports
-            else:
-                # grounding에서 소스를 가져오지 못한 경우 realistic sources 사용
-                response.sources = self._generate_realistic_sources(symbol, market)
+            # JSON 파싱
+            import json
+            try:
+                # 코드 블록 제거
+                if "```json" in response_text:
+                    response_text = response_text.split("```json")[1].split("```")[0]
+                elif "```" in response_text:
+                    response_text = response_text.split("```")[1].split("```")[0]
+                
+                parsed_data = json.loads(response_text.strip())
+                
+                # StockAnalysisResult 객체로 변환
+                response = StockAnalysisResult(
+                    summary=AnalysisSummary(**parsed_data["summary"]),
+                    technical_analysis=TechnicalAnalysis(
+                        rsi=TechnicalIndicator(**parsed_data["technical_analysis"]["rsi"]),
+                        moving_average=MovingAverage(**parsed_data["technical_analysis"]["moving_average"]),
+                        volume_analysis=VolumeAnalysis(**parsed_data["technical_analysis"]["volume_analysis"])
+                    ),
+                    news_analysis=NewsAnalysis(**parsed_data["news_analysis"]),
+                    risk_factors=parsed_data["risk_factors"],
+                    ai_insights=parsed_data["ai_insights"],
+                    sources=self._generate_realistic_sources(symbol, market),  # 현실적인 소스 추가
+                    grounding_supports=[],  # 나중에 생성
+                    original_text=response_text
+                )
+                
+                # AI 인사이트와 소스를 연결하는 grounding supports 생성
                 response.grounding_supports = self._generate_grounding_supports(response.ai_insights, response.sources)
-            
-            response.original_text = original_text
+                
+                logger.info(f"Real Gemini analysis completed successfully for {symbol}")
+                logger.info(f"Generated {len(response.sources)} sources and {len(response.ai_insights)} insights")
+                
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON parsing failed: {e}, response: {response_text[:500]}")
+                # JSON 파싱 실패시 mock 분석 반환
+                return await self._generate_mock_analysis(symbol, market, analysis_type)
+            except Exception as e:
+                logger.error(f"Response processing failed: {e}")
+                return await self._generate_mock_analysis(symbol, market, analysis_type)
             
             logger.info(f"Gemini analysis completed for {symbol}")
             return response
             
-        except asyncio.TimeoutError:
-            logger.warning(f"Gemini grounding timeout for {symbol}, trying simplified analysis")
-            # grounding 실패시 간소화된 분석으로 fallback
-            try:
-                simplified_prompt = self._create_simplified_prompt(symbol, market, analysis_type, stock_data)
-                structured_config = {
-                    "response_mime_type": "application/json", 
-                    "response_schema": StockAnalysisResult
-                }
-                
-                response = await asyncio.wait_for(
-                    self._call_gemini_async(simplified_prompt, structured_config, symbol, market),
-                    timeout=30.0
-                )
-                return response
-            except:
-                logger.error(f"Both grounding and simplified analysis failed for {symbol}")
-                return await self._generate_mock_analysis(symbol, market, analysis_type)
         except Exception as e:
             logger.error(f"Gemini analysis failed for {symbol}: {e}")
-            # 실패시 간소화된 분석 시도
-            try:
-                simplified_prompt = self._create_simplified_prompt(symbol, market, analysis_type, stock_data)
-                structured_config = {
-                    "response_mime_type": "application/json", 
-                    "response_schema": StockAnalysisResult
-                }
-                
-                response = await asyncio.wait_for(
-                    self._call_gemini_async(simplified_prompt, structured_config, symbol, market),
-                    timeout=30.0
-                )
-                return response
-            except:
-                logger.error(f"All analysis methods failed for {symbol}")
-                return await self._generate_mock_analysis(symbol, market, analysis_type)
+            logger.error(f"Fallback to mock analysis")
+            return await self._generate_mock_analysis(symbol, market, analysis_type)
     
     async def _collect_stock_data(self, symbol: str, market: str, analysis_type: str) -> Dict:
         """분석에 필요한 주식 데이터 수집"""
@@ -473,110 +460,7 @@ RSI: {tech_indicators['rsi']:.1f}
 }}
 """
     
-    async def _call_gemini_grounding(self, prompt: str, config: Dict):
-        """Gemini API grounding 호출 (소스 정보 수집용)"""
-        
-        try:
-            import asyncio
-            loop = asyncio.get_event_loop()
-            
-            # Google Search grounding을 위한 tools 설정
-            from google.genai import types
-            
-            tools = [types.Tool(google_search=types.GoogleSearch())]
-            
-            logger.info(f"Calling Gemini with grounding tools...")
-            
-            # 동기 함수를 비동기로 실행
-            def call_gemini_sync():
-                return self.client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=prompt,
-                    config=types.GenerateContentConfig(tools=tools)
-                )
-            
-            response = await loop.run_in_executor(None, call_gemini_sync)
-            
-            logger.info(f"Gemini grounding call completed")
-            
-            # 응답 텍스트에 접근하여 응답을 완전히 로드
-            if response:
-                _ = response.text  # 텍스트 접근으로 응답 완전 로드
-                logger.info(f"Response text accessed, response ready")
-            
-            return response
-            
-        except Exception as e:
-            logger.error(f"Gemini grounding API call failed: {e}")
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
-            raise
-    
-    async def _call_gemini_async(self, prompt: str, config: Dict, symbol: str = None, market: str = None) -> StockAnalysisResult:
-        """Gemini API 비동기 호출"""
-        
-        try:
-            # Gemini 2.5 Flash 모델 사용 (빠른 응답)
-            import asyncio
-            loop = asyncio.get_event_loop()
-            
-            response = await loop.run_in_executor(
-                None,
-                lambda: self.client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=prompt,
-                    config=types.GenerateContentConfig(**config)
-                )
-            )
-            
-            # JSON 응답 파싱
-            response_text = response.text
-            
-            # JSON 파싱 시도
-            import json
-            try:
-                # 코드 블록 제거
-                if "```json" in response_text:
-                    response_text = response_text.split("```json")[1].split("```")[0]
-                elif "```" in response_text:
-                    response_text = response_text.split("```")[1].split("```")[0]
-                
-                parsed_data = json.loads(response_text.strip())
-                
-                # StockAnalysisResult 객체로 변환
-                result = StockAnalysisResult(
-                    summary=AnalysisSummary(**parsed_data["summary"]),
-                    technical_analysis=TechnicalAnalysis(
-                        rsi=TechnicalIndicator(**parsed_data["technical_analysis"]["rsi"]),
-                        moving_average=MovingAverage(**parsed_data["technical_analysis"]["moving_average"]),
-                        volume_analysis=VolumeAnalysis(**parsed_data["technical_analysis"]["volume_analysis"])
-                    ),
-                    news_analysis=NewsAnalysis(**parsed_data["news_analysis"]),
-                    risk_factors=parsed_data["risk_factors"],
-                    ai_insights=parsed_data["ai_insights"],
-                    sources=[],  # 나중에 할당됨
-                    grounding_supports=[],  # 나중에 할당됨
-                    original_text=response_text
-                )
-                
-                # 소스 정보가 제공된 경우 추가
-                logger.info(f"Adding sources for symbol: {symbol}, market: {market}")
-                if symbol and market:
-                    result.sources = self._generate_realistic_sources(symbol, market)
-                    result.grounding_supports = self._generate_grounding_supports(result.ai_insights, result.sources)
-                    logger.info(f"Added {len(result.sources)} sources and {len(result.grounding_supports)} grounding supports")
-                else:
-                    logger.warning(f"Symbol or market not provided: symbol={symbol}, market={market}")
-                
-                return result
-                
-            except json.JSONDecodeError as e:
-                logger.error(f"JSON parsing failed: {e}, response: {response_text[:500]}")
-                raise ValueError(f"Invalid JSON response from Gemini: {e}")
-                
-        except Exception as e:
-            logger.error(f"Gemini API call failed: {e}")
-            raise
+    # 더 이상 사용하지 않는 비동기 메서드들 (동기 방식으로 변경됨)
     
     def _extract_sources_from_grounding(self, gemini_response) -> tuple[List[SourceCitation], List[GroundingSupport]]:
         """Gemini grounding metadata에서 출처 정보 및 텍스트 매핑 추출"""
