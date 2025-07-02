@@ -10,12 +10,12 @@
 }
 
 .sidebar {
-  width: 320px;
+  width: 300px;
   height: 100vh;
   background: var(--bg-overlay);
   backdrop-filter: blur(20px);
   border-right: 1px solid var(--border-primary);
-  padding: 94px 24px 24px 24px;
+  padding: 80px 16px 16px 16px;
   overflow-y: auto;
   transition: transform 0.3s ease;
   position: fixed;
@@ -24,7 +24,7 @@
   z-index: 50;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 20px;
 }
 
 .sidebar-nav {
@@ -81,10 +81,10 @@
 }
 
 .section-title {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
-  margin: 0 0 16px 0;
+  margin: 0 0 12px 0;
   padding-left: 4px;
 }
 
@@ -93,23 +93,24 @@
 }
 
 .market-buttons {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 
 .market-btn {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 12px 16px;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
   background: var(--bg-overlay);
   border: 1px solid var(--border-primary);
-  border-radius: 12px;
+  border-radius: 10px;
   color: var(--text-primary);
   cursor: pointer;
   transition: all 0.3s ease;
-  text-align: center;
+  text-align: left;
   width: 100%;
 }
 
@@ -126,23 +127,27 @@
 }
 
 .market-flag {
-  font-size: 20px;
+  font-size: 16px;
+  flex-shrink: 0;
 }
 
 .market-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
+  min-width: 0;
 }
 
 .market-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
+  line-height: 1.2;
 }
 
 .market-desc {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--text-secondary);
+  line-height: 1.2;
 }
 
 .interest-rates {
@@ -150,17 +155,18 @@
 }
 
 .rate-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 .rate-card {
   background: var(--bg-overlay);
   border: 1px solid var(--border-primary);
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: 8px;
+  padding: 10px;
   transition: all 0.3s ease;
+  text-align: center;
 }
 
 .rate-card:hover {
@@ -172,29 +178,31 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .rate-flag {
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .rate-country {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--text-secondary);
   font-weight: 500;
 }
 
 .rate-value {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--success-color);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
+  line-height: 1.2;
 }
 
 .rate-desc {
-  font-size: 11px;
+  font-size: 9px;
   color: var(--text-tertiary);
+  line-height: 1.2;
 }
 
 .quick-stats {
@@ -204,14 +212,14 @@
 .stats-grid {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
 }
 
 .stat-item {
   background: var(--bg-overlay);
   border: 1px solid var(--border-primary);
-  border-radius: 8px;
-  padding: 12px;
+  border-radius: 6px;
+  padding: 8px 10px;
   transition: all 0.3s ease;
 }
 
@@ -220,21 +228,23 @@
 }
 
 .stat-label {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-secondary);
-  margin-bottom: 4px;
-}
-
-.stat-value {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
   margin-bottom: 2px;
 }
 
+.stat-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1px;
+  line-height: 1.2;
+}
+
 .stat-change {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
+  line-height: 1.2;
 }
 
 .sidebar-footer {
@@ -258,6 +268,7 @@
     transform: translateX(-100%);
     z-index: 95;
     box-shadow: 8px 0 32px rgba(0, 0, 0, 0.3);
+    padding-top: 90px; /* 헤더와 겹치지 않도록 조정 */
   }
   
   .sidebar-open {
@@ -266,24 +277,58 @@
   
   .sidebar-overlay {
     display: block;
+    z-index: 94; /* 사이드바보다 낮게 */
   }
 }
 
 @media (max-width: 768px) {
   .sidebar {
     width: 280px;
-    padding: 20px;
+    padding: 90px 16px 16px 16px;
+    gap: 16px;
   }
   
   .market-buttons {
     gap: 6px;
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .market-btn {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+  
+  .market-flag {
+    font-size: 14px;
+  }
+  
+  .market-name {
+    font-size: 12px;
+  }
+  
+  .market-desc {
+    font-size: 9px;
   }
   
   .rate-cards {
-    gap: 8px;
+    gap: 6px;
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .rate-card {
+    padding: 8px;
   }
   
   .stats-grid {
-    gap: 8px;
+    gap: 4px;
+  }
+  
+  .stat-item {
+    padding: 6px 8px;
+  }
+  
+  .section-title {
+    font-size: 13px;
+    margin-bottom: 10px;
   }
 }

@@ -1,15 +1,16 @@
 .header {
-  background: var(--bg-glass);
+  background: var(--bg-overlay);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border-primary);
-  padding: 0 24px;
-  height: 70px;
+  padding: 0 20px;
+  height: 68px;
   display: flex;
   align-items: center;
   position: sticky;
   top: 0;
   z-index: 100;
   transition: all 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .header-compact {
@@ -40,18 +41,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  background: var(--bg-overlay);
-  border: none;
+  width: 38px;
+  height: 38px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
   border-radius: 8px;
   color: var(--text-primary);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .sidebar-toggle:hover {
-  background: var(--bg-glass);
+  background: var(--bg-hover);
+  border-color: var(--accent-color);
   transform: translateY(-1px);
 }
 

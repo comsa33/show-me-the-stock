@@ -105,6 +105,18 @@ const Dashboard: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMarket]);
 
+  /* ------- 사이드바 닫기 이벤트 리스너 ------- */
+  useEffect(() => {
+    const handleCloseSidebar = () => {
+      setSidebarOpen(false);
+    };
+
+    window.addEventListener('closeSidebar', handleCloseSidebar);
+    return () => {
+      window.removeEventListener('closeSidebar', handleCloseSidebar);
+    };
+  }, []);
+
   return (
     <div className="dashboard">
       <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
