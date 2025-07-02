@@ -127,6 +127,7 @@ const Dashboard: React.FC = () => {
           selectedMarket={selectedMarket}
           onMarketChange={setSelectedMarket}
           interestRates={apiData.interestRates}
+          onClose={() => setSidebarOpen(false)}
         />
 
         <div className="main-content-wrapper">

@@ -326,21 +326,29 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
 
   const renderBacktestTab = () => (
     <div className="backtest-section">
-      <div className="backtest-header">
-        <div className="header-icon">
-          <Target size={24} />
+      <div className="section-header">
+        <div className="section-icon">
+          <Target size={18} />
         </div>
-        <div>
+        <div className="section-info">
           <h3>개별 종목 백테스트</h3>
           <p>원하는 종목에 투자했다면 얼마의 수익/손실이 있었을지 시뮬레이션해보세요</p>
         </div>
       </div>
 
-      <div className="backtest-form">
-        <div className="form-row">
+      <div className="content-card">
+        <div className="card-header">
+          <div>
+            <h4 className="card-title">백테스트 설정</h4>
+            <p className="card-subtitle">투자 조건을 설정하고 백테스트를 실행하세요</p>
+          </div>
+        </div>
+        
+        <div className="form-grid backtest-grid">
           <div className="form-group">
-            <label>종목 선택</label>
+            <label className="form-label">종목 선택</label>
             <select 
+              className="form-select"
               value={backtestSettings.symbol} 
               onChange={(e) => setBacktestSettings(prev => ({ ...prev, symbol: e.target.value }))}
             >
@@ -354,8 +362,9 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
           </div>
           
           <div className="form-group">
-            <label>투자 전략</label>
+            <label className="form-label">투자 전략</label>
             <select 
+              className="form-select"
               value={backtestSettings.strategy} 
               onChange={(e) => setBacktestSettings(prev => ({ ...prev, strategy: e.target.value as any }))}
             >
@@ -364,12 +373,11 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
               <option value="value">가치 투자</option>
             </select>
           </div>
-        </div>
 
-        <div className="form-row">
           <div className="form-group">
-            <label>시작 날짜</label>
+            <label className="form-label">시작 날짜</label>
             <input 
+              className="form-input"
               type="date" 
               value={backtestSettings.startDate}
               max="2025-07-02"
@@ -378,31 +386,31 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
           </div>
           
           <div className="form-group">
-            <label>종료 날짜</label>
+            <label className="form-label">종료 날짜</label>
             <input 
+              className="form-input"
               type="date" 
               value={backtestSettings.endDate}
               max="2025-07-02"
               onChange={(e) => setBacktestSettings(prev => ({ ...prev, endDate: e.target.value }))}
             />
           </div>
-        </div>
 
-        <div className="form-row">
           <div className="form-group">
-            <label>투자 금액</label>
+            <label className="form-label">투자 금액</label>
             <input 
+              className="form-input"
               type="number" 
               value={backtestSettings.investmentAmount}
               onChange={(e) => setBacktestSettings(prev => ({ ...prev, investmentAmount: Number(e.target.value) }))}
               placeholder={selectedMarket === 'KR' ? '1000000' : '1000'}
             />
-            <small>{selectedMarket === 'KR' ? '원 (예: 1000000 = 100만원)' : '달러 (예: 1000 = $1,000)'}</small>
+            <div className="form-helper">{selectedMarket === 'KR' ? '원 (예: 1000000 = 100만원)' : '달러 (예: 1000 = $1,000)'}</div>
           </div>
           
-          <div className="form-group">
+          <div className="form-group button-group">
             <button 
-              className="backtest-run-btn" 
+              className="btn btn-primary" 
               onClick={runBacktest}
               disabled={loading || !backtestSettings.symbol}
             >
@@ -487,11 +495,11 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
 
   const renderIndicatorsTab = () => (
     <div className="quant-indicators">
-      <div className="indicators-header">
-        <div className="header-icon">
-          <Activity size={24} />
+      <div className="section-header">
+        <div className="section-icon">
+          <Activity size={18} />
         </div>
-        <div>
+        <div className="section-info">
           <h3>퀀트 지표 분석</h3>
           <p>재무 지표와 기술적 지표를 종합하여 투자 가치를 평가합니다</p>
         </div>
@@ -534,8 +542,8 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
         </div>
       </div>
 
-      <div className="indicators-table">
-        <table>
+      <div className="content-card">
+        <table className="data-table">
           <thead>
             <tr>
               <th onClick={() => handleSort('name')}>
@@ -582,15 +590,15 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
                 </td>
                 <td>{item.per}</td>
                 <td>{item.pbr}</td>
-                <td className={item.estimated_roe > 15 ? 'positive' : item.estimated_roe < 5 ? 'negative' : ''}>
+                <td className={item.estimated_roe > 15 ? 'status-positive' : item.estimated_roe < 5 ? 'status-negative' : ''}>
                   {item.estimated_roe}
                 </td>
                 <td>{item.eps.toLocaleString()}</td>
                 <td>{item.current_price.toLocaleString()}</td>
-                <td className={item.momentum_3m > 0 ? 'positive' : 'negative'}>
+                <td className={item.momentum_3m > 0 ? 'status-positive' : 'status-negative'}>
                   {item.momentum_3m > 0 ? '+' : ''}{item.momentum_3m}
                 </td>
-                <td className={item.volatility < 20 ? 'positive' : item.volatility > 30 ? 'negative' : ''}>
+                <td className={item.volatility < 20 ? 'status-positive' : item.volatility > 30 ? 'status-negative' : ''}>
                   {item.volatility}
                 </td>
                 <td>
@@ -606,7 +614,7 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
                   </span>
                 </td>
                 <td>
-                  <span className={`recommendation ${item.recommendation.toLowerCase()}`}>
+                  <span className={`badge ${item.recommendation === 'BUY' ? 'badge-buy' : item.recommendation === 'SELL' ? 'badge-sell' : 'badge-hold'}`}>
                     {item.recommendation === 'BUY' ? '매수' : item.recommendation === 'SELL' ? '매도' : '보유'}
                   </span>
                 </td>
@@ -620,11 +628,11 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
 
   const renderRecommendationsTab = () => (
     <div className="recommendations-section">
-      <div className="recommendations-header">
-        <div className="header-icon">
-          <TrendingUp size={24} />
+      <div className="section-header">
+        <div className="section-icon">
+          <TrendingUp size={18} />
         </div>
-        <div>
+        <div className="section-info">
           <h3>AI 투자 추천</h3>
           <p>현재 시장 분석을 바탕으로 향후 3개월 수익 가능성이 높은 종목들을 추천합니다</p>
         </div>
@@ -696,58 +704,46 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
 
   return (
     <div className="quant-view">
-      <div className="quant-header">
-        <div className="header-content">
-          <div className="header-left">
-            <Calculator className="header-icon" size={28} />
-            <div>
-              <h1>스마트 투자 분석</h1>
-              <p>종목별 백테스트와 AI 추천으로 더 나은 투자 결정을 내려보세요</p>
-            </div>
-          </div>
-          <div className="header-right">
-            <div className="market-selector">
-              <div className="market-badge">
-                <span className="market-flag">{selectedMarket === 'KR' ? '🇰🇷' : '🇺🇸'}</span>
-                <div className="market-text">
-                  <span className="market-name">{selectedMarket === 'KR' ? '한국' : '미국'}</span>
-                  <span className="market-desc">시장 분석</span>
-                </div>
-              </div>
-            </div>
-          </div>
+
+      <div className="quant-tabs">
+        <div className="tabs-container">
+          <button
+            className={`tab-button ${activeTab === 'indicators' ? 'active' : ''}`}
+            onClick={() => setActiveTab('indicators')}
+          >
+            <Activity className="tab-icon" size={20} />
+            <span className="tab-label">퀀트 지표</span>
+          </button>
+          <button
+            className={`tab-button ${activeTab === 'backtest' ? 'active' : ''}`}
+            onClick={() => setActiveTab('backtest')}
+          >
+            <BarChart3 className="tab-icon" size={20} />
+            <span className="tab-label">백테스트</span>
+          </button>
+          <button
+            className={`tab-button ${activeTab === 'recommendations' ? 'active' : ''}`}
+            onClick={() => setActiveTab('recommendations')}
+          >
+            <TrendingUp className="tab-icon" size={20} />
+            <span className="tab-label">AI 추천</span>
+          </button>
         </div>
       </div>
 
-      <div className="quant-tabs">
-        <button
-          className={`tab-button ${activeTab === 'indicators' ? 'active' : ''}`}
-          onClick={() => setActiveTab('indicators')}
-        >
-          <Activity size={16} />
-          퀀트 지표
-        </button>
-        <button
-          className={`tab-button ${activeTab === 'backtest' ? 'active' : ''}`}
-          onClick={() => setActiveTab('backtest')}
-        >
-          <BarChart3 size={16} />
-          백테스트
-        </button>
-        <button
-          className={`tab-button ${activeTab === 'recommendations' ? 'active' : ''}`}
-          onClick={() => setActiveTab('recommendations')}
-        >
-          <TrendingUp size={16} />
-          AI 추천
-        </button>
-      </div>
-
       <div className="quant-content">
-        {loading && <div className="loading">데이터 로딩 중...</div>}
-        {!loading && activeTab === 'indicators' && renderIndicatorsTab()}
-        {!loading && activeTab === 'backtest' && renderBacktestTab()}
-        {!loading && activeTab === 'recommendations' && renderRecommendationsTab()}
+        <div className="content-container">
+          {loading && (
+            <div className="loading">
+              <div className="loading-spinner"></div>
+              <div className="loading-text">분석 중...</div>
+              <div className="loading-subtext">처음 접속 시 1분 이상 소요될 수 있습니다</div>
+            </div>
+          )}
+          {!loading && activeTab === 'indicators' && renderIndicatorsTab()}
+          {!loading && activeTab === 'backtest' && renderBacktestTab()}
+          {!loading && activeTab === 'recommendations' && renderRecommendationsTab()}
+        </div>
       </div>
     </div>
   );

@@ -7,7 +7,7 @@ const Footer: React.FC = () => {
     <footer className="footer">
       <div className="footer-content">
         <div className="footer-section">
-          <h3 className="footer-title">Stock Dashboard</h3>
+          <h3 className="footer-title">ShowMeTheStock</h3>
           <p className="footer-desc">AI-powered stock analysis platform</p>
         </div>
         
@@ -46,7 +46,7 @@ const Footer: React.FC = () => {
             Made with <Heart size={14} className="heart-icon" /> by Ruo Lee
           </p>
           <p className="copyright">
-            © {new Date().getFullYear()} Stock Dashboard. All rights reserved.
+            © {new Date().getFullYear()} ShowMeTheStock. All rights reserved.
           </p>
         </div>
       </div>
