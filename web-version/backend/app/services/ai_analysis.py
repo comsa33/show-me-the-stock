@@ -154,6 +154,7 @@ class GeminiStockAnalyzer:
             )
             
             # 소스 정보 추출
+            logger.info(f"response: {grounded_response}")
             sources, grounding_supports = self._extract_sources_from_grounding(grounded_response)
             original_text = grounded_response.text
             
@@ -571,11 +572,11 @@ RSI: {tech_indicators['rsi']:.1f}
             if hasattr(gemini_response, 'candidates') and gemini_response.candidates:
                 candidate = gemini_response.candidates[0]
                 
+                logger.info(f"candidate: {candidate}")
                 if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
                     grounding_metadata = candidate.grounding_metadata
                     
                     # grounding_chunks에서 출처 추출
-                    logger.info(f"grounding_metadata: {grounding_metadata}")
                     if hasattr(grounding_metadata, 'grounding_chunks'):
                         for i, chunk in enumerate(grounding_metadata.grounding_chunks):
                             if hasattr(chunk, 'web') and chunk.web:
