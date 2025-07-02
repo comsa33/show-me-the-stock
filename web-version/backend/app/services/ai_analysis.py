@@ -4,6 +4,7 @@ Google Gemini를 사용한 AI 주식 분석 서비스
 
 import os
 import logging
+import traceback
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from pydantic import BaseModel
@@ -574,6 +575,7 @@ RSI: {tech_indicators['rsi']:.1f}
                     grounding_metadata = candidate.grounding_metadata
                     
                     # grounding_chunks에서 출처 추출
+                    logger.info(f"grounding_metadata: {grounding_metadata}")
                     if hasattr(grounding_metadata, 'grounding_chunks'):
                         for i, chunk in enumerate(grounding_metadata.grounding_chunks):
                             if hasattr(chunk, 'web') and chunk.web:
@@ -599,7 +601,7 @@ RSI: {tech_indicators['rsi']:.1f}
                                 grounding_supports.append(grounding_support)
                             
         except Exception as e:
-            logger.warning(f"Failed to extract sources from grounding metadata: {e}")
+            logger.warning(f"Failed to extract sources from grounding metadata: {traceback.format_exc()}")
         
         return sources[:5], grounding_supports  # 최대 5개 출처만 반환
     
