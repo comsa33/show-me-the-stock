@@ -197,9 +197,9 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
             strokeWidth={2.5}
             dot={(dotProps: any) => {
               if (dotProps.index === processedData.length - 1) {
-                return <circle cx={dotProps.cx} cy={dotProps.cy} r={5} fill="#2563eb" stroke="#ffffff" strokeWidth={2} />;
+                return <circle key={`dot-${dotProps.index}`} cx={dotProps.cx} cy={dotProps.cy} r={5} fill="#2563eb" stroke="#ffffff" strokeWidth={2} />;
               }
-              return <></>;
+              return <g key={`empty-dot-${dotProps.index}`}></g>;
             }}
             activeDot={{ r: 4, fill: '#2563eb' }}
           />
@@ -214,9 +214,9 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
               strokeWidth={1.5}
               dot={(dotProps: any) => {
                 if (dotProps.index === processedData.length - 1) {
-                  return <circle cx={dotProps.cx} cy={dotProps.cy} r={4} fill="#10b981" stroke="#ffffff" strokeWidth={2} />;
+                  return <circle key={`rate-dot-${dotProps.index}`} cx={dotProps.cx} cy={dotProps.cy} r={4} fill="#10b981" stroke="#ffffff" strokeWidth={2} />;
                 }
-                return <></>;
+                return <g key={`empty-rate-dot-${dotProps.index}`}></g>;
               }}
               activeDot={{ r: 3, fill: '#10b981' }}
             />
@@ -231,7 +231,11 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
     <div className="professional-stock-chart">
       {/* 메인 차트 */}
       <div className="main-chart">
-        <SimpleLineChart />
+        <div className="chart-scroll-container">
+          <div className="chart-content">
+            <SimpleLineChart />
+          </div>
+        </div>
       </div>
 
       {/* 차트 범례 */}

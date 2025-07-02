@@ -8,9 +8,11 @@
   background: var(--bg-tertiary);
   border-bottom: 1px solid var(--border-primary);
   height: 64px;
-  position: sticky;
+  position: fixed;
   top: 0;
-  transition: transform 0.3s ease-in-out;
+  left: 0;
+  right: 0;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   /* Desktop: Above sidebar */
   z-index: 1100;
 }
@@ -32,11 +34,19 @@
 
 .header-content {
   height: 100%;
-  padding: 0 24px;
+  padding: 0 16px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 24px;
+  gap: 16px;
+}
+
+/* Mobile: Reduce padding for more space */
+@media (max-width: 768px) {
+  .header-content {
+    padding: 0 12px;
+    gap: 12px;
+  }
 }
 
 /* Desktop: Ensure header doesn't go behind sidebar */

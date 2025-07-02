@@ -124,6 +124,40 @@
   overflow: hidden;
 }
 
+/* 모바일 차트 스크롤 컨테이너 */
+.chart-scroll-container {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #ccc transparent;
+}
+
+.chart-scroll-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.chart-scroll-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.chart-scroll-container::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.chart-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+/* 모바일 차트 내용 */
+.chart-content {
+  min-width: 100%;
+  width: 100%;
+}
+
 /* 캔들스틱 차트 스타일 */
 .candlestick-container {
   position: relative;
@@ -299,6 +333,11 @@
 
 /* 반응형 디자인 */
 @media (max-width: 768px) {
+  .professional-stock-chart {
+    margin: 16px -8px; /* 좌우 마진 음수로 카드 밖으로 확장 */
+    border-radius: 0; /* 모바일에서 둥근 모서리 제거 */
+  }
+  
   .chart-controls-advanced {
     flex-direction: column;
     gap: 15px;
@@ -327,6 +366,11 @@
     font-size: 11px;
   }
   
+  /* 모바일에서 차트 폭 확장 */
+  .chart-content {
+    min-width: 150%; /* 차트 폭을 1.5배로 확장 */
+  }
+  
   /* 모바일에서 우측 Y축 라벨 크기 줄이기 */
   .recharts-yAxis.recharts-yAxisRight text {
     font-size: 10px !important;
@@ -335,8 +379,8 @@
 
 @media (max-width: 480px) {
   .professional-stock-chart {
-    padding: 15px;
-    margin: 15px 0;
+    padding: 12px;
+    margin: 12px -4px; /* 더 작은 화면에서 더 넓게 */
   }
   
   .chart-type-btn {
@@ -354,6 +398,11 @@
   
   .candlestick-container {
     height: 300px;
+  }
+  
+  /* 아주 작은 화면에서 차트 더 넓게 */
+  .chart-content {
+    min-width: 200%; /* 차트 폭을 2배로 확장 */
   }
 }
 

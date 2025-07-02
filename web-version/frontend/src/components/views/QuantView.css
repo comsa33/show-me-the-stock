@@ -198,7 +198,30 @@
 .content-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 16px;
+}
+
+/* 모바일 최적화 */
+@media (max-width: 768px) {
+  .content-container {
+    padding: 0 8px;
+  }
+  
+  .content-card {
+    margin: 0 -4px 16px -4px; /* 좌우로 확장 */
+    border-radius: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .content-container {
+    padding: 0 4px;
+  }
+  
+  .content-card {
+    margin: 0 -2px 12px -2px; /* 더 확장 */
+    border-radius: 4px;
+  }
 }
 
 .loading {

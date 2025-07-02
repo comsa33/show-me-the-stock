@@ -34,6 +34,38 @@
   gap: 20px;
 }
 
+/* 모바일 최적화 */
+@media (max-width: 768px) {
+  .market-overview {
+    margin: 0 -4px 16px -4px; /* 좌우로 확장 */
+  }
+  
+  .overview-grid {
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  }
+  
+  .overview-card {
+    padding: 16px;
+    margin: 0; /* 카드 자체 마진 제거 */
+  }
+}
+
+@media (max-width: 480px) {
+  .market-overview {
+    margin: 0 -2px 12px -2px;
+  }
+  
+  .overview-grid {
+    gap: 8px;
+    grid-template-columns: 1fr; /* 한 열로 정렬 */
+  }
+  
+  .overview-card {
+    padding: 12px;
+  }
+}
+
 .overview-card {
   background: var(--bg-overlay);
   backdrop-filter: blur(20px);

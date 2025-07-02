@@ -25,9 +25,11 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      if (currentScrollY > lastScrollY.current && currentScrollY > 80) {
+      const scrollThreshold = window.innerWidth <= 768 ? 50 : 80; // 모바일에서 더 민감하게
+      
+      if (currentScrollY > lastScrollY.current && currentScrollY > scrollThreshold) {
         setIsHeaderVisible(false);
-      } else {
+      } else if (currentScrollY < lastScrollY.current || currentScrollY <= scrollThreshold) {
         setIsHeaderVisible(true);
       }
       lastScrollY.current = currentScrollY;

@@ -8,12 +8,14 @@
 .dashboard-body {
   display: flex;
   flex: 1;
-  overflow: hidden; /* Prevent body scroll */
+  overflow: hidden;
+  /* Fixed header requires top margin */
+  margin-top: 64px;
 }
 
 .main-content-wrapper {
   flex: 1;
-  overflow-y: auto; /* Allow content to scroll */
+  overflow-y: auto;
   padding: 24px;
   transition: margin-left 0.3s ease;
 }
@@ -34,8 +36,16 @@
   }
 }
 
+/* Mobile: Remove padding for maximum space */
 @media (max-width: 768px) {
   .main-content-wrapper {
-    padding: 16px;
+    padding: 12px 8px;
+  }
+}
+
+/* Extra small mobile: Minimal padding */
+@media (max-width: 480px) {
+  .main-content-wrapper {
+    padding: 8px 4px;
   }
 }
