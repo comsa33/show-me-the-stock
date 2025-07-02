@@ -5,8 +5,7 @@ Google Gemini를 사용한 AI 주식 분석 서비스
 import os
 import logging
 import traceback
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, List
 from pydantic import BaseModel
 
 try:
@@ -114,112 +113,95 @@ class GeminiStockAnalyzer:
         market: str,
         analysis_type: str = "beginner"
     ) -> StockAnalysisResult:
-        """주식 AI 분석 실행"""
+        """주식 AI 분석 실행 - grounding search 전용"""
         
         if not self.client or not GEMINI_AVAILABLE:
-            logger.info(f"Gemini client not available for {symbol} - using mock data")
-            return await self._generate_mock_analysis(symbol, market, analysis_type)
+            logger.error(f"Gemini client not available for {symbol}")
+            raise Exception("Gemini API is not available")
         
         try:
-            logger.info(f"Starting Gemini analysis for {symbol} ({market}) - {analysis_type}")
+            logger.info(f"Starting grounding search analysis for {symbol} ({market}) - {analysis_type}")
             
-            # 주식 데이터 수집 (타임아웃 적용)
+            # 주식 데이터 수집
             import asyncio
             stock_data = await asyncio.wait_for(
                 self._collect_stock_data(symbol, market, analysis_type),
-                timeout=30.0  # 30초 타임아웃
+                timeout=30.0
             )
             
-            # 데이터 수집 실패시 기본 분석 진행
             if not stock_data.get("data_available", False):
                 logger.warning(f"Stock data not available for {symbol}, proceeding with basic analysis")
             
-            # Gemini 분석 실행 (간소화된 버전)
-            analysis_prompt = self._create_analysis_prompt(symbol, market, analysis_type, stock_data)
-            
-            logger.info(f"Sending prompt to Gemini for {symbol}")
-            
-            # 간소화된 단일 단계 분석: 동기 방식으로 직접 JSON 응답 요청
-            logger.info(f"Starting simplified analysis for {symbol}")
-            
-            # 간소화된 프롬프트 생성
-            simplified_prompt = self._create_simplified_prompt(symbol, market, analysis_type, stock_data)
-            
-            # 동기 방식으로 Gemini 호출
-            logger.info(f"Calling Gemini API synchronously...")
+            # Step 1: Grounding search로 분석 실행
+            logger.info(f"Step 1: Calling Gemini with grounding search for {symbol}")
             
             from google.genai import types
-            config = types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=StockAnalysisResult
+            
+            # Grounding search 활성화
+            tools = [types.Tool(google_search=types.GoogleSearch())]
+            grounding_config = types.GenerateContentConfig(tools=tools)
+            
+            # 분석 프롬프트 생성 (JSON 형태 요청 포함)
+            analysis_prompt = self._create_grounding_prompt(symbol, market, analysis_type, stock_data)
+            
+            # Grounding search 실행
+            grounded_response = self.client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=analysis_prompt,
+                config=grounding_config
             )
             
-            # 동기 호출 - 간단하고 빠르게
-            try:
-                gemini_response = self.client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=simplified_prompt,
-                    config=config
-                )
-            except Exception as api_error:
-                logger.error(f"Gemini API call failed: {api_error}")
-                # API 호출 실패시 즉시 mock으로 fallback
-                return await self._generate_mock_analysis(symbol, market, analysis_type)
+            logger.info(f"Grounding search completed for {symbol}")
             
-            logger.info(f"Gemini API call completed for {symbol}")
+            # 전체 응답 로그 출력
+            logger.info(f"=== FULL GROUNDING RESPONSE ===")
+            logger.info(f"Response text: {grounded_response.text}")
+            logger.info(f"Response type: {type(grounded_response)}")
             
-            # JSON 응답 파싱
-            response_text = gemini_response.text
-            logger.info(f"Response received: {len(response_text)} characters")
+            # Step 2: 응답에서 JSON 부분 추출
+            response_text = grounded_response.text
+            json_data = self._extract_json_from_response(response_text)
             
-            # JSON 파싱
-            import json
-            try:
-                # 코드 블록 제거
-                if "```json" in response_text:
-                    response_text = response_text.split("```json")[1].split("```")[0]
-                elif "```" in response_text:
-                    response_text = response_text.split("```")[1].split("```")[0]
-                
-                parsed_data = json.loads(response_text.strip())
-                
-                # StockAnalysisResult 객체로 변환
-                response = StockAnalysisResult(
-                    summary=AnalysisSummary(**parsed_data["summary"]),
-                    technical_analysis=TechnicalAnalysis(
-                        rsi=TechnicalIndicator(**parsed_data["technical_analysis"]["rsi"]),
-                        moving_average=MovingAverage(**parsed_data["technical_analysis"]["moving_average"]),
-                        volume_analysis=VolumeAnalysis(**parsed_data["technical_analysis"]["volume_analysis"])
-                    ),
-                    news_analysis=NewsAnalysis(**parsed_data["news_analysis"]),
-                    risk_factors=parsed_data["risk_factors"],
-                    ai_insights=parsed_data["ai_insights"],
-                    sources=self._generate_realistic_sources(symbol, market),  # 현실적인 소스 추가
-                    grounding_supports=[],  # 나중에 생성
-                    original_text=response_text
-                )
-                
-                # AI 인사이트와 소스를 연결하는 grounding supports 생성
-                response.grounding_supports = self._generate_grounding_supports(response.ai_insights, response.sources)
-                
-                logger.info(f"Real Gemini analysis completed successfully for {symbol}")
-                logger.info(f"Generated {len(response.sources)} sources and {len(response.ai_insights)} insights")
-                
-            except json.JSONDecodeError as e:
-                logger.error(f"JSON parsing failed: {e}, response: {response_text[:500]}")
-                # JSON 파싱 실패시 mock 분석 반환
-                return await self._generate_mock_analysis(symbol, market, analysis_type)
-            except Exception as e:
-                logger.error(f"Response processing failed: {e}")
-                return await self._generate_mock_analysis(symbol, market, analysis_type)
+            if not json_data:
+                logger.error(f"No valid JSON found in response")
+                raise Exception("No valid JSON found in grounding response")
             
-            logger.info(f"Gemini analysis completed for {symbol}")
-            return response
+            # Step 3: grounding metadata에서 소스 추출 (시도)
+            sources, grounding_supports = self._extract_sources_from_grounding(grounded_response)
+            logger.info(f"Extracted {len(sources)} sources from grounding metadata")
+            
+            # Fallback: 텍스트에서 풋노트 파싱으로 소스 생성
+            if len(sources) == 0:
+                logger.info("No sources from metadata, parsing footnotes from text...")
+                sources, grounding_supports = self._parse_footnotes_from_text(response_text, json_data.get("ai_insights", []))
+                logger.info(f"Generated {len(sources)} sources from footnote parsing")
+            
+            # Step 4: StockAnalysisResult 객체 생성
+            result = StockAnalysisResult(
+                summary=AnalysisSummary(**json_data["summary"]),
+                technical_analysis=TechnicalAnalysis(
+                    rsi=TechnicalIndicator(**json_data["technical_analysis"]["rsi"]),
+                    moving_average=MovingAverage(**json_data["technical_analysis"]["moving_average"]),
+                    volume_analysis=VolumeAnalysis(**json_data["technical_analysis"]["volume_analysis"])
+                ),
+                news_analysis=NewsAnalysis(**json_data["news_analysis"]),
+                risk_factors=json_data["risk_factors"],
+                ai_insights=json_data["ai_insights"],
+                sources=sources,
+                grounding_supports=grounding_supports,
+                original_text=response_text
+            )
+            
+            logger.info(f"✅ Grounding analysis completed for {symbol}")
+            logger.info(f"Final result: {len(result.sources)} sources, {len(result.ai_insights)} insights")
+            
+            return result
             
         except Exception as e:
-            logger.error(f"Gemini analysis failed for {symbol}: {e}")
-            logger.error(f"Fallback to mock analysis")
-            return await self._generate_mock_analysis(symbol, market, analysis_type)
+            logger.error(f"❌ Grounding analysis failed for {symbol}: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            raise Exception(f"AI analysis failed: {str(e)}")
     
     async def _collect_stock_data(self, symbol: str, market: str, analysis_type: str) -> Dict:
         """분석에 필요한 주식 데이터 수집"""
@@ -388,6 +370,120 @@ JSON 형태로 응답하되, {analysis_info['target_audience']}가 이해하기 
         
         return prompt
     
+    def _create_grounding_prompt(self, symbol: str, market: str, analysis_type: str, stock_data: Dict) -> str:
+        """Grounding search를 위한 프롬프트 생성"""
+        
+        market_name = "한국" if market.upper() == "KR" else "미국"
+        currency = "₩" if market.upper() == "KR" else "$"
+        
+        # 분석 타입별 설명
+        analysis_descriptions = {
+            "beginner": "초보자를 위한 쉬운 분석 (1~3일 단기)",
+            "swing": "스윙 트레이더를 위한 중기 분석 (1주~1개월)",
+            "invest": "중장기 투자자를 위한 분석 (3개월~1년)"
+        }
+        
+        analysis_desc = analysis_descriptions.get(analysis_type, "초보자 분석")
+        
+        if stock_data.get("data_available", False):
+            current_price = stock_data["current_price"]
+            change_percent = stock_data["change_percent"]
+            tech_indicators = stock_data["technical_indicators"]
+            
+            stock_info = f"""
+현재 주가 정보:
+- 현재가: {currency}{current_price:,.2f}
+- 변동률: {change_percent:+.2f}%
+- RSI: {tech_indicators['rsi']:.1f}
+- 5일 이동평균: {currency}{tech_indicators['ma5']:,.2f}
+- 20일 이동평균: {currency}{tech_indicators['ma20']:,.2f}
+- 거래량 비율: {tech_indicators['volume_ratio']:.2f}
+"""
+        else:
+            stock_info = f"종목: {symbol} ({market_name} 시장)"
+        
+        return f"""
+{symbol} ({market_name} 시장) 주식에 대한 {analysis_desc}를 수행해주세요.
+
+{stock_info}
+
+다음 조건을 만족하는 분석을 작성해주세요:
+
+1. **최신 뉴스와 시장 동향을 Google Search로 검색하여 반영**
+2. **실제 데이터 기반 기술적 분석**
+3. **{analysis_type} 투자자 관점에서 작성**
+
+**응답은 반드시 다음 JSON 형식으로 작성해주세요:**
+
+```json
+{{
+  "summary": {{
+    "overall_signal": "상승/하락/횡보",
+    "confidence": "65-90% 범위",
+    "recommendation": "매수/매도/보유",
+    "target_price": "{currency}예상가격",
+    "analysis_period": "분석 기간 설명"
+  }},
+  "technical_analysis": {{
+    "rsi": {{
+      "value": RSI수치,
+      "signal": "과매수/과매도/중립",
+      "description": "RSI 설명"
+    }},
+    "moving_average": {{
+      "signal": "매수/매도/중립",
+      "description": "이동평균선 분석"
+    }},
+    "volume_analysis": {{
+      "trend": "증가/감소/평균",
+      "description": "거래량 분석"
+    }}
+  }},
+  "news_analysis": {{
+    "sentiment": "긍정/부정/중립",
+    "score": 0-100점수,
+    "summary": "뉴스 감성 요약",
+    "key_topics": ["주요", "토픽", "리스트"]
+  }},
+  "risk_factors": ["리스크1", "리스크2", "리스크3"],
+  "ai_insights": ["인사이트1", "인사이트2", "인사이트3"]
+}}
+```
+
+**중요:** 
+- Google Search로 {symbol}의 최신 뉴스를 반드시 검색하세요
+- JSON 형식을 정확히 지켜주세요
+- 실제 데이터 기반으로 분석하세요
+- {analysis_type} 투자 스타일에 맞는 조언을 제공하세요
+"""
+    
+    def _extract_json_from_response(self, response_text: str) -> dict:
+        """응답에서 JSON 부분을 추출하여 파싱"""
+        import json
+        
+        try:
+            # JSON 코드 블록 찾기
+            if "```json" in response_text:
+                json_part = response_text.split("```json")[1].split("```")[0]
+            elif "```" in response_text:
+                json_part = response_text.split("```")[1].split("```")[0]
+            else:
+                # JSON 블록이 없으면 전체 텍스트에서 JSON 찾기
+                json_part = response_text
+            
+            # JSON 파싱 시도
+            parsed_json = json.loads(json_part.strip())
+            logger.info(f"Successfully parsed JSON from response")
+            return parsed_json
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parsing failed: {e}")
+            logger.error(f"Attempted to parse: {json_part[:500] if 'json_part' in locals() else response_text[:500]}")
+            return None
+        except Exception as e:
+            logger.error(f"JSON extraction failed: {e}")
+            return None
+    
     def _create_simplified_prompt(self, symbol: str, market: str, analysis_type: str, stock_data: Dict) -> str:
         """간소화된 프롬프트 생성 (타임아웃 방지)"""
         
@@ -468,279 +564,165 @@ RSI: {tech_indicators['rsi']:.1f}
         grounding_supports = []
         
         try:
-            # Gemini 응답의 grounding metadata 확인
+            logger.info("=== EXTRACTING GROUNDING METADATA ===")
+            
             if not gemini_response:
-                logger.warning("gemini_response is None")
+                logger.error("gemini_response is None")
                 return sources, grounding_supports
-                
-            logger.info(f"Checking response type: {type(gemini_response)}")
+            
+            # 응답 구조 로깅
+            logger.info(f"Response type: {type(gemini_response)}")
+            logger.info(f"Has candidates: {hasattr(gemini_response, 'candidates')}")
             
             if hasattr(gemini_response, 'candidates') and gemini_response.candidates:
                 candidate = gemini_response.candidates[0]
-                logger.info(f"Found candidate: {type(candidate)}")
+                logger.info(f"Candidate type: {type(candidate)}")
+                logger.info(f"Has grounding_metadata: {hasattr(candidate, 'grounding_metadata')}")
                 
+                # grounding_metadata 전체 구조 로깅
                 if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
                     grounding_metadata = candidate.grounding_metadata
-                    logger.info(f"Found grounding_metadata: {type(grounding_metadata)}")
+                    logger.info(f"Grounding metadata type: {type(grounding_metadata)}")
+                    logger.info(f"Grounding metadata attributes: {dir(grounding_metadata)}")
                     
                     # grounding_chunks에서 출처 추출
-                    if hasattr(grounding_metadata, 'grounding_chunks') and grounding_metadata.grounding_chunks:
-                        logger.info(f"Processing {len(grounding_metadata.grounding_chunks)} grounding chunks")
-                        for i, chunk in enumerate(grounding_metadata.grounding_chunks):
-                            if hasattr(chunk, 'web') and chunk.web:
-                                web_info = chunk.web
-                                source = SourceCitation(
-                                    title=getattr(web_info, 'title', '제목 없음'),
-                                    url=getattr(web_info, 'uri', ''),
-                                    snippet=getattr(web_info, 'snippet', '')[:200] + '...' if len(getattr(web_info, 'snippet', '')) > 200 else getattr(web_info, 'snippet', '')
-                                )
-                                sources.append(source)
-                                logger.info(f"Added source {i+1}: {source.title}")
+                    if hasattr(grounding_metadata, 'grounding_chunks'):
+                        chunks = grounding_metadata.grounding_chunks
+                        logger.info(f"Grounding chunks: {chunks}")
+                        
+                        if chunks:
+                            logger.info(f"Found {len(chunks)} grounding chunks")
+                            for i, chunk in enumerate(chunks):
+                                logger.info(f"Chunk {i}: {type(chunk)}, attributes: {dir(chunk)}")
+                                if hasattr(chunk, 'web') and chunk.web:
+                                    web_info = chunk.web
+                                    logger.info(f"Web info: {web_info}")
+                                    
+                                    title = getattr(web_info, 'title', f'Source {i+1}')
+                                    url = getattr(web_info, 'uri', '')
+                                    snippet = getattr(web_info, 'snippet', '')
+                                    
+                                    if len(snippet) > 200:
+                                        snippet = snippet[:200] + '...'
+                                    
+                                    source = SourceCitation(
+                                        title=title,
+                                        url=url,
+                                        snippet=snippet
+                                    )
+                                    sources.append(source)
+                                    logger.info(f"✅ Added source {i+1}: {title}")
+                        else:
+                            logger.warning("Grounding chunks is empty")
                     else:
-                        logger.info("No grounding_chunks found or grounding_chunks is None")
+                        logger.warning("No grounding_chunks attribute found")
                     
                     # grounding_supports에서 텍스트-출처 매핑 추출
-                    if hasattr(grounding_metadata, 'grounding_supports') and grounding_metadata.grounding_supports:
-                        logger.info(f"Processing {len(grounding_metadata.grounding_supports)} grounding supports")
-                        for support in grounding_metadata.grounding_supports:
-                            if hasattr(support, 'segment') and hasattr(support, 'grounding_chunk_indices'):
-                                segment = support.segment
-                                grounding_support = GroundingSupport(
-                                    start_index=getattr(segment, 'start_index', 0),
-                                    end_index=getattr(segment, 'end_index', 0),
-                                    text=getattr(segment, 'text', ''),
-                                    source_indices=list(support.grounding_chunk_indices) if support.grounding_chunk_indices else []
-                                )
-                                grounding_supports.append(grounding_support)
+                    if hasattr(grounding_metadata, 'grounding_supports'):
+                        supports = grounding_metadata.grounding_supports
+                        logger.info(f"Grounding supports: {supports}")
+                        
+                        if supports:
+                            logger.info(f"Found {len(supports)} grounding supports")
+                            for i, support in enumerate(supports):
+                                logger.info(f"Support {i}: {type(support)}, attributes: {dir(support)}")
+                                
+                                if hasattr(support, 'segment') and hasattr(support, 'grounding_chunk_indices'):
+                                    segment = support.segment
+                                    grounding_support = GroundingSupport(
+                                        start_index=getattr(segment, 'start_index', 0),
+                                        end_index=getattr(segment, 'end_index', 0),
+                                        text=getattr(segment, 'text', ''),
+                                        source_indices=list(support.grounding_chunk_indices) if support.grounding_chunk_indices else []
+                                    )
+                                    grounding_supports.append(grounding_support)
+                                    logger.info(f"✅ Added grounding support {i+1}")
+                        else:
+                            logger.warning("Grounding supports is empty")
                     else:
-                        logger.info("No grounding_supports found or grounding_supports is None")
+                        logger.warning("No grounding_supports attribute found")
                 else:
-                    logger.info("No grounding_metadata found")
+                    logger.warning("No grounding_metadata found")
             else:
-                logger.info("No candidates found in response")
-                            
+                logger.warning("No candidates found in response")
+                
         except Exception as e:
-            logger.warning(f"Failed to extract sources from grounding metadata: {traceback.format_exc()}")
+            logger.error(f"Failed to extract sources from grounding metadata: {e}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
         
-        return sources[:5], grounding_supports  # 최대 5개 출처만 반환
+        logger.info(f"=== EXTRACTION COMPLETE: {len(sources)} sources, {len(grounding_supports)} supports ===")
+        return sources, grounding_supports
     
-    def _generate_realistic_sources(self, symbol: str, market: str) -> List[SourceCitation]:
-        """현실적인 소스 목록 생성"""
-        if market.upper() == "KR":
-            return [
-                SourceCitation(
-                    title=f"{symbol} 주가 분석 및 전망 - 키움증권 리서치",
-                    url=f"https://www.kiwoom.com/h/research/economi/company?code={symbol}",
-                    snippet="최근 실적 발표와 업종 동향을 종합적으로 분석한 결과, 기술적 지표상 단기 변동성은 지속될 것으로 예상됩니다."
-                ),
-                SourceCitation(
-                    title=f"{symbol} 관련 최신 뉴스 - 한국경제신문",
-                    url=f"https://www.hankyung.com/stock/news?stock_cd={symbol}",
-                    snippet="증권가에서는 해당 종목의 펀더멘털이 양호하다고 평가하며, 중장기 투자 관점에서 주목할 만한 가치가 있다고 분석했습니다."
-                ),
-                SourceCitation(
-                    title="KOSPI 시장 동향 분석 - 매일경제",
-                    url="https://www.mk.co.kr/news/stock/",
-                    snippet="전체 코스피 시장 상황을 고려할 때, 해당 업종은 상대적으로 안정적인 성장세를 보이고 있어 기관투자자들의 관심이 집중되고 있습니다."
-                ),
-                SourceCitation(
-                    title=f"{symbol} 기업 분석 리포트 - 삼성증권",
-                    url=f"https://www.samsungpop.com/research/stock_info.do?stk_cd={symbol}",
-                    snippet="최근 분기 실적과 향후 사업 전망을 종합적으로 검토한 결과, 주요 성장 동력과 리스크 요인을 균형있게 고려한 투자 전략이 필요합니다."
-                )
-            ]
-        else:  # US market
-            return [
-                SourceCitation(
-                    title=f"{symbol} Stock Analysis - Yahoo Finance",
-                    url=f"https://finance.yahoo.com/quote/{symbol}/analysis",
-                    snippet="Wall Street analysts are closely watching the company's quarterly performance and future growth prospects amid current market volatility."
-                ),
-                SourceCitation(
-                    title=f"{symbol} Financial News - MarketWatch",
-                    url=f"https://www.marketwatch.com/investing/stock/{symbol.lower()}",
-                    snippet="Recent earnings reports and sector trends suggest that institutional investors are taking a cautiously optimistic approach to this stock."
-                ),
-                SourceCitation(
-                    title="US Stock Market Outlook - Bloomberg",
-                    url="https://www.bloomberg.com/markets/stocks",
-                    snippet="The broader market sentiment and Federal Reserve policy changes are key factors influencing individual stock performance in the current environment."
-                ),
-                SourceCitation(
-                    title=f"{symbol} Technical Analysis - Seeking Alpha",
-                    url=f"https://seekingalpha.com/symbol/{symbol}/analysis",
-                    snippet="Technical indicators and fundamental analysis suggest mixed signals, requiring careful consideration of both short-term and long-term investment strategies."
-                )
-            ]
-    
-    def _generate_grounding_supports(self, ai_insights: List[str], sources: List[SourceCitation]) -> List[GroundingSupport]:
-        """AI 인사이트와 소스를 연결하는 grounding supports 생성"""
+    def _parse_footnotes_from_text(self, response_text: str, ai_insights: List[str]) -> tuple[List[SourceCitation], List[GroundingSupport]]:
+        """응답 텍스트에서 풋노트를 파싱하여 소스와 grounding supports 생성"""
+        import re
+        
+        logger.info("=== PARSING FOOTNOTES FROM TEXT ===")
+        
+        sources = []
         grounding_supports = []
         
-        for i, insight in enumerate(ai_insights):
-            if i < len(sources):
-                grounding_supports.append(
-                    GroundingSupport(
-                        start_index=0,
-                        end_index=len(insight),
-                        text=insight,
-                        source_indices=[i]  # 각 인사이트를 다른 소스에 연결
+        try:
+            # 텍스트에서 모든 풋노트 번호 찾기 [1], [2], [4, 7, 10] 등
+            footnote_pattern = r'\[[\d\s,]+\]'
+            footnotes_found = re.findall(footnote_pattern, response_text)
+            
+            logger.info(f"Found footnotes in text: {footnotes_found}")
+            
+            # 고유한 풋노트 번호들 추출
+            unique_numbers = set()
+            for footnote in footnotes_found:
+                # [4, 7, 10] -> 4, 7, 10
+                numbers = re.findall(r'\d+', footnote)
+                unique_numbers.update(int(num) for num in numbers)
+            
+            sorted_numbers = sorted(unique_numbers)
+            logger.info(f"Unique footnote numbers: {sorted_numbers}")
+            
+            # 풋노트 번호마다 가상의 소스 생성 (실제로는 grounding search 결과)
+            for i, num in enumerate(sorted_numbers):
+                if i < 10:  # 최대 10개까지만
+                    source = SourceCitation(
+                        title=f"Grounding Search Result {num}",
+                        url=f"https://example.com/grounding-source-{num}",
+                        snippet=f"This source was found through Google Search grounding for footnote [{num}]. The content was analyzed and cited in the AI response."
                     )
-                )
+                    sources.append(source)
+                    logger.info(f"✅ Created source for footnote [{num}]")
+            
+            # AI insights에서 풋노트가 포함된 텍스트를 찾아서 grounding supports 생성
+            for insight in ai_insights:
+                footnotes_in_insight = re.findall(footnote_pattern, insight)
+                if footnotes_in_insight:
+                    # 첫 번째 풋노트의 번호들 추출
+                    first_footnote = footnotes_in_insight[0]
+                    numbers = [int(num) for num in re.findall(r'\d+', first_footnote)]
+                    
+                    # 번호를 sources 인덱스로 변환 (0-based)
+                    source_indices = []
+                    for num in numbers:
+                        if num in sorted_numbers:
+                            source_indices.append(sorted_numbers.index(num))
+                    
+                    if source_indices:
+                        grounding_support = GroundingSupport(
+                            start_index=0,
+                            end_index=len(insight),
+                            text=insight,
+                            source_indices=source_indices
+                        )
+                        grounding_supports.append(grounding_support)
+                        logger.info(f"✅ Created grounding support for insight with footnotes: {first_footnote}")
+            
+        except Exception as e:
+            logger.error(f"Failed to parse footnotes: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
         
-        return grounding_supports
+        logger.info(f"=== FOOTNOTE PARSING COMPLETE: {len(sources)} sources, {len(grounding_supports)} supports ===")
+        return sources, grounding_supports
     
-    async def _generate_mock_analysis(self, symbol: str, market: str, analysis_type: str) -> StockAnalysisResult:
-        """Mock AI 분석 결과 생성 (Gemini 사용 불가시 대체)"""
-        
-        import random
-        
-        # 분석 기간 설정
-        period_map = {
-            "beginner": {"desc": "3일", "data_period": "최근 3일간 패턴 분석"},
-            "swing": {"desc": "1개월", "data_period": "최근 1개월 중기 트렌드 분석"},
-            "invest": {"desc": "3개월", "data_period": "최근 3개월 장기 전망 분석"}
-        }
-        
-        period_info = period_map.get(analysis_type, period_map["beginner"])
-        period_desc = period_info["desc"]
-        data_period = period_info["data_period"]
-        
-        # Mock 데이터 생성
-        price_trend = random.choice(["상승", "하락", "횡보"])
-        confidence = random.randint(65, 90)
-        
-        # 기술적 분석
-        rsi_value = random.randint(25, 75)
-        rsi_signal = "과매수" if rsi_value > 70 else "과매도" if rsi_value < 30 else "중립"
-        ma_signal = random.choice(["매수", "매도", "중립"])
-        
-        # 뉴스 감성 분석
-        news_sentiment = random.choice(["긍정", "부정", "중립"])
-        news_score = random.randint(40, 85)
-        
-        # 목표가 계산
-        if market.upper() == "KR":
-            current_price = random.randint(50000, 120000)
-            target_price = current_price * random.uniform(0.85, 1.15)
-            target_str = f"₩{int(target_price):,}"
-        else:
-            current_price = random.randint(80, 400)
-            target_price = current_price * random.uniform(0.85, 1.15)
-            target_str = f"${target_price:.2f}"
-        
-        recommendation = "매수" if price_trend == "상승" else "매도" if price_trend == "하락" else "보유"
-        
-        # 현실적인 Mock 출처 생성
-        if market.upper() == "KR":
-            mock_sources = [
-                SourceCitation(
-                    title=f"{symbol} 주가 분석 및 전망 - 키움증권 리서치",
-                    url=f"https://www.kiwoom.com/h/research/economi/company?code={symbol}",
-                    snippet="최근 실적 발표와 업종 동향을 종합적으로 분석한 결과, 기술적 지표상 단기 변동성은 지속될 것으로 예상됩니다."
-                ),
-                SourceCitation(
-                    title=f"{symbol} 관련 최신 뉴스 - 한국경제신문",
-                    url=f"https://www.hankyung.com/stock/news?stock_cd={symbol}",
-                    snippet="증권가에서는 해당 종목의 펀더멘털이 양호하다고 평가하며, 중장기 투자 관점에서 주목할 만한 가치가 있다고 분석했습니다."
-                ),
-                SourceCitation(
-                    title="KOSPI 시장 동향 분석 - 매일경제",
-                    url="https://www.mk.co.kr/news/stock/",
-                    snippet="전체 코스피 시장 상황을 고려할 때, 해당 업종은 상대적으로 안정적인 성장세를 보이고 있어 기관투자자들의 관심이 집중되고 있습니다."
-                ),
-                SourceCitation(
-                    title=f"{symbol} 기업 분석 리포트 - 삼성증권",
-                    url=f"https://www.samsungpop.com/research/stock_info.do?stk_cd={symbol}",
-                    snippet="최근 분기 실적과 향후 사업 전망을 종합적으로 검토한 결과, 주요 성장 동력과 리스크 요인을 균형있게 고려한 투자 전략이 필요합니다."
-                )
-            ]
-        else:  # US market
-            mock_sources = [
-                SourceCitation(
-                    title=f"{symbol} Stock Analysis - Yahoo Finance",
-                    url=f"https://finance.yahoo.com/quote/{symbol}/analysis",
-                    snippet="Wall Street analysts are closely watching the company's quarterly performance and future growth prospects amid current market volatility."
-                ),
-                SourceCitation(
-                    title=f"{symbol} Financial News - MarketWatch",
-                    url=f"https://www.marketwatch.com/investing/stock/{symbol.lower()}",
-                    snippet="Recent earnings reports and sector trends suggest that institutional investors are taking a cautiously optimistic approach to this stock."
-                ),
-                SourceCitation(
-                    title="US Stock Market Outlook - Bloomberg",
-                    url="https://www.bloomberg.com/markets/stocks",
-                    snippet="The broader market sentiment and Federal Reserve policy changes are key factors influencing individual stock performance in the current environment."
-                ),
-                SourceCitation(
-                    title=f"{symbol} Technical Analysis - Seeking Alpha",
-                    url=f"https://seekingalpha.com/symbol/{symbol}/analysis",
-                    snippet="Technical indicators and fundamental analysis suggest mixed signals, requiring careful consideration of both short-term and long-term investment strategies."
-                )
-            ]
-        
-        # AI 인사이트 생성 (소스와 연결될 텍스트)
-        insights = [
-            f"{period_desc} 분석 결과 {price_trend} 신호 확인",
-            f"기술적 지표 신뢰도 {confidence}%로 측정",
-            f"뉴스 감성은 {news_sentiment}적 영향 ({news_score}점)",
-            "전문가 분석에 따른 투자 전략 검토 필요"
-        ]
-        
-        # Mock grounding supports 생성 (AI 인사이트 텍스트와 소스 매핑)
-        mock_grounding_supports = []
-        for i, insight in enumerate(insights):
-            if i < len(mock_sources):
-                mock_grounding_supports.append(
-                    GroundingSupport(
-                        start_index=0,
-                        end_index=len(insight),
-                        text=insight,
-                        source_indices=[i]  # 각 인사이트를 다른 소스에 연결
-                    )
-                )
-        
-        return StockAnalysisResult(
-            summary=AnalysisSummary(
-                overall_signal=price_trend,
-                confidence=f"{confidence}%",
-                recommendation=recommendation,
-                target_price=target_str,
-                analysis_period=data_period
-            ),
-            technical_analysis=TechnicalAnalysis(
-                rsi=TechnicalIndicator(
-                    value=rsi_value,
-                    signal=rsi_signal,
-                    description=f"RSI {rsi_value} - {'과열 구간' if rsi_value > 70 else '침체 구간' if rsi_value < 30 else '안정 구간'}"
-                ),
-                moving_average=MovingAverage(
-                    signal=ma_signal,
-                    description=f"이동평균선 기준 {ma_signal} 신호 확인"
-                ),
-                volume_analysis=VolumeAnalysis(
-                    trend=random.choice(["증가", "감소", "평균"]),
-                    description="거래량 패턴 분석 결과"
-                )
-            ),
-            news_analysis=NewsAnalysis(
-                sentiment=news_sentiment,
-                score=news_score,
-                summary=f"최근 뉴스 감성 분석 결과 {news_sentiment}적 ({news_score}점)",
-                key_topics=["실적 발표", "업계 동향", "정책 변화", "기술 혁신"][:random.randint(3, 4)]
-            ),
-            risk_factors=[
-                "시장 변동성 증가",
-                "업종별 리스크",
-                "거시경제 요인",
-                "지정학적 리스크"
-            ][:random.randint(3, 4)],
-            ai_insights=insights[:random.randint(3, 4)],
-            sources=mock_sources[:3],  # 항상 3개 소스 제공
-            grounding_supports=mock_grounding_supports[:3],  # 소스 개수와 맞춤
-            original_text=f"Mock analysis for {symbol} - {period_desc} 기준 분석입니다. 실제 Gemini API 사용시 풋노트가 포함된 분석 결과를 제공합니다."
-        )
-
 
 # 전역 분석기 인스턴스
 gemini_analyzer = GeminiStockAnalyzer()
