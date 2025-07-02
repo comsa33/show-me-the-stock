@@ -116,62 +116,50 @@ class GeminiStockAnalyzer:
         """주식 AI 분석 실행"""
         
         if not self.client or not GEMINI_AVAILABLE:
+            logger.info(f"Gemini client not available for {symbol} - using mock data")
             return await self._generate_mock_analysis(symbol, market, analysis_type)
         
         try:
-            # 주식 데이터 수집
-            stock_data = await self._collect_stock_data(symbol, market, analysis_type)
+            logger.info(f"Starting Gemini analysis for {symbol} ({market}) - {analysis_type}")
             
-            # Gemini 분석 실행
+            # 주식 데이터 수집 (타임아웃 적용)
+            import asyncio
+            stock_data = await asyncio.wait_for(
+                self._collect_stock_data(symbol, market, analysis_type),
+                timeout=30.0  # 30초 타임아웃
+            )
+            
+            # 데이터 수집 실패시 기본 분석 진행
+            if not stock_data.get("data_available", False):
+                logger.warning(f"Stock data not available for {symbol}, proceeding with basic analysis")
+            
+            # Gemini 분석 실행 (간소화된 버전)
             analysis_prompt = self._create_analysis_prompt(symbol, market, analysis_type, stock_data)
             
-            # Google Search grounding 도구 설정
-            grounding_tool = types.Tool(google_search=types.GoogleSearch())
+            logger.info(f"Sending prompt to Gemini for {symbol}")
             
-            cfg1 = types.GenerateContentConfig(
-                tools=[grounding_tool],
-            )
-            
-            # 1차: text + grounding
-            r1 = self.client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=analysis_prompt,
-                config=cfg1,
-            )
-            
-            # grounding metadata에서 출처 및 텍스트 매핑 추출
-            sources, grounding_supports = self._extract_sources_from_grounding(r1)
-            
-            # 원본 텍스트 저장
-            original_text = r1.text if hasattr(r1, 'text') else ""
-            
-            # 2차: JSON 재포맷
-            cfg2 = {
-                "response_mime_type": "application/json",
+            # 2단계 대신 1단계로 간소화 (타임아웃 방지)
+            cfg = {
+                "response_mime_type": "application/json", 
                 "response_schema": StockAnalysisResult
             }
-            r2 = self.client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=f"아래 분석을 지정된 JSON 스키마에 맞춰 재정리:\n\n{r1.text}",
-                config=cfg2,
+            
+            # 간소화된 프롬프트로 직접 JSON 응답 요청 (grounding 제거로 속도 향상)
+            simplified_prompt = self._create_simplified_prompt(symbol, market, analysis_type, stock_data)
+            
+            response = await asyncio.wait_for(
+                self._call_gemini_async(simplified_prompt, cfg),
+                timeout=45.0  # 45초 타임아웃
             )
             
-            # JSON 파싱
-            analysis_result = r2.parsed
-            
-            # 출처 및 grounding 정보 추가
-            analysis_result.sources = sources
-            analysis_result.grounding_supports = [
-                GroundingSupport(**support) for support in grounding_supports
-            ]
-            analysis_result.original_text = original_text
-
             logger.info(f"Gemini analysis completed for {symbol}")
-            return analysis_result
+            return response
             
+        except asyncio.TimeoutError:
+            logger.error(f"Gemini analysis timeout for {symbol}")
+            return await self._generate_mock_analysis(symbol, market, analysis_type)
         except Exception as e:
             logger.error(f"Gemini analysis failed for {symbol}: {e}")
-            # 실패시 Mock 데이터 반환
             return await self._generate_mock_analysis(symbol, market, analysis_type)
     
     async def _collect_stock_data(self, symbol: str, market: str, analysis_type: str) -> Dict:
@@ -340,6 +328,133 @@ JSON 형태로 응답하되, {analysis_info['target_audience']}가 이해하기 
 """
         
         return prompt
+    
+    def _create_simplified_prompt(self, symbol: str, market: str, analysis_type: str, stock_data: Dict) -> str:
+        """간소화된 프롬프트 생성 (타임아웃 방지)"""
+        
+        market_name = "한국" if market.upper() == "KR" else "미국"
+        currency = "₩" if market.upper() == "KR" else "$"
+        
+        if not stock_data.get("data_available", False):
+            return f"""
+{symbol} ({market_name}) 주식 분석을 JSON 형태로 제공해주세요.
+분석 유형: {analysis_type}
+
+다음 구조에 맞춰 간단하고 빠르게 응답해주세요:
+{{
+  "summary": {{
+    "overall_signal": "상승/하락/횡보",
+    "confidence": "70%",
+    "recommendation": "매수/매도/보유",
+    "target_price": "{currency}00,000",
+    "analysis_period": "3일간 분석"
+  }},
+  "technical_analysis": {{
+    "rsi": {{"value": 50, "signal": "중립", "description": "RSI 50 - 안정 구간"}},
+    "moving_average": {{"signal": "중립", "description": "이동평균선 중립"}},
+    "volume_analysis": {{"trend": "평균", "description": "거래량 보통"}}
+  }},
+  "news_analysis": {{
+    "sentiment": "중립",
+    "score": 50,
+    "summary": "뉴스 감성 중립적",
+    "key_topics": ["시장동향", "업종분석"]
+  }},
+  "risk_factors": ["시장 변동성", "업종 리스크"],
+  "ai_insights": ["기본 분석 완료", "추가 모니터링 필요"]
+}}
+"""
+        
+        current_price = stock_data["current_price"]
+        change_percent = stock_data["change_percent"]
+        tech_indicators = stock_data["technical_indicators"]
+        
+        return f"""
+{symbol} ({market_name}) 주식 간단 분석 - {analysis_type}
+
+현재가: {currency}{current_price:,.2f}
+변동률: {change_percent:+.2f}%
+RSI: {tech_indicators['rsi']:.1f}
+
+다음 JSON 구조로 빠르게 응답해주세요:
+{{
+  "summary": {{
+    "overall_signal": "상승/하락/횡보 중 하나",
+    "confidence": "65-85% 범위",
+    "recommendation": "매수/매도/보유 중 하나",
+    "target_price": "{currency}현재가의 90-110% 범위",
+    "analysis_period": "분석 기간 설명"
+  }},
+  "technical_analysis": {{
+    "rsi": {{"value": {tech_indicators['rsi']:.0f}, "signal": "RSI 기반 신호", "description": "RSI 설명"}},
+    "moving_average": {{"signal": "이평선 신호", "description": "이평선 설명"}},
+    "volume_analysis": {{"trend": "거래량 트렌드", "description": "거래량 설명"}}
+  }},
+  "news_analysis": {{
+    "sentiment": "긍정/부정/중립",
+    "score": 40-80,
+    "summary": "뉴스 감성 요약",
+    "key_topics": ["주요 토픽들"]
+  }},
+  "risk_factors": ["주요 리스크 2-3개"],
+  "ai_insights": ["핵심 인사이트 2-3개"]
+}}
+"""
+    
+    async def _call_gemini_async(self, prompt: str, config: Dict) -> StockAnalysisResult:
+        """Gemini API 비동기 호출"""
+        
+        try:
+            # Gemini 2.5 Flash 모델 사용 (빠른 응답)
+            import asyncio
+            loop = asyncio.get_event_loop()
+            
+            response = await loop.run_in_executor(
+                None,
+                lambda: self.client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=prompt,
+                    config=types.GenerateContentConfig(**config)
+                )
+            )
+            
+            # JSON 응답 파싱
+            response_text = response.text
+            
+            # JSON 파싱 시도
+            import json
+            try:
+                # 코드 블록 제거
+                if "```json" in response_text:
+                    response_text = response_text.split("```json")[1].split("```")[0]
+                elif "```" in response_text:
+                    response_text = response_text.split("```")[1].split("```")[0]
+                
+                parsed_data = json.loads(response_text.strip())
+                
+                # StockAnalysisResult 객체로 변환
+                return StockAnalysisResult(
+                    summary=AnalysisSummary(**parsed_data["summary"]),
+                    technical_analysis=TechnicalAnalysis(
+                        rsi=TechnicalIndicator(**parsed_data["technical_analysis"]["rsi"]),
+                        moving_average=MovingAverage(**parsed_data["technical_analysis"]["moving_average"]),
+                        volume_analysis=VolumeAnalysis(**parsed_data["technical_analysis"]["volume_analysis"])
+                    ),
+                    news_analysis=NewsAnalysis(**parsed_data["news_analysis"]),
+                    risk_factors=parsed_data["risk_factors"],
+                    ai_insights=parsed_data["ai_insights"],
+                    sources=[],  # 간소화된 버전에서는 출처 제거
+                    grounding_supports=[],
+                    original_text=response_text
+                )
+                
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON parsing failed: {e}, response: {response_text[:500]}")
+                raise ValueError(f"Invalid JSON response from Gemini: {e}")
+                
+        except Exception as e:
+            logger.error(f"Gemini API call failed: {e}")
+            raise
     
     def _extract_sources_from_grounding(self, gemini_response) -> tuple[List[SourceCitation], List[dict]]:
         """Gemini grounding metadata에서 출처 정보 및 텍스트 매핑 추출"""
