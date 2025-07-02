@@ -135,27 +135,89 @@ class GeminiStockAnalyzer:
             # Step 1: Grounding search로 분석 실행
             logger.info(f"Step 1: Calling Gemini with grounding search for {symbol}")
             
+            from google import genai
             from google.genai import types
             
-            # Grounding search 활성화
-            tools = [types.Tool(google_search=types.GoogleSearch())]
-            grounding_config = types.GenerateContentConfig(tools=tools)
+            # Grounding search 활성화 - 테스트에서 확인된 정확한 방법
+            grounding_tool = types.Tool(
+                google_search=types.GoogleSearch()
+            )
+            
+            config = types.GenerateContentConfig(
+                tools=[grounding_tool]
+            )
             
             # 분석 프롬프트 생성 (JSON 형태 요청 포함)
             analysis_prompt = self._create_grounding_prompt(symbol, market, analysis_type, stock_data)
             
-            # Grounding search 실행
+            # Grounding search 실행 - 정확한 인자명 사용
             grounded_response = self.client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=analysis_prompt,
-                config=grounding_config
+                config=config
             )
             
             logger.info(f"Grounding search completed for {symbol}")
             
+            # 즉시 grounding metadata 추출 (객체가 사라지기 전에)
+            extracted_sources = []
+            extracted_supports = []
+            
+            if hasattr(grounded_response, 'candidates') and grounded_response.candidates:
+                candidate = grounded_response.candidates[0]
+                if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
+                    metadata = candidate.grounding_metadata
+                    
+                    # grounding_chunks 추출
+                    if hasattr(metadata, 'grounding_chunks') and metadata.grounding_chunks:
+                        logger.info(f"Immediately extracting {len(metadata.grounding_chunks)} chunks")
+                        for i, chunk in enumerate(metadata.grounding_chunks):
+                            if hasattr(chunk, 'web') and chunk.web:
+                                web = chunk.web
+                                source = SourceCitation(
+                                    title=getattr(web, 'title', f'Source {i+1}'),
+                                    url=getattr(web, 'uri', ''),
+                                    snippet=getattr(web, 'snippet', '')
+                                )
+                                extracted_sources.append(source)
+                                logger.info(f"Extracted source: {source.title}")
+                    
+                    # grounding_supports 추출
+                    if hasattr(metadata, 'grounding_supports') and metadata.grounding_supports:
+                        logger.info(f"Immediately extracting {len(metadata.grounding_supports)} supports")
+                        for support in metadata.grounding_supports:
+                            if hasattr(support, 'segment'):
+                                segment = support.segment
+                                grounding_support = GroundingSupport(
+                                    start_index=getattr(segment, 'start_index', 0),
+                                    end_index=getattr(segment, 'end_index', 0),
+                                    text=getattr(segment, 'text', ''),
+                                    source_indices=list(support.grounding_chunk_indices) if hasattr(support, 'grounding_chunk_indices') and support.grounding_chunk_indices else []
+                                )
+                                extracted_supports.append(grounding_support)
+            
+            # 응답 구조 디버깅
+            logger.info(f"Response type: {type(grounded_response)}")
+            if hasattr(grounded_response, 'candidates') and grounded_response.candidates:
+                candidate = grounded_response.candidates[0]
+                logger.info(f"Has grounding_metadata: {hasattr(candidate, 'grounding_metadata')}")
+                if hasattr(candidate, 'grounding_metadata'):
+                    metadata = candidate.grounding_metadata
+                    logger.info(f"Metadata is None: {metadata is None}")
+                    if metadata:
+                        logger.info(f"Has grounding_chunks: {hasattr(metadata, 'grounding_chunks')}")
+                        if hasattr(metadata, 'grounding_chunks'):
+                            chunks = metadata.grounding_chunks
+                            logger.info(f"Chunks is None: {chunks is None}")
+                            if chunks:
+                                logger.info(f"Chunks length: {len(chunks)}")
+                                logger.info(f"First chunk: {chunks[0] if len(chunks) > 0 else 'No chunks'}")
+                            else:
+                                logger.info("Chunks is None or empty list")
+            
             # 전체 응답 로그 출력
-            logger.info(f"=== FULL GROUNDING RESPONSE ===")
-            logger.info(f"Response text: {grounded_response.text}")
+            logger.info("=== FULL GROUNDING RESPONSE ===")
+            logger.info(f"Response text (first 500 chars): {grounded_response.text[:500] if grounded_response.text else 'No text'}")
             logger.info(f"Response type: {type(grounded_response)}")
             
             # Step 2: 응답에서 JSON 부분 추출
@@ -166,25 +228,32 @@ class GeminiStockAnalyzer:
                 logger.error(f"No valid JSON found in response")
                 raise Exception("No valid JSON found in grounding response")
             
-            # Step 3: grounding metadata에서 소스 추출 (다중 접근 방식)
-            sources, grounding_supports = [], []
-            
-            # 접근 방식 1: 공식 문서 패턴 시도
-            logger.info("Trying official citation pattern...")
-            sources, grounding_supports = self._add_citations_official_pattern(grounded_response)
-            logger.info(f"Official pattern: {len(sources)} sources, {len(grounding_supports)} supports")
-            
-            # 접근 방식 2: 기존 추출 방법 시도 (sources가 비어있는 경우)
-            if len(sources) == 0:
-                logger.info("Trying existing grounding metadata extraction...")
-                sources, grounding_supports = self._extract_sources_from_grounding(grounded_response)
-                logger.info(f"Existing method: {len(sources)} sources, {len(grounding_supports)} supports")
-            
-            # 접근 방식 3: Fallback - 텍스트에서 풋노트 파싱
-            if len(sources) == 0 and response_text:
-                logger.info("No sources from metadata, parsing footnotes from text...")
-                sources, grounding_supports = self._parse_footnotes_from_text(response_text, json_data.get("ai_insights", []))
-                logger.info(f"Footnote parsing: {len(sources)} sources, {len(grounding_supports)} supports")
+            # Step 3: grounding metadata에서 소스 추출 
+            # 이미 추출한 소스가 있으면 사용
+            if extracted_sources:
+                logger.info(f"Using {len(extracted_sources)} immediately extracted sources")
+                sources = extracted_sources
+                grounding_supports = extracted_supports
+            else:
+                # 다른 방법들 시도
+                sources, grounding_supports = [], []
+                
+                # 접근 방식 1: 공식 문서 패턴 시도
+                logger.info("Trying official citation pattern...")
+                sources, grounding_supports = self._add_citations_official_pattern(grounded_response)
+                logger.info(f"Official pattern: {len(sources)} sources, {len(grounding_supports)} supports")
+                
+                # 접근 방식 2: 기존 추출 방법 시도 (sources가 비어있는 경우)
+                if len(sources) == 0:
+                    logger.info("Trying existing grounding metadata extraction...")
+                    sources, grounding_supports = self._extract_sources_from_grounding(grounded_response)
+                    logger.info(f"Existing method: {len(sources)} sources, {len(grounding_supports)} supports")
+                
+                # 접근 방식 3: Fallback - 텍스트에서 풋노트 파싱
+                if len(sources) == 0 and response_text:
+                    logger.info("No sources from metadata, parsing footnotes from text...")
+                    sources, grounding_supports = self._parse_footnotes_from_text(response_text, json_data.get("ai_insights", []))
+                    logger.info(f"Footnote parsing: {len(sources)} sources, {len(grounding_supports)} supports")
             
             # Step 4: StockAnalysisResult 객체 생성
             result = StockAnalysisResult(
@@ -686,29 +755,37 @@ RSI: {tech_indicators['rsi']:.1f}
                 if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
                     metadata = candidate.grounding_metadata
                     
-                    # curl 테스트에서 확인된 실제 API 응답 구조에 맞춘 속성명들
+                    # Python SDK는 camelCase를 snake_case로 자동 변환함
+                    # 우선순위: Python SDK의 snake_case를 먼저 확인
                     possible_chunk_names = [
-                        'groundingChunks',       # 실제 API에서 사용하는 camelCase (확인됨)
-                        'grounding_chunks',      # Python SDK에서 변환될 수 있는 snake_case
-                        'grounding_chunk',       # 단수형
-                        'groundingChunk'         # 단수형 camelCase
+                        'grounding_chunks',      # Python SDK 사용시 (확인됨) 
+                        'groundingChunks',       # 직접 API 호출시
                     ]
                     
                     possible_support_names = [
-                        'groundingSupports',     # 실제 API에서 사용하는 camelCase (확인됨)
-                        'grounding_supports',    # Python SDK에서 변환될 수 있는 snake_case
-                        'grounding_support',     # 단수형
-                        'groundingSupport'       # 단수형 camelCase
+                        'grounding_supports',    # Python SDK 사용시 (확인됨)
+                        'groundingSupports',     # 직접 API 호출시
                     ]
                     
                     # 모든 가능한 chunk 속성명 시도
                     chunks_found = False
+                    
+                    # 디버깅: metadata 객체의 모든 속성 출력
+                    logger.info("=== METADATA ATTRIBUTES DEBUG ===")
+                    for attr in dir(metadata):
+                        if not attr.startswith('_'):
+                            try:
+                                value = getattr(metadata, attr)
+                                logger.info(f"metadata.{attr} = {value}")
+                            except Exception as e:
+                                logger.warning(f"Cannot access metadata.{attr}: {e}")
+                    
                     for chunk_name in possible_chunk_names:
                         if hasattr(metadata, chunk_name):
                             chunks = getattr(metadata, chunk_name)
-                            logger.info(f"Found chunks with name '{chunk_name}': {chunks}")
+                            logger.info(f"Found chunks attribute '{chunk_name}': type={type(chunks)}, value={chunks}")
                             
-                            if chunks and len(chunks) > 0:
+                            if chunks is not None and hasattr(chunks, '__len__') and len(chunks) > 0:
                                 chunks_found = True
                                 logger.info(f"Processing {len(chunks)} chunks from {chunk_name}")
                                 
