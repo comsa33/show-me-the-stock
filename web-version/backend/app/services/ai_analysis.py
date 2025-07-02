@@ -166,15 +166,25 @@ class GeminiStockAnalyzer:
                 logger.error(f"No valid JSON found in response")
                 raise Exception("No valid JSON found in grounding response")
             
-            # Step 3: grounding metadata에서 소스 추출 (시도)
-            sources, grounding_supports = self._extract_sources_from_grounding(grounded_response)
-            logger.info(f"Extracted {len(sources)} sources from grounding metadata")
+            # Step 3: grounding metadata에서 소스 추출 (다중 접근 방식)
+            sources, grounding_supports = [], []
             
-            # Fallback: 텍스트에서 풋노트 파싱으로 소스 생성
+            # 접근 방식 1: 공식 문서 패턴 시도
+            logger.info("Trying official citation pattern...")
+            sources, grounding_supports = self._add_citations_official_pattern(grounded_response)
+            logger.info(f"Official pattern: {len(sources)} sources, {len(grounding_supports)} supports")
+            
+            # 접근 방식 2: 기존 추출 방법 시도 (sources가 비어있는 경우)
             if len(sources) == 0:
+                logger.info("Trying existing grounding metadata extraction...")
+                sources, grounding_supports = self._extract_sources_from_grounding(grounded_response)
+                logger.info(f"Existing method: {len(sources)} sources, {len(grounding_supports)} supports")
+            
+            # 접근 방식 3: Fallback - 텍스트에서 풋노트 파싱
+            if len(sources) == 0 and response_text:
                 logger.info("No sources from metadata, parsing footnotes from text...")
                 sources, grounding_supports = self._parse_footnotes_from_text(response_text, json_data.get("ai_insights", []))
-                logger.info(f"Generated {len(sources)} sources from footnote parsing")
+                logger.info(f"Footnote parsing: {len(sources)} sources, {len(grounding_supports)} supports")
             
             # Step 4: StockAnalysisResult 객체 생성
             result = StockAnalysisResult(
@@ -189,7 +199,7 @@ class GeminiStockAnalyzer:
                 ai_insights=json_data["ai_insights"],
                 sources=sources,
                 grounding_supports=grounding_supports,
-                original_text=response_text
+                original_text=response_text or ""
             )
             
             logger.info(f"✅ Grounding analysis completed for {symbol}")
@@ -457,12 +467,13 @@ JSON 형태로 응답하되, {analysis_info['target_audience']}가 이해하기 
 - {analysis_type} 투자 스타일에 맞는 조언을 제공하세요
 """
     
-    def _extract_json_from_response(self, response_text: str) -> dict:
+    def _extract_json_from_response(self, response_text: str) -> dict | None:
         """응답에서 JSON 부분을 추출하여 파싱"""
         import json
         
         try:
             # JSON 코드 블록 찾기
+            json_part = ""
             if "```json" in response_text:
                 json_part = response_text.split("```json")[1].split("```")[0]
             elif "```" in response_text:
@@ -473,12 +484,12 @@ JSON 형태로 응답하되, {analysis_info['target_audience']}가 이해하기 
             
             # JSON 파싱 시도
             parsed_json = json.loads(json_part.strip())
-            logger.info(f"Successfully parsed JSON from response")
+            logger.info("Successfully parsed JSON from response")
             return parsed_json
             
         except json.JSONDecodeError as e:
             logger.error(f"JSON parsing failed: {e}")
-            logger.error(f"Attempted to parse: {json_part[:500] if 'json_part' in locals() else response_text[:500]}")
+            logger.error(f"Attempted to parse: {json_part[:500] if json_part else response_text[:500]}")
             return None
         except Exception as e:
             logger.error(f"JSON extraction failed: {e}")
@@ -570,81 +581,142 @@ RSI: {tech_indicators['rsi']:.1f}
                 logger.error("gemini_response is None")
                 return sources, grounding_supports
             
-            # 응답 구조 로깅
+            # 응답 전체 구조 상세 로깅
             logger.info(f"Response type: {type(gemini_response)}")
-            logger.info(f"Has candidates: {hasattr(gemini_response, 'candidates')}")
+            logger.info(f"Response dir: {dir(gemini_response)}")
             
+            # 응답 객체의 모든 속성을 문자열로 출력
+            try:
+                response_str = str(gemini_response)
+                logger.info(f"Full response string: {response_str[:2000]}")  # 처음 2000자만
+            except Exception as str_e:
+                logger.warning(f"Cannot stringify response: {str_e}")
+            
+            # candidates 확인
             if hasattr(gemini_response, 'candidates') and gemini_response.candidates:
+                logger.info(f"Found {len(gemini_response.candidates)} candidates")
                 candidate = gemini_response.candidates[0]
                 logger.info(f"Candidate type: {type(candidate)}")
-                logger.info(f"Has grounding_metadata: {hasattr(candidate, 'grounding_metadata')}")
+                logger.info(f"Candidate dir: {dir(candidate)}")
                 
-                # grounding_metadata 전체 구조 로깅
-                if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
+                try:
+                    candidate_str = str(candidate)
+                    logger.info(f"Candidate string: {candidate_str[:1000]}")
+                except Exception as str_e:
+                    logger.warning(f"Cannot stringify candidate: {str_e}")
+                
+                # grounding_metadata 확인
+                if hasattr(candidate, 'grounding_metadata'):
                     grounding_metadata = candidate.grounding_metadata
-                    logger.info(f"Grounding metadata type: {type(grounding_metadata)}")
-                    logger.info(f"Grounding metadata attributes: {dir(grounding_metadata)}")
+                    logger.info(f"Grounding metadata exists: {grounding_metadata is not None}")
                     
-                    # grounding_chunks에서 출처 추출
-                    if hasattr(grounding_metadata, 'grounding_chunks'):
-                        chunks = grounding_metadata.grounding_chunks
-                        logger.info(f"Grounding chunks: {chunks}")
+                    if grounding_metadata:
+                        logger.info(f"Grounding metadata type: {type(grounding_metadata)}")
+                        logger.info(f"Grounding metadata dir: {dir(grounding_metadata)}")
                         
-                        if chunks:
-                            logger.info(f"Found {len(chunks)} grounding chunks")
-                            for i, chunk in enumerate(chunks):
-                                logger.info(f"Chunk {i}: {type(chunk)}, attributes: {dir(chunk)}")
-                                if hasattr(chunk, 'web') and chunk.web:
-                                    web_info = chunk.web
-                                    logger.info(f"Web info: {web_info}")
-                                    
-                                    title = getattr(web_info, 'title', f'Source {i+1}')
-                                    url = getattr(web_info, 'uri', '')
-                                    snippet = getattr(web_info, 'snippet', '')
-                                    
-                                    if len(snippet) > 200:
-                                        snippet = snippet[:200] + '...'
-                                    
-                                    source = SourceCitation(
-                                        title=title,
-                                        url=url,
-                                        snippet=snippet
-                                    )
-                                    sources.append(source)
-                                    logger.info(f"✅ Added source {i+1}: {title}")
-                        else:
-                            logger.warning("Grounding chunks is empty")
-                    else:
-                        logger.warning("No grounding_chunks attribute found")
-                    
-                    # grounding_supports에서 텍스트-출처 매핑 추출
-                    if hasattr(grounding_metadata, 'grounding_supports'):
-                        supports = grounding_metadata.grounding_supports
-                        logger.info(f"Grounding supports: {supports}")
+                        try:
+                            metadata_str = str(grounding_metadata)
+                            logger.info(f"Grounding metadata string: {metadata_str}")
+                        except Exception as str_e:
+                            logger.warning(f"Cannot stringify grounding_metadata: {str_e}")
                         
-                        if supports:
-                            logger.info(f"Found {len(supports)} grounding supports")
-                            for i, support in enumerate(supports):
-                                logger.info(f"Support {i}: {type(support)}, attributes: {dir(support)}")
-                                
-                                if hasattr(support, 'segment') and hasattr(support, 'grounding_chunk_indices'):
-                                    segment = support.segment
-                                    grounding_support = GroundingSupport(
-                                        start_index=getattr(segment, 'start_index', 0),
-                                        end_index=getattr(segment, 'end_index', 0),
-                                        text=getattr(segment, 'text', ''),
-                                        source_indices=list(support.grounding_chunk_indices) if support.grounding_chunk_indices else []
-                                    )
-                                    grounding_supports.append(grounding_support)
-                                    logger.info(f"✅ Added grounding support {i+1}")
+                        # web_search_queries 확인
+                        if hasattr(grounding_metadata, 'web_search_queries'):
+                            queries = grounding_metadata.web_search_queries
+                            logger.info(f"Web search queries: {queries}")
+                        
+                        # grounding_chunks 확인
+                        if hasattr(grounding_metadata, 'grounding_chunks'):
+                            chunks = grounding_metadata.grounding_chunks
+                            logger.info(f"Grounding chunks type: {type(chunks)}")
+                            logger.info(f"Grounding chunks value: {chunks}")
+                            
+                            if chunks and len(chunks) > 0:
+                                logger.info(f"Found {len(chunks)} grounding chunks")
+                                for i, chunk in enumerate(chunks):
+                                    logger.info(f"Chunk {i} type: {type(chunk)}")
+                                    logger.info(f"Chunk {i} dir: {dir(chunk)}")
+                                    
+                                    try:
+                                        chunk_str = str(chunk)
+                                        logger.info(f"Chunk {i} string: {chunk_str}")
+                                    except Exception as str_e:
+                                        logger.warning(f"Cannot stringify chunk {i}: {str_e}")
+                                    
+                                    # web 속성 확인
+                                    if hasattr(chunk, 'web') and chunk.web:
+                                        web_info = chunk.web
+                                        logger.info(f"Web info type: {type(web_info)}")
+                                        logger.info(f"Web info dir: {dir(web_info)}")
+                                        
+                                        try:
+                                            web_str = str(web_info)
+                                            logger.info(f"Web info string: {web_str}")
+                                        except Exception as str_e:
+                                            logger.warning(f"Cannot stringify web info: {str_e}")
+                                        
+                                        # 실제 속성값 추출
+                                        title = getattr(web_info, 'title', f'Source {i+1}')
+                                        url = getattr(web_info, 'uri', '')
+                                        snippet = getattr(web_info, 'snippet', '')
+                                        
+                                        logger.info(f"Extracted - Title: {title}, URL: {url}, Snippet: {snippet[:100]}")
+                                        
+                                        if len(snippet) > 200:
+                                            snippet = snippet[:200] + '...'
+                                        
+                                        source = SourceCitation(
+                                            title=title,
+                                            url=url,
+                                            snippet=snippet
+                                        )
+                                        sources.append(source)
+                                        logger.info(f"✅ Added source {i+1}: {title}")
+                                    else:
+                                        logger.warning(f"Chunk {i} has no web attribute or web is None")
+                            else:
+                                logger.warning("Grounding chunks is None or empty")
                         else:
-                            logger.warning("Grounding supports is empty")
+                            logger.warning("No grounding_chunks attribute found")
+                        
+                        # grounding_supports 확인
+                        if hasattr(grounding_metadata, 'grounding_supports'):
+                            supports = grounding_metadata.grounding_supports
+                            logger.info(f"Grounding supports type: {type(supports)}")
+                            logger.info(f"Grounding supports value: {supports}")
+                            
+                            if supports and len(supports) > 0:
+                                logger.info(f"Found {len(supports)} grounding supports")
+                                for i, support in enumerate(supports):
+                                    logger.info(f"Support {i} type: {type(support)}")
+                                    logger.info(f"Support {i} dir: {dir(support)}")
+                                    
+                                    try:
+                                        support_str = str(support)
+                                        logger.info(f"Support {i} string: {support_str}")
+                                    except Exception as str_e:
+                                        logger.warning(f"Cannot stringify support {i}: {str_e}")
+                                    
+                                    if hasattr(support, 'segment') and hasattr(support, 'grounding_chunk_indices'):
+                                        segment = support.segment
+                                        grounding_support = GroundingSupport(
+                                            start_index=getattr(segment, 'start_index', 0),
+                                            end_index=getattr(segment, 'end_index', 0),
+                                            text=getattr(segment, 'text', ''),
+                                            source_indices=list(support.grounding_chunk_indices) if support.grounding_chunk_indices else []
+                                        )
+                                        grounding_supports.append(grounding_support)
+                                        logger.info(f"✅ Added grounding support {i+1}")
+                            else:
+                                logger.warning("Grounding supports is None or empty")
+                        else:
+                            logger.warning("No grounding_supports attribute found")
                     else:
-                        logger.warning("No grounding_supports attribute found")
+                        logger.error("grounding_metadata is None")
                 else:
-                    logger.warning("No grounding_metadata found")
+                    logger.error("No grounding_metadata attribute found")
             else:
-                logger.warning("No candidates found in response")
+                logger.error("No candidates found in response")
                 
         except Exception as e:
             logger.error(f"Failed to extract sources from grounding metadata: {e}")
@@ -654,6 +726,98 @@ RSI: {tech_indicators['rsi']:.1f}
         logger.info(f"=== EXTRACTION COMPLETE: {len(sources)} sources, {len(grounding_supports)} supports ===")
         return sources, grounding_supports
     
+    def _add_citations_official_pattern(self, gemini_response) -> tuple[List[SourceCitation], List[GroundingSupport]]:
+        """공식 문서 패턴에 따른 인용 추가 (grounding metadata 활용)"""
+        sources = []
+        grounding_supports = []
+        
+        try:
+            logger.info("=== TRYING OFFICIAL CITATION PATTERN ===")
+            
+            if not hasattr(gemini_response, 'candidates') or not gemini_response.candidates:
+                logger.warning("No candidates in response")
+                return sources, grounding_supports
+            
+            candidate = gemini_response.candidates[0]
+            
+            if not hasattr(candidate, 'grounding_metadata') or not candidate.grounding_metadata:
+                logger.warning("No grounding_metadata in candidate")
+                return sources, grounding_supports
+            
+            grounding_metadata = candidate.grounding_metadata
+            
+            # 공식 문서에 따른 구조 확인
+            if hasattr(grounding_metadata, 'groundingChunks') and grounding_metadata.groundingChunks:
+                logger.info("Found groundingChunks in metadata")
+                chunks = grounding_metadata.groundingChunks
+                
+                for i, chunk in enumerate(chunks):
+                    if hasattr(chunk, 'web') and chunk.web:
+                        web = chunk.web
+                        source = SourceCitation(
+                            title=getattr(web, 'title', f'Source {i+1}'),
+                            url=getattr(web, 'uri', ''),
+                            snippet=getattr(web, 'snippet', '')
+                        )
+                        sources.append(source)
+                        logger.info(f"✅ Added source from groundingChunks: {source.title}")
+            
+            elif hasattr(grounding_metadata, 'grounding_chunks') and grounding_metadata.grounding_chunks:
+                logger.info("Found grounding_chunks in metadata")
+                chunks = grounding_metadata.grounding_chunks
+                
+                for i, chunk in enumerate(chunks):
+                    if hasattr(chunk, 'web') and chunk.web:
+                        web = chunk.web
+                        source = SourceCitation(
+                            title=getattr(web, 'title', f'Source {i+1}'),
+                            url=getattr(web, 'uri', ''),
+                            snippet=getattr(web, 'snippet', '')
+                        )
+                        sources.append(source)
+                        logger.info(f"✅ Added source from grounding_chunks: {source.title}")
+            
+            # grounding_supports 처리
+            if hasattr(grounding_metadata, 'groundingSupports') and grounding_metadata.groundingSupports:
+                logger.info("Found groundingSupports in metadata")
+                supports = grounding_metadata.groundingSupports
+                
+                for i, support in enumerate(supports):
+                    if hasattr(support, 'segment') and hasattr(support, 'groundingChunkIndices'):
+                        segment = support.segment
+                        grounding_support = GroundingSupport(
+                            start_index=getattr(segment, 'startIndex', 0),
+                            end_index=getattr(segment, 'endIndex', 0),
+                            text=getattr(segment, 'text', ''),
+                            source_indices=list(support.groundingChunkIndices) if support.groundingChunkIndices else []
+                        )
+                        grounding_supports.append(grounding_support)
+                        logger.info("✅ Added grounding support from groundingSupports")
+            
+            elif hasattr(grounding_metadata, 'grounding_supports') and grounding_metadata.grounding_supports:
+                logger.info("Found grounding_supports in metadata")
+                supports = grounding_metadata.grounding_supports
+                
+                for i, support in enumerate(supports):
+                    if hasattr(support, 'segment') and hasattr(support, 'grounding_chunk_indices'):
+                        segment = support.segment
+                        grounding_support = GroundingSupport(
+                            start_index=getattr(segment, 'start_index', 0),
+                            end_index=getattr(segment, 'end_index', 0),
+                            text=getattr(segment, 'text', ''),
+                            source_indices=list(support.grounding_chunk_indices) if support.grounding_chunk_indices else []
+                        )
+                        grounding_supports.append(grounding_support)
+                        logger.info("✅ Added grounding support from grounding_supports")
+            
+        except Exception as e:
+            logger.error(f"Official citation pattern failed: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+        
+        logger.info(f"=== OFFICIAL PATTERN COMPLETE: {len(sources)} sources, {len(grounding_supports)} supports ===")
+        return sources, grounding_supports
+
     def _parse_footnotes_from_text(self, response_text: str, ai_insights: List[str]) -> tuple[List[SourceCitation], List[GroundingSupport]]:
         """응답 텍스트에서 풋노트를 파싱하여 소스와 grounding supports 생성"""
         import re
