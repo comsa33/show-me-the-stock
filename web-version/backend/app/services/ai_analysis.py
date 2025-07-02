@@ -153,10 +153,14 @@ class GeminiStockAnalyzer:
                 timeout=60.0  # 60초 타임아웃 (Google Search 시간 고려)
             )
             
-            # 소스 정보 추출
-            logger.info(f"response: {grounded_response}")
+            # 응답 텍스트를 먼저 로드하여 응답 객체를 완전히 준비
+            logger.info(f"Got grounded response, loading text...")
+            original_text = grounded_response.text if grounded_response else ""
+            logger.info(f"Response text loaded: {len(original_text)} characters")
+            
+            # 소스 정보 추출 (응답이 완전히 로드된 후)
             sources, grounding_supports = self._extract_sources_from_grounding(grounded_response)
-            original_text = grounded_response.text
+            logger.info(f"Extracted {len(sources)} sources and {len(grounding_supports)} grounding supports")
             
             # 2단계: 구조화된 JSON 응답 생성 (소스 정보는 별도로 추가)
             structured_prompt = f"""
@@ -481,19 +485,31 @@ RSI: {tech_indicators['rsi']:.1f}
             
             tools = [types.Tool(google_search=types.GoogleSearch())]
             
-            response = await loop.run_in_executor(
-                None,
-                lambda: self.client.models.generate_content(
+            logger.info(f"Calling Gemini with grounding tools...")
+            
+            # 동기 함수를 비동기로 실행
+            def call_gemini_sync():
+                return self.client.models.generate_content(
                     model="gemini-2.5-flash",
                     contents=prompt,
                     config=types.GenerateContentConfig(tools=tools)
                 )
-            )
+            
+            response = await loop.run_in_executor(None, call_gemini_sync)
+            
+            logger.info(f"Gemini grounding call completed")
+            
+            # 응답 텍스트에 접근하여 응답을 완전히 로드
+            if response:
+                _ = response.text  # 텍스트 접근으로 응답 완전 로드
+                logger.info(f"Response text accessed, response ready")
             
             return response
             
         except Exception as e:
             logger.error(f"Gemini grounding API call failed: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             raise
     
     async def _call_gemini_async(self, prompt: str, config: Dict, symbol: str = None, market: str = None) -> StockAnalysisResult:
@@ -569,15 +585,23 @@ RSI: {tech_indicators['rsi']:.1f}
         
         try:
             # Gemini 응답의 grounding metadata 확인
+            if not gemini_response:
+                logger.warning("gemini_response is None")
+                return sources, grounding_supports
+                
+            logger.info(f"Checking response type: {type(gemini_response)}")
+            
             if hasattr(gemini_response, 'candidates') and gemini_response.candidates:
                 candidate = gemini_response.candidates[0]
+                logger.info(f"Found candidate: {type(candidate)}")
                 
-                logger.info(f"candidate: {candidate}")
                 if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
                     grounding_metadata = candidate.grounding_metadata
+                    logger.info(f"Found grounding_metadata: {type(grounding_metadata)}")
                     
                     # grounding_chunks에서 출처 추출
-                    if hasattr(grounding_metadata, 'grounding_chunks'):
+                    if hasattr(grounding_metadata, 'grounding_chunks') and grounding_metadata.grounding_chunks:
+                        logger.info(f"Processing {len(grounding_metadata.grounding_chunks)} grounding chunks")
                         for i, chunk in enumerate(grounding_metadata.grounding_chunks):
                             if hasattr(chunk, 'web') and chunk.web:
                                 web_info = chunk.web
@@ -587,9 +611,13 @@ RSI: {tech_indicators['rsi']:.1f}
                                     snippet=getattr(web_info, 'snippet', '')[:200] + '...' if len(getattr(web_info, 'snippet', '')) > 200 else getattr(web_info, 'snippet', '')
                                 )
                                 sources.append(source)
+                                logger.info(f"Added source {i+1}: {source.title}")
+                    else:
+                        logger.info("No grounding_chunks found or grounding_chunks is None")
                     
                     # grounding_supports에서 텍스트-출처 매핑 추출
-                    if hasattr(grounding_metadata, 'grounding_supports'):
+                    if hasattr(grounding_metadata, 'grounding_supports') and grounding_metadata.grounding_supports:
+                        logger.info(f"Processing {len(grounding_metadata.grounding_supports)} grounding supports")
                         for support in grounding_metadata.grounding_supports:
                             if hasattr(support, 'segment') and hasattr(support, 'grounding_chunk_indices'):
                                 segment = support.segment
@@ -600,6 +628,12 @@ RSI: {tech_indicators['rsi']:.1f}
                                     source_indices=list(support.grounding_chunk_indices) if support.grounding_chunk_indices else []
                                 )
                                 grounding_supports.append(grounding_support)
+                    else:
+                        logger.info("No grounding_supports found or grounding_supports is None")
+                else:
+                    logger.info("No grounding_metadata found")
+            else:
+                logger.info("No candidates found in response")
                             
         except Exception as e:
             logger.warning(f"Failed to extract sources from grounding metadata: {traceback.format_exc()}")
