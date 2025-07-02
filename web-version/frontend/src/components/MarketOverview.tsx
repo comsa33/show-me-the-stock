@@ -70,7 +70,7 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
     };
     
     const targetIndices = selectedMarket === 'KR' 
-        ? ['KOSPI', 'KOSDAQ'] 
+        ? ['KOSPI', 'KOSDAQ', 'KOSPI200'] 
         : ['NASDAQ', 'S&P500', 'DowJones'];
 
     return sourceIndices
