@@ -189,7 +189,7 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
   // 선형 차트 - 단순하고 트렌디한 디자인
   const SimpleLineChart = () => (
     <div style={{ position: 'relative' }}>
-      <ResponsiveContainer width="100%" height={400}>
+      <ResponsiveContainer width="100%" height={window.innerWidth <= 768 ? 450 : 400}>
         <ComposedChart 
           data={processedData} 
           margin={{ 

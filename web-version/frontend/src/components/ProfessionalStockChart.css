@@ -139,10 +139,11 @@
 .chart-scroll-container {
   width: 100%;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: visible;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: #ccc transparent;
+  padding-bottom: 40px; /* x축 라벨을 위한 추가 공간 */
 }
 
 .chart-scroll-container::-webkit-scrollbar {
@@ -411,7 +412,7 @@
   }
   
   .main-chart {
-    height: 300px;
+    height: 340px; /* 증가시켜 x축 라벨 공간 확보 */
   }
   
   .candlestick-container {
