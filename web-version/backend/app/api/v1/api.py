@@ -3,7 +3,7 @@ API v1 라우터
 모든 API 엔드포인트를 통합 관리
 """
 
-from app.api.v1.endpoints import ai_analysis, interest_rates, stocks, stocks_v2, quant, indices
+from app.api.v1.endpoints import ai_analysis, interest_rates, stocks, stocks_v2, quant, indices, realtime
 from fastapi import APIRouter
 
 api_router = APIRouter()
@@ -17,4 +17,5 @@ api_router.include_router(
 api_router.include_router(ai_analysis.router, prefix="/ai", tags=["ai-analysis"])
 api_router.include_router(quant.router, prefix="/quant", tags=["quant-analysis"])
 api_router.include_router(indices.router, prefix="/indices", tags=["indices"])
+api_router.include_router(realtime.router, prefix="/stocks", tags=["realtime"])
 # api_router.include_router(predictions.router, prefix="/predictions", tags=["predictions"])
