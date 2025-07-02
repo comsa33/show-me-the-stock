@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import { API_BASE } from '../config';
 
 export type ViewType = 'dashboard' | 'stocks' | 'quant' | 'portfolio' | 'watchlist' | 'news' | 'reports';
 
@@ -13,6 +14,24 @@ interface Stock {
   volume?: number | string;
 }
 
+interface Notification {
+  id: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  title: string;
+  message: string;
+  timestamp: Date;
+}
+
+export interface MarketIndex {
+  name: string;
+  value: number;
+  change: number;
+  change_percent: number;
+  current_price: number;
+  symbol?: string;
+  volume?: number;
+}
+
 interface AppContextType {
   currentView: ViewType;
   setCurrentView: (view: ViewType) => void;
@@ -23,14 +42,12 @@ interface AppContextType {
   notifications: Notification[];
   addNotification: (notification: Omit<Notification, 'id' | 'timestamp'>) => void;
   removeNotification: (id: string) => void;
-}
-
-interface Notification {
-  id: string;
-  type: 'info' | 'success' | 'warning' | 'error';
-  title: string;
-  message: string;
-  timestamp: Date;
+  marketIndices: {
+    korea: MarketIndex[];
+    us: MarketIndex[];
+  };
+  marketIndicesLoading: boolean;
+  fetchMarketIndices: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -66,6 +83,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       timestamp: new Date()
     }
   ]);
+  const [marketIndices, setMarketIndices] = useState<{ korea: MarketIndex[], us: MarketIndex[] }>({ korea: [], us: [] });
+  const [marketIndicesLoading, setMarketIndicesLoading] = useState(true);
 
   const addNotification = (notification: Omit<Notification, 'id' | 'timestamp'>) => {
     const newNotification: Notification = {
@@ -80,6 +99,39 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
+  const fetchMarketIndices = useCallback(async () => {
+    setMarketIndicesLoading(true);
+    try {
+      const [koreanRes, usRes] = await Promise.all([
+        fetch(`${API_BASE}/v1/indices/korean`),
+        fetch(`${API_BASE}/v1/indices/us`)
+      ]);
+
+      const koreanData = koreanRes.ok ? await koreanRes.json() : { indices: [] };
+      const usData = usRes.ok ? await usRes.json() : { indices: [] };
+
+      const adaptData = (data: any[]): MarketIndex[] => {
+        if (!Array.isArray(data)) return [];
+        return data.map(item => ({
+          ...item,
+          current_price: item.value,
+          symbol: item.name
+        }));
+      };
+
+      setMarketIndices({
+        korea: adaptData(koreanData.indices),
+        us: adaptData(usData.indices),
+      });
+
+    } catch (error) {
+      console.error("Failed to fetch market indices:", error);
+      setMarketIndices({ korea: [], us: [] });
+    } finally {
+      setMarketIndicesLoading(false);
+    }
+  }, []);
+
   return (
     <AppContext.Provider value={{
       currentView,
@@ -90,7 +142,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       setSearchTerm,
       notifications,
       addNotification,
-      removeNotification
+      removeNotification,
+      marketIndices,
+      marketIndicesLoading,
+      fetchMarketIndices,
     }}>
       {children}
     </AppContext.Provider>

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { API_BASE } from '../config';
 import { RefreshCw } from 'lucide-react';
+import { useApp } from '../context/AppContext';
 import './MarketOverview.css';
 
 interface InterestRate {
@@ -44,8 +45,8 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
   interestRates, 
   onRefresh 
 }) => {
-  const [indices, setIndices] = useState<MarketIndex[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { marketIndices, marketIndicesLoading, fetchMarketIndices } = useApp();
+  
   const [marketStatus, setMarketStatus] = useState<MarketStatus>({
     isOpen: true,
     openTime: '09:00',
@@ -58,6 +59,30 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
     change_percent: 0,
     formatted: '로딩 중...'
   });
+
+  const indices = useMemo((): MarketIndex[] => {
+    const sourceIndices = selectedMarket === 'KR' ? marketIndices.korea : marketIndices.us;
+    if (!sourceIndices) return [];
+
+    const nameMapping: { [key: string]: string } = {
+        'S&P500': 'S&P 500',
+        'DowJones': 'DOW'
+    };
+    
+    const targetIndices = selectedMarket === 'KR' 
+        ? ['KOSPI', 'KOSDAQ'] 
+        : ['NASDAQ', 'S&P500', 'DowJones'];
+
+    return sourceIndices
+      .filter(idx => idx.symbol && targetIndices.includes(idx.symbol))
+      .map(indexData => ({
+        name: nameMapping[indexData.name] || indexData.name,
+        value: indexData.value.toLocaleString(),
+        change: `${indexData.change >= 0 ? '+' : ''}${indexData.change_percent.toFixed(2)}%`,
+        positive: indexData.change_percent >= 0,
+        data_source: 'real'
+      }));
+  }, [marketIndices, selectedMarket]);
 
   // 시장 상태 조회
   const fetchMarketStatus = async () => {
@@ -97,37 +122,18 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
   // 거래량 정보 조회
   const fetchTradingVolume = async () => {
     try {
-      // 새로운 지수 API를 사용하여 거래량 정보 수집
+      const sourceIndices = selectedMarket === 'KR' ? marketIndices.korea : marketIndices.us;
       let totalVolume = 0;
-      let validIndices = 0;
       
-      if (selectedMarket === 'KR') {
-        // 한국 지수 API 사용
-        const response = await fetch(`${API_BASE}/v1/indices/korean`);
-        if (response.ok) {
-          const data = await response.json();
-          for (const index of data.indices) {
+      if (sourceIndices && sourceIndices.length > 0) {
+          for (const index of sourceIndices) {
             if (index.volume && index.volume > 0) {
               totalVolume += index.volume;
-              validIndices++;
             }
           }
-        }
-      } else {
-        // 미국 지수 API 사용
-        const response = await fetch(`${API_BASE}/v1/indices/us`);
-        if (response.ok) {
-          const data = await response.json();
-          for (const index of data.indices) {
-            if (index.volume && index.volume > 0) {
-              totalVolume += index.volume;
-              validIndices++;
-            }
-          }
-        }
       }
-      
-      if (validIndices > 0) {
+
+      if (totalVolume > 0) {
         // 거래량 단위 변환 (시장별)
         let volumeFormatted;
         if (selectedMarket === 'KR') {
@@ -168,124 +174,19 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
       setTradingVolume(errorMockData);
     }
   };
-
-  // 실제 지수 데이터 가져오기
-  const fetchMarketIndices = async () => {
-    setLoading(true);
-    try {
-      if (selectedMarket === 'KR') {
-        // 한국 주요 지수 가져오기 (새로운 index API 사용)
-        const response = await fetch(`${API_BASE}/v1/indices/korean`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          const newIndices: MarketIndex[] = [];
-          
-          // KOSPI와 KOSDAQ만 표시
-          const targetIndices = ['KOSPI', 'KOSDAQ'];
-          
-          for (const targetName of targetIndices) {
-            const indexData = data.indices.find((idx: any) => idx.name === targetName);
-            if (indexData) {
-              newIndices.push({
-                name: indexData.name,
-                value: indexData.value.toLocaleString(),
-                change: `${indexData.change >= 0 ? '+' : ''}${indexData.change_percent.toFixed(2)}%`,
-                positive: indexData.change_percent >= 0,
-                data_source: 'real'
-              });
-            }
-          }
-          
-          if (newIndices.length > 0) {
-            setIndices(newIndices);
-          } else {
-            console.warn('한국 지수 데이터 파싱 실패, Mock 데이터 사용');
-            setIndices([
-              { name: 'KOSPI', value: '3,089.65', change: '+0.58%', positive: true, data_source: 'mock' },
-              { name: 'KOSDAQ', value: '783.67', change: '+0.28%', positive: true, data_source: 'mock' }
-            ]);
-          }
-        } else {
-          console.warn('한국 지수 API 호출 실패, Mock 데이터 사용');
-          setIndices([
-            { name: 'KOSPI', value: '3,089.65', change: '+0.58%', positive: true, data_source: 'mock' },
-            { name: 'KOSDAQ', value: '783.67', change: '+0.28%', positive: true, data_source: 'mock' }
-          ]);
-        }
-      } else {
-        // 미국 주요 지수 가져오기 (새로운 index API 사용)
-        const response = await fetch(`${API_BASE}/v1/indices/us`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          const newIndices: MarketIndex[] = [];
-          
-          // NASDAQ, S&P500, DowJones만 표시
-          const targetIndices = ['NASDAQ', 'S&P500', 'DowJones'];
-          const nameMapping: { [key: string]: string } = {
-            'S&P500': 'S&P 500',
-            'DowJones': 'DOW'
-          };
-          
-          for (const targetName of targetIndices) {
-            const indexData = data.indices.find((idx: any) => idx.name === targetName);
-            if (indexData) {
-              newIndices.push({
-                name: nameMapping[indexData.name] || indexData.name,
-                value: indexData.value.toLocaleString(),
-                change: `${indexData.change >= 0 ? '+' : ''}${indexData.change_percent.toFixed(2)}%`,
-                positive: indexData.change_percent >= 0,
-                data_source: 'real'
-              });
-            }
-          }
-          
-          if (newIndices.length > 0) {
-            setIndices(newIndices);
-          } else {
-            console.warn('미국 지수 데이터 파싱 실패, Mock 데이터 사용');
-            setIndices([
-              { name: 'NASDAQ', value: '20,202.89', change: '-0.82%', positive: false, data_source: 'mock' },
-              { name: 'S&P 500', value: '6,198.01', change: '-0.11%', positive: false, data_source: 'mock' },
-              { name: 'DOW', value: '44,565.07', change: '+0.25%', positive: true, data_source: 'mock' }
-            ]);
-          }
-        } else {
-          console.warn('미국 지수 API 호출 실패, Mock 데이터 사용');
-          setIndices([
-            { name: 'NASDAQ', value: '20,202.89', change: '-0.82%', positive: false, data_source: 'mock' },
-            { name: 'S&P 500', value: '6,198.01', change: '-0.11%', positive: false, data_source: 'mock' },
-            { name: 'DOW', value: '44,565.07', change: '+0.25%', positive: true, data_source: 'mock' }
-          ]);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch market indices:', error);
-      // 에러 시 기본값 사용
-      if (selectedMarket === 'KR') {
-        setIndices([
-          { name: 'KOSPI', value: '2,580.45', change: '+1.2%', positive: true, data_source: 'error_fallback' },
-          { name: 'KOSDAQ', value: '785.32', change: '+0.8%', positive: true, data_source: 'error_fallback' }
-        ]);
-      } else {
-        setIndices([
-          { name: 'NASDAQ', value: '15,240.83', change: '+0.8%', positive: true, data_source: 'error_fallback' },
-          { name: 'S&P 500', value: '4,567.12', change: '+0.5%', positive: true, data_source: 'error_fallback' },
-          { name: 'DOW', value: '35,123.45', change: '-0.1%', positive: false, data_source: 'error_fallback' }
-        ]);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
   
   useEffect(() => {
-    fetchMarketIndices();
     fetchMarketStatus();
     fetchTradingVolume();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMarket]);
+  }, [selectedMarket, marketIndices]);
+
+  const handleRefresh = () => {
+    onRefresh();
+    fetchMarketIndices();
+    fetchMarketStatus();
+    fetchTradingVolume();
+  };
   
   const marketData = {
     KR: {
@@ -310,7 +211,7 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
           <span className="market-flag">{currentMarket.flag}</span>
           <h2>{currentMarket.name} 개요</h2>
         </div>
-        <button className="refresh-btn" onClick={() => { onRefresh(); fetchMarketIndices(); fetchMarketStatus(); fetchTradingVolume(); }}>
+        <button className="refresh-btn" onClick={handleRefresh}>
           <RefreshCw size={16} />
           새로고침
         </button>
@@ -321,7 +222,7 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
         <div className="overview-card indices-card">
           <h3 className="card-title">주요 지수</h3>
           <div className="indices-list">
-            {loading ? (
+            {marketIndicesLoading ? (
               <div className="loading-indicator">지수 데이터 로딩 중...</div>
             ) : (
               currentMarket.indices.map((index, i) => (

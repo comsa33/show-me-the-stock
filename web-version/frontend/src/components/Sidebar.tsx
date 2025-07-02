@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart3, TrendingUp, Briefcase, Star, Newspaper, FileText, Calculator } from 'lucide-react';
 import './Sidebar.css';
@@ -22,63 +22,9 @@ interface MarketStatsProps {
   selectedMarket: 'KR' | 'US';
 }
 
-interface IndexData {
-  symbol: string;
-  name: string;
-  current_price: number;
-  change: number;
-  change_percent: number;
-}
-
 const MarketStats: React.FC<MarketStatsProps> = ({ selectedMarket }) => {
-  const [marketData, setMarketData] = useState<IndexData[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchMarketData = async () => {
-      setLoading(true);
-      try {
-        const endpoint = selectedMarket === 'KR' ? 'korean' : 'us';
-        const response = await fetch(`/api/v1/indices/${endpoint}`);
-        if (response.ok) {
-          const data = await response.json();
-          const indices = data.indices || data || [];
-          // 데이터 유효성 검사
-          if (Array.isArray(indices) && indices.length > 0) {
-            setMarketData(indices);
-          } else {
-            setMarketData(getMockMarketData(selectedMarket));
-          }
-        } else {
-          // 실패시 목 데이터 사용
-          setMarketData(getMockMarketData(selectedMarket));
-        }
-      } catch (error) {
-        console.error('Failed to fetch market data:', error);
-        setMarketData(getMockMarketData(selectedMarket));
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMarketData();
-  }, [selectedMarket]);
-
-  const getMockMarketData = (market: 'KR' | 'US'): IndexData[] => {
-    if (market === 'KR') {
-      return [
-        { symbol: 'KOSPI', name: 'KOSPI', current_price: 2580.45, change: 30.25, change_percent: 1.19 },
-        { symbol: 'KOSDAQ', name: 'KOSDAQ', current_price: 748.32, change: -5.68, change_percent: -0.75 },
-        { symbol: 'USD/KRW', name: '환율 (USD)', current_price: 1325.50, change: -4.20, change_percent: -0.32 }
-      ];
-    } else {
-      return [
-        { symbol: 'NASDAQ', name: 'NASDAQ', current_price: 15240.83, change: 120.45, change_percent: 0.80 },
-        { symbol: 'DOW', name: 'DOW', current_price: 34567.12, change: -85.23, change_percent: -0.25 },
-        { symbol: 'S&P500', name: 'S&P 500', current_price: 4456.78, change: 22.34, change_percent: 0.50 }
-      ];
-    }
-  };
+  const { marketIndices, marketIndicesLoading: loading } = useApp();
+  const marketData = selectedMarket === 'KR' ? marketIndices.korea : marketIndices.us;
 
   if (loading) {
     return (
