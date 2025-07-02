@@ -139,11 +139,12 @@
 .chart-scroll-container {
   width: 100%;
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: #ccc transparent;
-  padding-bottom: 40px; /* x축 라벨을 위한 추가 공간 */
+  padding-bottom: 60px; /* x축 라벨을 위한 추가 공간 */
+  margin-bottom: 20px; /* 추가 여백 */
 }
 
 .chart-scroll-container::-webkit-scrollbar {
@@ -412,7 +413,8 @@
   }
   
   .main-chart {
-    height: 340px; /* 증가시켜 x축 라벨 공간 확보 */
+    height: auto; /* 자동 높이로 변경 */
+    padding-bottom: 40px; /* 하단 패딩 추가 */
   }
   
   .candlestick-container {

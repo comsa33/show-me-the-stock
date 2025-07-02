@@ -196,7 +196,7 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
             top: 20, 
             right: showInterestRate ? (window.innerWidth <= 768 ? 40 : 60) : 30, 
             left: 20, 
-            bottom: 60 
+            bottom: window.innerWidth <= 768 ? 80 : 60 
           }}
         >
           {/* 가로줄만 표시되는 격자 */}
