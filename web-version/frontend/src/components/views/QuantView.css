@@ -250,7 +250,22 @@
   margin-bottom: 32px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border-primary);
+  justify-content: space-between;
 }
+
+.section-header-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* refresh-btn styles moved to global index.css */
 
 .section-icon {
   width: 32px;

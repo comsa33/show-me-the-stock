@@ -36,6 +36,24 @@ export interface MarketIndex {
   volume?: number;
 }
 
+export interface QuantIndicator {
+  symbol: string;
+  name: string;
+  market: string;
+  per: number;
+  pbr: number;
+  eps: number;
+  bps: number;
+  current_price: number;
+  market_cap: number;
+  estimated_roe: number;
+  momentum_3m: number;
+  volatility: number;
+  limited_quant_score: number;
+  recommendation: 'BUY' | 'HOLD' | 'SELL';
+  data_completeness: 'FULL' | 'LIMITED';
+}
+
 interface AppContextType {
   currentView: ViewType;
   setCurrentView: (view: ViewType) => void;
@@ -55,6 +73,17 @@ interface AppContextType {
   };
   marketIndicesLoading: boolean;
   fetchMarketIndices: () => Promise<void>;
+  quantData: {
+    KR: QuantIndicator[];
+    US: QuantIndicator[];
+  };
+  quantDataLoading: boolean;
+  quantDataLastUpdated: {
+    KR?: Date;
+    US?: Date;
+  };
+  fetchQuantData: (market: 'KR' | 'US', forceRefresh?: boolean) => Promise<void>;
+  clearQuantCache: (market?: 'KR' | 'US') => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -71,15 +100,18 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(false);
   const [marketIndices, setMarketIndices] = useState<{ korea: MarketIndex[], us: MarketIndex[] }>({ korea: [], us: [] });
   const [marketIndicesLoading, setMarketIndicesLoading] = useState(true);
+  const [quantData, setQuantData] = useState<{ KR: QuantIndicator[], US: QuantIndicator[] }>({ KR: [], US: [] });
+  const [quantDataLoading, setQuantDataLoading] = useState(false);
+  const [quantDataLastUpdated, setQuantDataLastUpdated] = useState<{ KR?: Date, US?: Date }>({});
 
-  const addNotification = (notification: Omit<Notification, 'id' | 'timestamp'>) => {
+  const addNotification = useCallback((notification: Omit<Notification, 'id' | 'timestamp'>) => {
     const newNotification: Notification = {
       ...notification,
       id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date()
     };
     setNotifications(prev => [newNotification, ...prev]);
-  };
+  }, []);
 
   const removeNotification = (id: string) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
@@ -177,7 +209,80 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     initNotifications.forEach(notification => {
       setTimeout(() => addNotification(notification), 1000);
     });
-  }, []);
+  }, [addNotification]);
+
+  const fetchQuantData = useCallback(async (market: 'KR' | 'US', forceRefresh: boolean = false) => {
+    // 캐시 유효성 확인 (30분)
+    const lastUpdated = quantDataLastUpdated[market];
+    const cacheValidDuration = 30 * 60 * 1000; // 30분
+    const now = new Date();
+    
+    if (!forceRefresh && lastUpdated && (now.getTime() - lastUpdated.getTime()) < cacheValidDuration) {
+      // 캐시가 유효하면 요청하지 않음
+      return;
+    }
+
+    setQuantDataLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/v1/quant/indicators?market=${market}&limit=50`);
+      if (response.ok) {
+        const data = await response.json();
+        setQuantData(prev => ({
+          ...prev,
+          [market]: data
+        }));
+        setQuantDataLastUpdated(prev => ({
+          ...prev,
+          [market]: new Date()
+        }));
+        
+        addNotification({
+          type: 'success',
+          title: '📊 퀀트 데이터 업데이트',
+          message: `${market} 시장 퀀트 지표가 업데이트되었습니다.`,
+          priority: 'low',
+          category: 'market'
+        });
+      } else {
+        throw new Error(`Failed to fetch quant data: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('퀀트 데이터 로딩 실패:', error);
+      addNotification({
+        type: 'warning',
+        title: '⚠️ 퀀트 데이터 로딩 실패',
+        message: '퀀트 지표 데이터를 불러올 수 없습니다. 기본 데이터를 사용합니다.',
+        priority: 'medium',
+        category: 'market'
+      });
+    } finally {
+      setQuantDataLoading(false);
+    }
+  }, [quantDataLastUpdated, addNotification]);
+
+  const clearQuantCache = useCallback((market?: 'KR' | 'US') => {
+    if (market) {
+      setQuantData(prev => ({
+        ...prev,
+        [market]: []
+      }));
+      setQuantDataLastUpdated(prev => ({
+        ...prev,
+        [market]: undefined
+      }));
+    } else {
+      setQuantData({ KR: [], US: [] });
+      setQuantDataLastUpdated({});
+    }
+    
+    addNotification({
+      type: 'info',
+      title: '🔄 캐시 클리어',
+      message: market ? `${market} 시장 퀀트 캐시가 클리어되었습니다.` : '모든 퀀트 캐시가 클리어되었습니다.',
+      priority: 'low',
+      category: 'market'
+    });
+  }, [addNotification]);
 
   const fetchMarketIndices = useCallback(async () => {
     setMarketIndicesLoading(true);
@@ -229,6 +334,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       marketIndices,
       marketIndicesLoading,
       fetchMarketIndices,
+      quantData,
+      quantDataLoading,
+      quantDataLastUpdated,
+      fetchQuantData,
+      clearQuantCache,
     }}>
       {children}
     </AppContext.Provider>

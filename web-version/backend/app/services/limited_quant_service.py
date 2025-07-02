@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from app.data.stock_data import StockDataFetcher
 from app.services.real_financial_data import real_financial_service
+from app.core.cache import cached
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,7 @@ class LimitedQuantService:
     def __init__(self):
         self.stock_fetcher = StockDataFetcher()
     
+    @cached(ttl=1800, key_prefix="quant_indicators")  # 30분 캐시
     async def get_limited_quant_indicators(
         self, 
         market: str = "KR", 
@@ -82,6 +84,7 @@ class LimitedQuantService:
             logger.error(f"제한된 퀀트 지표 계산 실패: {e}")
             return []
     
+    @cached(ttl=3600, key_prefix="stock_indicators")  # 1시간 캐시
     async def _calculate_limited_indicators(
         self, 
         symbol: str, 

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { API_BASE } from '../config';
 import { RefreshCw } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import './MarketOverview.css';
@@ -211,9 +210,12 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
           <span className="market-flag">{currentMarket.flag}</span>
           <h2>{currentMarket.name} 개요</h2>
         </div>
-        <button className="refresh-btn" onClick={handleRefresh}>
-          <RefreshCw size={16} />
-          새로고침
+        <button 
+          className="refresh-btn" 
+          onClick={handleRefresh}
+          title="시장 데이터 새로고침"
+        >
+          <RefreshCw size={16} className={marketIndicesLoading ? 'spinning' : ''} />
         </button>
       </div>
 

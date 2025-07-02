@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, TrendingUp, TrendingDown, BarChart3, Target, ChevronDown, ChevronUp, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart3, Target, ChevronDown, ChevronUp, Activity, RefreshCw } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
 import './QuantView.css';
 
 interface QuantViewProps {
@@ -54,25 +55,9 @@ interface RecommendedStock {
   reasoning: string[];
 }
 
-interface QuantIndicator {
-  symbol: string;
-  name: string;
-  market: string;
-  per: number;
-  pbr: number;
-  eps: number;
-  bps: number;
-  current_price: number;
-  market_cap: number;
-  estimated_roe: number;
-  momentum_3m: number;
-  volatility: number;
-  limited_quant_score: number;
-  recommendation: 'BUY' | 'HOLD' | 'SELL';
-  data_completeness: 'FULL' | 'LIMITED';
-}
 
 const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
+  const { quantData, quantDataLoading, quantDataLastUpdated, fetchQuantData } = useApp();
   const [activeTab, setActiveTab] = useState<'indicators' | 'backtest' | 'recommendations'>('indicators');
   const [availableStocks, setAvailableStocks] = useState<StockOption[]>([]);
   const [backtestSettings, setBacktestSettings] = useState<BacktestSettings>({
@@ -84,8 +69,7 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
   });
   const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);
   const [recommendations, setRecommendations] = useState<RecommendedStock[]>([]);
-  const [quantData, setQuantData] = useState<QuantIndicator[]>([]);
-  const [sortField, setSortField] = useState<keyof QuantIndicator>('limited_quant_score');
+  const [sortField, setSortField] = useState<keyof import('../../context/AppContext').QuantIndicator>('limited_quant_score');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [filters, setFilters] = useState({
     per: { min: 0, max: 50 },
@@ -134,80 +118,11 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
     }
 
     generateRecommendations();
-    fetchQuantData();
-  }, [selectedMarket]); // eslint-disable-line react-hooks/exhaustive-deps
-  
-  const fetchQuantData = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/v1/quant/indicators?market=${selectedMarket}`);
-      if (response.ok) {
-        const data = await response.json();
-        setQuantData(data);
-      } else {
-        generateMockQuantData();
-      }
-    } catch (error) {
-      console.error('퀀트 데이터 로딩 실패:', error);
-      generateMockQuantData();
-    } finally {
-      setLoading(false);
-    }
-  };
+    // 퀀트 데이터 로드 (캐시된 데이터 사용)
+    fetchQuantData(selectedMarket);
+  }, [selectedMarket, fetchQuantData]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const generateMockQuantData = () => {
-    const mockData: QuantIndicator[] = [];
-    const symbols = selectedMarket === 'KR' 
-      ? ['005930', '000660', '035420', '051910', '005380', '068270', '006400', '035720', '207940', '066570']
-      : ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'NFLX', 'ADBE', 'CRM'];
-    
-    const names = selectedMarket === 'KR'
-      ? ['삼성전자', 'SK하이닉스', 'NAVER', 'LG화학', '현대차', '셀트리온', '삼성SDI', '카카오', '삼성바이오로직스', 'LG전자']
-      : ['Apple', 'Microsoft', 'Alphabet', 'Amazon', 'Tesla', 'Meta', 'NVIDIA', 'Netflix', 'Adobe', 'Salesforce'];
-
-    for (let i = 0; i < symbols.length; i++) {
-      const per = Math.random() * 40 + 5;
-      const pbr = Math.random() * 4 + 0.5;
-      const roe = Math.random() * 30 + 5;
-      const momentum3m = (Math.random() - 0.5) * 40;
-      const marketCap = Math.random() * 500000 + 10000;
-      const volatility = Math.random() * 30 + 10;
-      const currentPrice = selectedMarket === 'KR' ? Math.random() * 50000 + 10000 : Math.random() * 300 + 50;
-      
-      const quantScore = Math.max(0, Math.min(100, 
-        (1 / per) * 100 + 
-        (1 / pbr) * 50 + 
-        roe * 2 + 
-        momentum3m * 0.5 +
-        (50 - volatility) * 0.5
-      ));
-
-      let recommendation: 'BUY' | 'HOLD' | 'SELL' = 'HOLD';
-      if (quantScore > 70) recommendation = 'BUY';
-      else if (quantScore < 40) recommendation = 'SELL';
-
-      mockData.push({
-        symbol: symbols[i],
-        name: names[i],
-        market: selectedMarket,
-        per: Number(per.toFixed(2)),
-        pbr: Number(pbr.toFixed(2)),
-        eps: Number((currentPrice / per).toFixed(0)),
-        bps: Number((currentPrice / pbr).toFixed(0)),
-        current_price: Number(currentPrice.toFixed(2)),
-        market_cap: Number(marketCap.toFixed(0)),
-        estimated_roe: Number(roe.toFixed(2)),
-        momentum_3m: Number(momentum3m.toFixed(2)),
-        volatility: Number(volatility.toFixed(2)),
-        limited_quant_score: Number(quantScore.toFixed(1)),
-        recommendation,
-        data_completeness: 'LIMITED' as const
-      });
-    }
-    setQuantData(mockData);
-  };
-
-  const handleSort = (field: keyof QuantIndicator) => {
+  const handleSort = (field: keyof import('../../context/AppContext').QuantIndicator) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -216,7 +131,9 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
     }
   };
 
-  const filteredAndSortedData = quantData
+  const currentQuantData = quantData[selectedMarket] || [];
+  
+  const filteredAndSortedData = currentQuantData
     .filter(item => 
       item.per >= filters.per.min && item.per <= filters.per.max &&
       item.pbr >= filters.pbr.min && item.pbr <= filters.pbr.max &&
@@ -234,7 +151,7 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
       return String(aValue).localeCompare(String(bValue)) * direction;
     });
 
-  const SortIcon = ({ field }: { field: keyof QuantIndicator }) => {
+  const SortIcon = ({ field }: { field: keyof import('../../context/AppContext').QuantIndicator }) => {
     if (sortField !== field) return null;
     return sortDirection === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />;
   };
@@ -496,12 +413,29 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
   const renderIndicatorsTab = () => (
     <div className="quant-indicators">
       <div className="section-header">
-        <div className="section-icon">
-          <Activity size={18} />
+        <div className="section-header-content">
+          <div className="section-icon">
+            <Activity size={18} />
+          </div>
+          <div className="section-info">
+            <h3>퀀트 지표 분석</h3>
+            <p>재무 지표와 기술적 지표를 종합하여 투자 가치를 평가합니다</p>
+            {quantDataLastUpdated[selectedMarket] && (
+              <small style={{ color: '#666', fontSize: '12px' }}>
+                마지막 업데이트: {quantDataLastUpdated[selectedMarket]?.toLocaleTimeString()}
+              </small>
+            )}
+          </div>
         </div>
-        <div className="section-info">
-          <h3>퀀트 지표 분석</h3>
-          <p>재무 지표와 기술적 지표를 종합하여 투자 가치를 평가합니다</p>
+        <div className="section-actions">
+          <button 
+            className="refresh-btn"
+            onClick={() => fetchQuantData(selectedMarket, true)}
+            disabled={quantDataLoading}
+            title="퀀트 데이터 새로고침"
+          >
+            <RefreshCw size={16} className={quantDataLoading ? 'spinning' : ''} />
+          </button>
         </div>
       </div>
 
@@ -733,16 +667,16 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
 
       <div className="quant-content">
         <div className="content-container">
-          {loading && (
+          {(quantDataLoading && currentQuantData.length === 0) && (
             <div className="loading">
               <div className="loading-spinner"></div>
-              <div className="loading-text">분석 중...</div>
-              <div className="loading-subtext">처음 접속 시 1분 이상 소요될 수 있습니다</div>
+              <div className="loading-text">퀀트 지표 분석 중...</div>
+              <div className="loading-subtext">캐시된 데이터가 없어 새로 로딩하고 있습니다</div>
             </div>
           )}
-          {!loading && activeTab === 'indicators' && renderIndicatorsTab()}
-          {!loading && activeTab === 'backtest' && renderBacktestTab()}
-          {!loading && activeTab === 'recommendations' && renderRecommendationsTab()}
+          {activeTab === 'indicators' && renderIndicatorsTab()}
+          {activeTab === 'backtest' && renderBacktestTab()}
+          {activeTab === 'recommendations' && renderRecommendationsTab()}
         </div>
       </div>
     </div>

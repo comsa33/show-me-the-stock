@@ -26,25 +26,7 @@
   margin: 0;
 }
 
-.refresh-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: var(--bg-overlay);
-  border: 1px solid var(--border-primary);
-  border-radius: 8px;
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.refresh-btn:hover {
-  background: var(--bg-glass);
-  transform: translateY(-1px);
-}
+/* refresh-btn styles moved to global index.css */
 
 .overview-grid {
   display: grid;

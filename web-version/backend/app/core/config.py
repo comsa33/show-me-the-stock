@@ -68,6 +68,12 @@ class Settings(BaseSettings):
     stock_data_cache_ttl: int = Field(
         default=60, description="주식 데이터 캐시 TTL (초)"
     )
+    quant_data_cache_ttl: int = Field(
+        default=1800, description="퀀트 지표 캐시 TTL (초, 30분)"
+    )
+    individual_stock_cache_ttl: int = Field(
+        default=3600, description="개별 종목 지표 캐시 TTL (초, 1시간)"
+    )
     max_chart_points: int = Field(default=1000, description="차트 최대 데이터 포인트")
 
     class Config:
