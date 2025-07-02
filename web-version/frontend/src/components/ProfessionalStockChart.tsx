@@ -54,27 +54,53 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
       // 금리 데이터 매칭
       const interestRate = interestRateData.find(rate => rate.date === point.Date)?.rate || null;
       
-      // 기간에 따른 동적 날짜 포맷
+      // 날짜 포맷팅 - 모든 데이터 포인트에 날짜 표시
+      const dateObj = new Date(point.Date);
       let displayDate = '';
+      
       if (period === '1d' || period === '5d') {
-        displayDate = new Date(point.Date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+        // 1일, 5일: 월/일 시간
+        displayDate = dateObj.toLocaleDateString('ko-KR', { 
+          month: 'numeric', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
       } else if (period === '1mo') {
-        if (index % 7 === 0) { // 주 단위
-          displayDate = new Date(point.Date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+        // 1개월: 월/일
+        displayDate = dateObj.toLocaleDateString('ko-KR', { 
+          month: 'numeric', 
+          day: 'numeric' 
+        });
+      } else if (period === '3mo' || period === '6mo') {
+        // 3개월, 6개월: 월/일 (주 단위로 표시)
+        if (index % 5 === 0) {
+          displayDate = dateObj.toLocaleDateString('ko-KR', { 
+            month: 'numeric', 
+            day: 'numeric' 
+          });
         }
-      } else if (period === '6mo' || period === '1y' || period === 'ytd') {
-        if (index % 60 === 0) { // 2개월 단위
-          displayDate = new Date(point.Date).toLocaleDateString('ko-KR', { year: '2-digit', month: 'short' });
+      } else if (period === '1y' || period === 'ytd') {
+        // 1년, YTD: 년/월 (월 단위로 표시)
+        if (index % 20 === 0) {
+          displayDate = dateObj.toLocaleDateString('ko-KR', { 
+            year: '2-digit', 
+            month: 'numeric' 
+          });
         }
       } else { // 5y, max
-        if (index % 250 === 0) { // 년 단위
-          displayDate = new Date(point.Date).getFullYear().toString();
+        // 5년 이상: 년도 (분기 단위로 표시)
+        if (index % 60 === 0) {
+          displayDate = dateObj.toLocaleDateString('ko-KR', { 
+            year: 'numeric', 
+            month: 'numeric' 
+          });
         }
       }
       
       return {
         ...point,
-        date: displayDate || '', // 조건에 맞지 않으면 빈 문자열
+        date: displayDate,
         fullDate: point.Date,
         change,
         changePercent,
@@ -83,6 +109,21 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
       };
     });
   }, [data, interestRateData, period]);
+
+  // Y축 도메인 계산 (최소/최대값의 위아래 10% 추가)
+  const yDomain = useMemo(() => {
+    if (!processedData.length) return [0, 100];
+    
+    const prices = processedData.map(d => d.Close);
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+    const padding = (maxPrice - minPrice) * 0.1;
+    
+    return [
+      Math.floor(minPrice - padding),
+      Math.ceil(maxPrice + padding)
+    ];
+  }, [processedData]);
 
 
 
@@ -155,7 +196,7 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
             top: 20, 
             right: showInterestRate ? (window.innerWidth <= 768 ? 40 : 60) : 30, 
             left: 20, 
-            bottom: 20 
+            bottom: 60 
           }}
         >
           {/* 가로줄만 표시되는 격자 */}
@@ -169,13 +210,18 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
           {/* X축 - 동적 틱 포맷 적용 */}
           <XAxis 
             dataKey="date" 
-            tick={{ fontSize: 12, fill: isDarkMode ? '#9ca3af' : '#666' }}
+            tick={{ fontSize: 11, fill: isDarkMode ? '#9ca3af' : '#666' }}
             axisLine={{ stroke: isDarkMode ? '#374151' : '#ddd' }}
             tickLine={false}
+            interval="preserveStartEnd"
+            angle={-45}
+            textAnchor="end"
+            height={60}
           />
           
           {/* Y축 - 주가 */}
           <YAxis 
+            domain={yDomain}
             tick={{ fontSize: 12, fill: isDarkMode ? '#9ca3af' : '#666' }}
             axisLine={false}
             tickLine={false}
