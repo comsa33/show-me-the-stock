@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { API_BASE } from '../config';
 import ProfessionalStockChart from './ProfessionalStockChart';
-import { BookOpen, TrendingUp, Gem, ArrowLeft } from 'lucide-react';
+import { BookOpen, TrendingUp, Gem, ArrowLeft, Sparkles, Download, FileText, ChevronDown, ChevronUp, Brain, ExternalLink } from 'lucide-react';
 import './StockDetail.css';
 
 interface StockData {
@@ -118,6 +118,8 @@ const StockDetail: React.FC = () => {
   const [showInterestRate, setShowInterestRate] = useState(false);
   const [interestRateData, setInterestRateData] = useState<Array<{ date: string; rate: number }>>([]);
   const [analysisType, setAnalysisType] = useState<'beginner' | 'swing' | 'invest'>('beginner');
+  const [showSources, setShowSources] = useState(false); // 참고자료 접기/펼치기
+  const [showDetailedAnalysis, setShowDetailedAnalysis] = useState(true); // 상세 분석 접기/펼치기
 
   const periods = [
     { value: '1d', label: '1일' },
@@ -240,6 +242,100 @@ const StockDetail: React.FC = () => {
     return selectedStock.market === 'KR' 
       ? `₩${price.toLocaleString()}` 
       : `$${price.toFixed(2)}`;
+  };
+
+  // AI 분석 리포트를 마크다운으로 생성
+  const generateMarkdownReport = () => {
+    if (!analysisData) return '';
+    
+    const { analysis, symbol, market, analysis_type, timestamp } = analysisData;
+    const date = new Date(timestamp).toLocaleString('ko-KR');
+    
+    let markdown = `# ${symbol} AI 분석 리포트\n\n`;
+    markdown += `**분석 유형**: ${analysis_type === 'beginner' ? '초보자 분석' : analysis_type === 'swing' ? '스윙 분석' : '투자 분석'}\n`;
+    markdown += `**시장**: ${market}\n`;
+    markdown += `**분석 일시**: ${date}\n\n`;
+    
+    // 요약
+    markdown += `## 📊 분석 요약\n\n`;
+    markdown += `- **전체 신호**: ${analysis.summary.overall_signal}\n`;
+    markdown += `- **신뢰도**: ${analysis.summary.confidence}\n`;
+    markdown += `- **추천**: ${analysis.summary.recommendation}\n`;
+    markdown += `- **목표 가격**: ${analysis.summary.target_price}\n`;
+    markdown += `- **분석 기간**: ${analysis.summary.analysis_period}\n\n`;
+    
+    // 기술적 분석
+    markdown += `## 📈 기술적 분석\n\n`;
+    markdown += `### RSI (${analysis.technical_analysis.rsi.value.toFixed(3)})\n`;
+    markdown += `- **신호**: ${analysis.technical_analysis.rsi.signal}\n`;
+    markdown += `- **설명**: ${analysis.technical_analysis.rsi.description}\n\n`;
+    
+    markdown += `### 이동평균선\n`;
+    markdown += `- **신호**: ${analysis.technical_analysis.moving_average.signal}\n`;
+    markdown += `- **설명**: ${analysis.technical_analysis.moving_average.description}\n\n`;
+    
+    markdown += `### 거래량 분석\n`;
+    markdown += `- **추세**: ${analysis.technical_analysis.volume_analysis.trend}\n`;
+    markdown += `- **설명**: ${analysis.technical_analysis.volume_analysis.description}\n\n`;
+    
+    // 뉴스 감성 분석
+    markdown += `## 📰 뉴스 감성 분석\n\n`;
+    markdown += `- **감성**: ${analysis.news_analysis.sentiment} (${analysis.news_analysis.score}점)\n`;
+    markdown += `- **요약**: ${analysis.news_analysis.summary}\n`;
+    markdown += `- **주요 토픽**: ${analysis.news_analysis.key_topics.join(', ')}\n\n`;
+    
+    // AI 인사이트
+    markdown += `## 🤖 AI 인사이트\n\n`;
+    analysis.ai_insights.forEach((insight, index) => {
+      markdown += `${index + 1}. ${insight}\n`;
+    });
+    markdown += '\n';
+    
+    // 리스크 요인
+    markdown += `## ⚠️ 리스크 요인\n\n`;
+    analysis.risk_factors.forEach((risk, index) => {
+      markdown += `${index + 1}. ${risk}\n`;
+    });
+    markdown += '\n';
+    
+    // 출처
+    if (analysis.sources && analysis.sources.length > 0) {
+      markdown += `## 📚 참고 자료\n\n`;
+      analysis.sources.forEach((source, index) => {
+        markdown += `${index + 1}. [${source.title}](${source.url})\n`;
+        if (source.snippet) {
+          markdown += `   > ${source.snippet}\n`;
+        }
+      });
+      markdown += '\n';
+    }
+    
+    // 원본 텍스트 (있을 경우)
+    if (analysis.original_text) {
+      markdown += `## 📄 상세 분석 내용\n\n`;
+      markdown += `\`\`\`\n${analysis.original_text}\n\`\`\`\n`;
+    }
+    
+    return markdown;
+  };
+  
+  // 마크다운 파일 다운로드
+  const downloadMarkdownReport = () => {
+    if (!analysisData) return;
+    
+    const markdown = generateMarkdownReport();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+    const filename = `${analysisData.symbol}_${timestamp}.md`;
+    
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // 풋노트가 포함된 텍스트 렌더링 함수
@@ -499,7 +595,7 @@ const StockDetail: React.FC = () => {
 
         <div className="analysis-section">
           <div className="analysis-header">
-            <h3>AI 분석</h3>
+            <h3><Brain size={20} /> AI 분석</h3>
             <div className="analysis-controls">
               <div className="analysis-type-selector">
                 <button 
@@ -507,29 +603,51 @@ const StockDetail: React.FC = () => {
                   onClick={() => setAnalysisType('beginner')}
                   title="초보자를 위한 쉬운 분석 (1~3일)"
                 >
-                  <BookOpen size={16} /> 초보자 분석
+                  <BookOpen size={20} />
+                  <span>
+                    <div className="btn-title">초보자</div>
+                    <div className="btn-subtitle">1~3일</div>
+                  </span>
                 </button>
                 <button 
                   className={`analysis-btn ${analysisType === 'swing' ? 'active' : ''}`}
                   onClick={() => setAnalysisType('swing')}
                   title="스윙 트레이딩 분석 (1주~1개월)"
                 >
-                  <TrendingUp size={16} /> 스윙 분석
+                  <TrendingUp size={20} />
+                  <span>
+                    <div className="btn-title">스윙</div>
+                    <div className="btn-subtitle">1주~1개월</div>
+                  </span>
                 </button>
                 <button 
                   className={`analysis-btn ${analysisType === 'invest' ? 'active' : ''}`}
                   onClick={() => setAnalysisType('invest')}
                   title="중장기 투자 분석 (3개월~1년)"
                 >
-                  <Gem size={16} /> 투자 분석
+                  <Gem size={20} />
+                  <span>
+                    <div className="btn-title">투자</div>
+                    <div className="btn-subtitle">3개월~1년</div>
+                  </span>
                 </button>
               </div>
               <button 
-                className="btn-primary"
+                className="btn-primary ai-analyze-btn"
                 onClick={() => fetchAnalysis(analysisType)}
                 disabled={analysisLoading}
               >
-                {analysisLoading ? '분석 중...' : 'AI 분석 실행'}
+                {analysisLoading ? (
+                  <>
+                    <div className="loading-spinner small"></div>
+                    <span>분석 중...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={18} />
+                    <span>AI 분석 실행</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -541,7 +659,7 @@ const StockDetail: React.FC = () => {
             </div>
           )}
 
-          {analysisData && (
+          {analysisData && analysisData.analysis && (
             <div className="analysis-results">
               <div className="analysis-summary">
                 <h4>분석 요약</h4>
@@ -574,7 +692,7 @@ const StockDetail: React.FC = () => {
                     <div className="indicator">
                       <span>RSI</span>
                       <span className={`indicator-value rsi-${analysisData.analysis.technical_analysis.rsi.signal.toLowerCase()}`}>
-                        {analysisData.analysis.technical_analysis.rsi.value} ({analysisData.analysis.technical_analysis.rsi.signal})
+                        {analysisData.analysis.technical_analysis.rsi.value.toFixed(3)} ({analysisData.analysis.technical_analysis.rsi.signal})
                       </span>
                     </div>
                     <div className="indicator">
@@ -634,46 +752,101 @@ const StockDetail: React.FC = () => {
                 </div>
 
                 {analysisData.analysis.sources && analysisData.analysis.sources.length > 0 && (
-                  <div className="analysis-section-item">
-                    <h5>📎 참고 자료 및 출처</h5>
-                    <div className="sources-list">
-                      {analysisData.analysis.sources.map((source, index) => (
-                        <div key={index} className="source-card">
-                          <div className="source-header">
-                            <span className="source-number">[{index + 1}]</span>
-                            <a 
-                              href={source.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="source-title"
-                            >
-                              {source.title}
-                              <svg className="external-link-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                                <polyline points="15,3 21,3 21,9"></polyline>
-                                <line x1="10" y1="14" x2="21" y2="3"></line>
-                              </svg>
-                            </a>
-                          </div>
-                          <p className="source-snippet">{source.snippet}</p>
-                          <div className="source-url">
-                            {source.url.startsWith('http') ? new URL(source.url).hostname : source.url}
-                          </div>
-                        </div>
-                      ))}
+                  <div className="analysis-section-item collapsible-section">
+                    <div 
+                      className="section-header clickable"
+                      onClick={() => setShowSources(!showSources)}
+                    >
+                      <h5>
+                        <ExternalLink size={18} />
+                        참고 자료 및 출처 ({analysisData.analysis.sources.length})
+                      </h5>
+                      <button className="collapse-btn">
+                        {showSources ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                      </button>
                     </div>
+                    {showSources && (
+                      <div className="sources-list">
+                        {analysisData.analysis.sources.map((source, index) => (
+                          <div key={index} className="source-card">
+                            <div className="source-header">
+                              <span className="source-number">[{index + 1}]</span>
+                              <a 
+                                href={source.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="source-title"
+                              >
+                                {source.title}
+                                <ExternalLink size={12} className="external-link-icon" />
+                              </a>
+                            </div>
+                            <p className="source-snippet">{source.snippet}</p>
+                            <div className="source-url">
+                              {source.url.startsWith('http') ? new URL(source.url).hostname : source.url}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* 개발 모드에서만 원본 텍스트 표시 */}
-                {process.env.NODE_ENV === 'development' && analysisData.analysis.original_text && (
-                  <div className="analysis-section-item">
-                    <h5>🔧 원본 텍스트 (개발용)</h5>
-                    <div className="original-text">
-                      <pre>{analysisData.analysis.original_text}</pre>
+                {/* 상세 분석 내용 */}
+                {analysisData.analysis.original_text && (
+                  <div className="analysis-section-item collapsible-section">
+                    <div 
+                      className="section-header clickable"
+                      onClick={() => setShowDetailedAnalysis(!showDetailedAnalysis)}
+                    >
+                      <h5>
+                        <FileText size={18} />
+                        상세 분석 내용
+                      </h5>
+                      <button className="collapse-btn">
+                        {showDetailedAnalysis ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                      </button>
                     </div>
+                    {showDetailedAnalysis && (
+                      <div className="detailed-analysis-content">
+                        <pre className="analysis-markdown">
+                          {analysisData.analysis.original_text}
+                        </pre>
+                      </div>
+                    )}
                   </div>
                 )}
+
+                {/* 분석 리포트 다운로드 */}
+                <div className="analysis-section-item report-section">
+                  <div className="report-header">
+                    <h5><FileText size={18} /> 분석 리포트</h5>
+                    <button 
+                      className="download-report-btn"
+                      onClick={downloadMarkdownReport}
+                      title="마크다운 파일로 다운로드"
+                    >
+                      <Download size={16} />
+                      <span>리포트 다운로드</span>
+                    </button>
+                  </div>
+                  <div className="report-preview">
+                    <p className="report-description">
+                      이 AI 분석 리포트는 {analysisData.symbol} 종목의 기술적 분석, 뉴스 감성 분석, 
+                      AI 인사이트 및 리스크 요인을 포함하고 있습니다.
+                    </p>
+                    <div className="report-info">
+                      <div className="info-item">
+                        <span className="info-label">파일 형식:</span>
+                        <span className="info-value">Markdown (.md)</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">파일명:</span>
+                        <span className="info-value">{analysisData.symbol}_{new Date().toISOString().split('T')[0]}.md</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}

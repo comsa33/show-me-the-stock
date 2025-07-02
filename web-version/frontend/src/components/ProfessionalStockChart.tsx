@@ -8,6 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer
 } from 'recharts';
+import { useTheme } from '../context/ThemeContext';
 import './ProfessionalStockChart.css';
 
 interface StockDataPoint {
@@ -39,6 +40,8 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
   interestRateData = [],
   onToggleInterestRate
 }) => {
+  const { theme } = useTheme();
+  const isDarkMode = theme === 'dark';
 
 
   // 데이터 전처리
@@ -156,19 +159,24 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
           }}
         >
           {/* 가로줄만 표시되는 격자 */}
-          <CartesianGrid horizontal={true} vertical={false} stroke="#f0f0f0" strokeDasharray="1 1" />
+          <CartesianGrid 
+            horizontal={true} 
+            vertical={false} 
+            stroke={isDarkMode ? '#2d2d2d' : '#f0f0f0'} 
+            strokeDasharray="1 1" 
+          />
           
           {/* X축 - 동적 틱 포맷 적용 */}
           <XAxis 
             dataKey="date" 
-            tick={{ fontSize: 12, fill: '#666' }}
-            axisLine={{ stroke: '#ddd' }}
+            tick={{ fontSize: 12, fill: isDarkMode ? '#9ca3af' : '#666' }}
+            axisLine={{ stroke: isDarkMode ? '#374151' : '#ddd' }}
             tickLine={false}
           />
           
           {/* Y축 - 주가 */}
           <YAxis 
-            tick={{ fontSize: 12, fill: '#666' }}
+            tick={{ fontSize: 12, fill: isDarkMode ? '#9ca3af' : '#666' }}
             axisLine={false}
             tickLine={false}
             tickFormatter={formatPrice}
@@ -179,7 +187,7 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
             <YAxis 
               yAxisId="right" 
               orientation="right"
-              tick={{ fontSize: 12, fill: '#10b981' }}
+              tick={{ fontSize: 12, fill: isDarkMode ? '#34d399' : '#10b981' }}
               axisLine={false}
               tickLine={false}
               tickFormatter={(value) => `${value}%`}
@@ -193,15 +201,15 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
           <Line 
             type="monotone" 
             dataKey="Close" 
-            stroke="#2563eb" 
+            stroke={isDarkMode ? '#60a5fa' : '#2563eb'} 
             strokeWidth={2.5}
             dot={(dotProps: any) => {
               if (dotProps.index === processedData.length - 1) {
-                return <circle key={`dot-${dotProps.index}`} cx={dotProps.cx} cy={dotProps.cy} r={5} fill="#2563eb" stroke="#ffffff" strokeWidth={2} />;
+                return <circle key={`dot-${dotProps.index}`} cx={dotProps.cx} cy={dotProps.cy} r={5} fill={isDarkMode ? '#60a5fa' : '#2563eb'} stroke={isDarkMode ? '#1f2937' : '#ffffff'} strokeWidth={2} />;
               }
               return <g key={`empty-dot-${dotProps.index}`}></g>;
             }}
-            activeDot={{ r: 4, fill: '#2563eb' }}
+            activeDot={{ r: 4, fill: isDarkMode ? '#60a5fa' : '#2563eb' }}
           />
           
           {/* 금리 라인 오버레이 */}
@@ -210,15 +218,15 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
               yAxisId="right"
               type="monotone" 
               dataKey="interestRate" 
-              stroke="#10b981" 
+              stroke={isDarkMode ? '#34d399' : '#10b981'} 
               strokeWidth={1.5}
               dot={(dotProps: any) => {
                 if (dotProps.index === processedData.length - 1) {
-                  return <circle key={`rate-dot-${dotProps.index}`} cx={dotProps.cx} cy={dotProps.cy} r={4} fill="#10b981" stroke="#ffffff" strokeWidth={2} />;
+                  return <circle key={`rate-dot-${dotProps.index}`} cx={dotProps.cx} cy={dotProps.cy} r={4} fill={isDarkMode ? '#34d399' : '#10b981'} stroke={isDarkMode ? '#1f2937' : '#ffffff'} strokeWidth={2} />;
                 }
                 return <g key={`empty-rate-dot-${dotProps.index}`}></g>;
               }}
-              activeDot={{ r: 3, fill: '#10b981' }}
+              activeDot={{ r: 3, fill: isDarkMode ? '#34d399' : '#10b981' }}
             />
           )}
         </ComposedChart>
@@ -241,12 +249,12 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
       {/* 차트 범례 */}
       <div className="chart-legend">
         <div className="legend-item">
-          <span className="legend-color" style={{ backgroundColor: '#2563eb' }}></span>
+          <span className="legend-color" style={{ backgroundColor: isDarkMode ? '#60a5fa' : '#2563eb' }}></span>
           주가
         </div>
         {showInterestRate && interestRateData.length > 0 && (
           <div className="legend-item">
-            <span className="legend-color" style={{ backgroundColor: '#10b981' }}></span>
+            <span className="legend-color" style={{ backgroundColor: isDarkMode ? '#34d399' : '#10b981' }}></span>
             금리 ({market === 'KR' ? '한국은행 기준금리' : '연준 기준금리'})
           </div>
         )}

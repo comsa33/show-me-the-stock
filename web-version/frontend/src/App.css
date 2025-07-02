@@ -173,6 +173,12 @@ body {
   animation: spin 1s linear infinite;
 }
 
+.loading-spinner.small {
+  width: 20px;
+  height: 20px;
+  border-width: 2px;
+}
+
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
