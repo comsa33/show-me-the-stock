@@ -1,0 +1,18 @@
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="faviconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#8B5CF6" />
+      <stop offset="100%" stopColor="#C084FC" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Simplified chart for small size -->
+  <rect x="2" y="2" width="12" height="12" rx="2" fill="url(#faviconGradient)" fillOpacity="0.2" stroke="url(#faviconGradient)" strokeWidth="1"/>
+  
+  <!-- Rising line -->
+  <path d="M4 10L6 8L8 9L10 6L12 4" stroke="url(#faviconGradient)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+  
+  <!-- Key points -->
+  <circle cx="10" cy="6" r="1.5" fill="url(#faviconGradient)"/>
+  <circle cx="12" cy="4" r="1.5" fill="url(#faviconGradient)"/>
+</svg>

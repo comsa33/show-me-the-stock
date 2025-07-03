@@ -1,15 +1,21 @@
 {
-  "short_name": "Stock Dashboard",
-  "name": "AI Stock Analysis Dashboard",
+  "short_name": "ShowMeTheStock",
+  "name": "ShowMeTheStock - AI Stock Analysis",
   "icons": [
     {
-      "src": "favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "theme_color": "#8B5CF6",
+  "background_color": "#0A0A0B"
 }
