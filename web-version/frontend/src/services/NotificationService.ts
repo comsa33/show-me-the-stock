@@ -113,8 +113,8 @@ class NotificationService {
       };
       
       this.ws.onerror = (error) => {
-        console.log('❌ WebSocket 연결 실패, 시뮬레이션 모드로 전환');
-        this.fallbackToPolling();
+        console.error('❌ WebSocket 연결 오류:', error);
+        // 시뮬레이션 모드로 전환하지 않고 재연결 시도
       };
       
       this.ws.onclose = () => {
@@ -122,8 +122,9 @@ class NotificationService {
         setTimeout(() => this.initWebSocket(), 5000);
       };
     } catch (error) {
-      console.log('WebSocket 지원 안함, 시뮬레이션 모드로 전환');
-      this.fallbackToPolling();
+      console.error('WebSocket 초기화 오류:', error);
+      // 5초 후 재시도
+      setTimeout(() => this.initWebSocket(), 5000);
     }
   }
 
