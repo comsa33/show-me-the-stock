@@ -138,10 +138,14 @@ class GeminiStockAnalyzer:
             from google import genai
             from google.genai import types
             
-            # Grounding search 설정 - dict 형식 사용
-            grounding_config = {
-                "tools": [{"google_search": {}}]
-            }
+            # Grounding search 설정 - 공식 문서 패턴 사용
+            grounding_tool = types.Tool(
+                google_search=types.GoogleSearch()
+            )
+            
+            grounding_config = types.GenerateContentConfig(
+                tools=[grounding_tool]
+            )
             
             # Step 1a: 먼저 간단한 쿼리로 실제 소스 수집
             simple_query = f"{symbol} stock analysis news {analysis_type} investing 2024"
@@ -162,18 +166,30 @@ class GeminiStockAnalyzer:
                     candidate = source_response.candidates[0]
                     if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
                         metadata = candidate.grounding_metadata
-                        if hasattr(metadata, 'grounding_chunks') and metadata.grounding_chunks:
-                            logger.info(f"✅ Found {len(metadata.grounding_chunks)} real sources")
-                            for i, chunk in enumerate(metadata.grounding_chunks):
+                        
+                        # 공식 문서 패턴: grounding_chunks와 grounding_supports 둘 다 확인
+                        chunks = getattr(metadata, 'grounding_chunks', None)
+                        supports = getattr(metadata, 'grounding_supports', None)
+                        
+                        if chunks:
+                            logger.info(f"✅ Found {len(chunks)} grounding chunks")
+                            for i, chunk in enumerate(chunks):
                                 if hasattr(chunk, 'web') and chunk.web:
                                     web = chunk.web
                                     source = SourceCitation(
                                         title=getattr(web, 'title', f'Source {i+1}'),
                                         url=getattr(web, 'uri', ''),
-                                        snippet=getattr(web, 'snippet', '')[:200]
+                                        snippet=getattr(web, 'snippet', '')  # 전체 snippet 사용
                                     )
                                     real_sources.append(source)
-                                    logger.info(f"✅ Real source: {source.title}")
+                                    logger.info(f"✅ Real source {i+1}: {source.title}")
+                        else:
+                            logger.warning("❌ No grounding_chunks found in metadata")
+                        
+                        if supports:
+                            logger.info(f"✅ Found {len(supports)} grounding supports")
+                        else:
+                            logger.warning("❌ No grounding_supports found in metadata")
             except Exception as e:
                 logger.error(f"Error fetching real sources: {e}")
                 real_sources = []
@@ -326,27 +342,31 @@ class GeminiStockAnalyzer:
                 json_data = self._validate_and_fill_json_data(json_data, symbol, market, stock_data)
             
             # Step 3: grounding metadata에서 소스 추출 
-            # 실제 소스가 있으면 우선 사용
+            # 실제 소스가 있으면 우선 사용하되, 추가 소스도 병합
+            all_sources = []
+            
+            # 첫 번째 쿼리의 소스 추가
             if real_sources:
-                logger.info(f"✅ Using {len(real_sources)} real sources from initial query")
-                sources = real_sources
+                logger.info(f"✅ Adding {len(real_sources)} real sources from initial query")
+                all_sources.extend(real_sources)
+            
+            # 두 번째 응답의 추가 소스 병합
+            if extracted_sources:
+                logger.info(f"✅ Adding {len(extracted_sources)} sources from detailed analysis")
+                # URL 기준으로 중복 제거
+                existing_urls = {s.url for s in all_sources}
+                for source in extracted_sources:
+                    if source.url not in existing_urls:
+                        all_sources.append(source)
+                        existing_urls.add(source.url)
+                logger.info(f"Total unique sources after merge: {len(all_sources)}")
+            
+            if all_sources:
+                sources = all_sources
                 grounding_supports = []
                 
                 # AI 응답 텍스트를 기반으로 grounding supports 생성
                 if sources and response_text:
-                    grounding_supports = self._create_grounding_supports_from_text(
-                        response_text, 
-                        json_data, 
-                        sources
-                    )
-                    logger.info(f"Created {len(grounding_supports)} grounding supports from text analysis")
-            elif extracted_sources:
-                logger.info(f"Using {len(extracted_sources)} immediately extracted sources")
-                sources = extracted_sources
-                grounding_supports = extracted_supports
-                
-                # extracted_sources가 있지만 supports가 없는 경우
-                if sources and not grounding_supports and response_text:
                     grounding_supports = self._create_grounding_supports_from_text(
                         response_text, 
                         json_data, 
@@ -689,6 +709,7 @@ JSON 형태로 응답하되, {analysis_info['target_audience']}가 이해하기 
     def _extract_json_from_response(self, response_text: str) -> dict | None:
         """응답에서 JSON 부분을 추출하여 파싱"""
         import json
+        import re
         
         try:
             # JSON 코드 블록 찾기
@@ -698,8 +719,18 @@ JSON 형태로 응답하되, {analysis_info['target_audience']}가 이해하기 
             elif "```" in response_text:
                 json_part = response_text.split("```")[1].split("```")[0]
             else:
-                # JSON 블록이 없으면 전체 텍스트에서 JSON 찾기
-                json_part = response_text
+                # JSON 블록이 없으면 중괄호로 시작하는 JSON 찾기
+                match = re.search(r'\{[^{}]*\{.*\}[^{}]*\}', response_text, re.DOTALL)
+                if match:
+                    json_part = match.group()
+                else:
+                    # 첫 번째 중괄호부터 마지막 중괄호까지 추출
+                    start = response_text.find('{')
+                    end = response_text.rfind('}')
+                    if start != -1 and end != -1 and start < end:
+                        json_part = response_text[start:end+1]
+                    else:
+                        json_part = response_text
             
             # JSON 파싱 시도
             parsed_json = json.loads(json_part.strip())
@@ -871,8 +902,7 @@ JSON 형태로 응답하되, {analysis_info['target_audience']}가 이해하기 
                 tech["rsi"]["description"] = f"RSI {rsi_value:.0f} - {tech['rsi']['signal']} 구간"
             else:
                 tech["rsi"]["description"] = "RSI 정보를 확인할 수 없습니다"
-        else:
-            tech["rsi"]["description"] = self._remove_footnotes_from_text(tech["rsi"]["description"])
+        # description은 풋노트를 유지 (프론트엔드에서 처리하도록)
         
         # Moving Average 검증
         if "moving_average" not in tech:
@@ -885,8 +915,7 @@ JSON 형태로 응답하되, {analysis_info['target_audience']}가 이해하기 
         
         if "description" not in tech["moving_average"]:
             tech["moving_average"]["description"] = "이동평균선 분석"
-        else:
-            tech["moving_average"]["description"] = self._remove_footnotes_from_text(tech["moving_average"]["description"])
+        # description은 풋노트를 유지 (프론트엔드에서 처리하도록)
         
         # Volume Analysis 검증
         if "volume_analysis" not in tech:
@@ -895,8 +924,7 @@ JSON 형태로 응답하되, {analysis_info['target_audience']}가 이해하기 
             tech["volume_analysis"]["trend"] = "평균"
         if "description" not in tech["volume_analysis"]:
             tech["volume_analysis"]["description"] = "거래량 분석"
-        else:
-            tech["volume_analysis"]["description"] = self._remove_footnotes_from_text(tech["volume_analysis"]["description"])
+        # description은 풋노트를 유지 (프론트엔드에서 처리하도록)
         
         # news_analysis 검증
         if "news_analysis" not in json_data:
@@ -909,21 +937,15 @@ JSON 형태로 응답하되, {analysis_info['target_audience']}가 이해하기 
             news["score"] = 70
         if "summary" not in news:
             news["summary"] = "뉴스 분석 요약"
-        else:
-            # 풋노트 제거
-            news["summary"] = self._remove_footnotes_from_text(news["summary"])
+        # summary는 풋노트를 유지 (프론트엔드에서 처리하도록)
         if "key_topics" not in news or not isinstance(news["key_topics"], list):
             news["key_topics"] = [symbol, "시장동향", "투자전망"]
-        else:
-            # key_topics에서도 풋노트 제거
-            news["key_topics"] = [self._remove_footnotes_from_text(topic) for topic in news["key_topics"]]
+        # key_topics는 풋노트를 유지 (프론트엔드에서 처리하도록)
         
         # risk_factors 검증
         if "risk_factors" not in json_data or not isinstance(json_data["risk_factors"], list):
             json_data["risk_factors"] = ["시장 변동성", "거시경제 불확실성", "업종 경쟁"]
-        else:
-            # risk_factors에서 풋노트 제거
-            json_data["risk_factors"] = [self._remove_footnotes_from_text(risk) for risk in json_data["risk_factors"]]
+        # risk_factors는 풋노트를 유지 (프론트엔드에서 처리하도록)
         
         # ai_insights 검증
         if "ai_insights" not in json_data or not isinstance(json_data["ai_insights"], list):
@@ -932,9 +954,7 @@ JSON 형태로 응답하되, {analysis_info['target_audience']}가 이해하기 
                 "기술적 지표 기반 전망",
                 "투자 전략 제안"
             ]
-        else:
-            # ai_insights에서 풋노트 제거
-            json_data["ai_insights"] = [self._remove_footnotes_from_text(insight) for insight in json_data["ai_insights"]]
+        # ai_insights는 풋노트를 유지 (프론트엔드에서 처리하도록)
         
         return json_data
     
@@ -1299,41 +1319,91 @@ RSI: {tech_indicators['rsi']:.1f}
             
             sorted_numbers = sorted(unique_numbers)
             logger.info(f"Unique footnote numbers: {sorted_numbers}")
+            logger.info(f"Total unique sources: {len(sorted_numbers)}")
             
             # 풋노트 번호마다 가상의 소스 생성 (실제로는 grounding search 결과)
             for i, num in enumerate(sorted_numbers):
-                if i < 10:  # 최대 10개까지만
-                    source = SourceCitation(
-                        title=f"Grounding Search Result {num}",
-                        url=f"https://example.com/grounding-source-{num}",
-                        snippet=f"This source was found through Google Search grounding for footnote [{num}]. The content was analyzed and cited in the AI response."
-                    )
-                    sources.append(source)
-                    logger.info(f"✅ Created source for footnote [{num}]")
+                source = SourceCitation(
+                    title=f"Grounding Search Result {num}",
+                    url=f"https://example.com/grounding-source-{num}",
+                    snippet=f"This source was found through Google Search grounding for footnote [{num}]. The content was analyzed and cited in the AI response."
+                )
+                sources.append(source)
+                logger.info(f"✅ Created source for footnote [{num}]")
             
-            # AI insights에서 풋노트가 포함된 텍스트를 찾아서 grounding supports 생성
+            logger.info(f"✅ Total sources created: {len(sources)}")
+            
+            # 모든 텍스트 섹션에서 풋노트가 포함된 텍스트를 찾아서 grounding supports 생성
+            all_texts = []
+            
+            # AI insights 추가
             for insight in ai_insights:
-                footnotes_in_insight = re.findall(footnote_pattern, insight)
-                if footnotes_in_insight:
-                    # 첫 번째 풋노트의 번호들 추출
-                    first_footnote = footnotes_in_insight[0]
-                    numbers = [int(num) for num in re.findall(r'\d+', first_footnote)]
+                if insight and insight.strip():
+                    all_texts.append(insight)
+            
+            # JSON에서 다른 텍스트 섹션도 추출
+            try:
+                # news_analysis.summary 추출
+                news_summary_match = re.search(r'"summary"\s*:\s*"([^"]+(?:\\"[^"]+)*)"', response_text)
+                if news_summary_match:
+                    summary_text = news_summary_match.group(1).replace('\\"', '"')
+                    if summary_text and summary_text.strip() and 'news_analysis' in summary_text.lower():
+                        # news_analysis 섹션 내의 summary만 찾기
+                        json_match = re.search(r'"news_analysis"\s*:\s*\{[^}]*"summary"\s*:\s*"([^"]+(?:\\"[^"]+)*)"', response_text)
+                        if json_match:
+                            summary_text = json_match.group(1).replace('\\"', '"')
+                            all_texts.append(summary_text)
+                
+                # risk_factors 추출
+                risks_match = re.search(r'"risk_factors"\s*:\s*\[([^\]]+)\]', response_text, re.DOTALL)
+                if risks_match:
+                    risks_text = risks_match.group(1)
+                    risks = re.findall(r'"([^"]+)"', risks_text)
+                    all_texts.extend(risk for risk in risks if risk and risk.strip())
+                
+                # technical analysis descriptions 추출
+                for section in ['rsi', 'moving_average', 'volume_analysis']:
+                    desc_match = re.search(rf'"{section}"\s*:\s*\{{[^}}]*"description"\s*:\s*"([^"]+)"', response_text)
+                    if desc_match:
+                        desc = desc_match.group(1)
+                        if desc and desc.strip():
+                            all_texts.append(desc)
+            except Exception as e:
+                logger.warning(f"Failed to extract additional text sections: {e}")
+            
+            logger.info(f"Total text sections to process: {len(all_texts)}")
+            
+            # 각 텍스트에서 풋노트가 포함된 경우 grounding support 생성
+            for text in all_texts:
+                if not text:
+                    continue
                     
-                    # 번호를 sources 인덱스로 변환 (0-based)
-                    source_indices = []
-                    for num in numbers:
-                        if num in sorted_numbers:
-                            source_indices.append(sorted_numbers.index(num))
+                footnotes_in_text = re.findall(footnote_pattern, text)
+                if footnotes_in_text:
+                    # 모든 풋노트의 번호들 수집
+                    all_source_indices = []
+                    for footnote in footnotes_in_text:
+                        numbers = [int(num) for num in re.findall(r'\d+', footnote)]
+                        
+                        # 번호를 sources 인덱스로 변환 (0-based)
+                        for num in numbers:
+                            if num in sorted_numbers:
+                                index = sorted_numbers.index(num)
+                                if index not in all_source_indices:
+                                    all_source_indices.append(index)
                     
-                    if source_indices:
+                    if all_source_indices:
+                        # 풋노트 제거한 깨끗한 텍스트
+                        clean_text = re.sub(footnote_pattern, '', text).strip()
+                        
                         grounding_support = GroundingSupport(
                             start_index=0,
-                            end_index=len(insight),
-                            text=insight,
-                            source_indices=source_indices
+                            end_index=len(clean_text),
+                            text=clean_text,
+                            source_indices=sorted(all_source_indices)
                         )
                         grounding_supports.append(grounding_support)
-                        logger.info(f"✅ Created grounding support for insight with footnotes: {first_footnote}")
+                        logger.info(f"✅ Created grounding support with {len(all_source_indices)} sources")
             
         except Exception as e:
             logger.error(f"Failed to parse footnotes: {e}")
@@ -1362,8 +1432,53 @@ RSI: {tech_indicators['rsi']:.1f}
             # 원본 response_text에서 JSON 추출하여 풋노트가 있는 원본 텍스트 얻기
             original_json_data = self._extract_json_from_response(response_text)
             if not original_json_data:
-                logger.warning("Could not extract original JSON with footnotes")
-                return grounding_supports
+                logger.warning("Could not extract original JSON with footnotes, using response_text directly")
+                # JSON 추출 실패시 response_text 전체에서 풋노트 파싱
+                original_json_data = {
+                    "ai_insights": [],
+                    "news_analysis": {"summary": ""},
+                    "risk_factors": [],
+                    "technical_analysis": {
+                        "rsi": {"description": ""},
+                        "moving_average": {"description": ""},
+                        "volume_analysis": {"description": ""}
+                    }
+                }
+                
+                # response_text에서 각 섹션 찾아서 추출
+                import re
+                
+                # AI insights 추출
+                insights_match = re.search(r'"ai_insights"\s*:\s*\[(.*?)\]', response_text, re.DOTALL)
+                if insights_match:
+                    insights_text = insights_match.group(1)
+                    insights = re.findall(r'"([^"]+)"', insights_text)
+                    original_json_data["ai_insights"] = insights
+                
+                # News summary 추출
+                news_summary_match = re.search(r'"summary"\s*:\s*"([^"]+(?:\\"[^"]+)*)"', response_text)
+                if news_summary_match:
+                    original_json_data["news_analysis"]["summary"] = news_summary_match.group(1).replace('\\"', '"')
+                
+                # Risk factors 추출
+                risks_match = re.search(r'"risk_factors"\s*:\s*\[(.*?)\]', response_text, re.DOTALL)
+                if risks_match:
+                    risks_text = risks_match.group(1)
+                    risks = re.findall(r'"([^"]+)"', risks_text)
+                    original_json_data["risk_factors"] = risks
+                
+                # Technical analysis descriptions 추출
+                rsi_desc_match = re.search(r'"rsi"\s*:\s*\{[^}]*"description"\s*:\s*"([^"]+)"', response_text)
+                if rsi_desc_match:
+                    original_json_data["technical_analysis"]["rsi"]["description"] = rsi_desc_match.group(1)
+                
+                ma_desc_match = re.search(r'"moving_average"\s*:\s*\{[^}]*"description"\s*:\s*"([^"]+)"', response_text)
+                if ma_desc_match:
+                    original_json_data["technical_analysis"]["moving_average"]["description"] = ma_desc_match.group(1)
+                
+                vol_desc_match = re.search(r'"volume_analysis"\s*:\s*\{[^}]*"description"\s*:\s*"([^"]+)"', response_text)
+                if vol_desc_match:
+                    original_json_data["technical_analysis"]["volume_analysis"]["description"] = vol_desc_match.group(1)
             
             # 풋노트 패턴 정의: [1], [1, 2], [1, 2, 3] 등
             footnote_pattern = r'\s*\[(\d+(?:,\s*\d+)*)\]'
@@ -1388,7 +1503,7 @@ RSI: {tech_indicators['rsi']:.1f}
                             start_index=0,
                             end_index=len(clean_text),
                             text=clean_text,
-                            source_indices=list(set(source_indices))[:5]  # 중복 제거, 최대 5개
+                            source_indices=list(set(source_indices))  # 중복 제거만, 제한 없음
                         )
                         grounding_supports.append(support)
                         logger.info(f"Created support for ai_insight with footnotes: {source_indices}")
@@ -1408,7 +1523,7 @@ RSI: {tech_indicators['rsi']:.1f}
                         start_index=0,
                         end_index=len(clean_text),
                         text=clean_text,
-                        source_indices=list(set(source_indices))[:5]
+                        source_indices=list(set(source_indices))
                     )
                     grounding_supports.append(support)
                     logger.info(f"Created support for news_summary with footnotes: {source_indices}")
@@ -1428,7 +1543,7 @@ RSI: {tech_indicators['rsi']:.1f}
                             start_index=0,
                             end_index=len(clean_text),
                             text=clean_text,
-                            source_indices=list(set(source_indices))[:5]
+                            source_indices=list(set(source_indices))
                         )
                         grounding_supports.append(support)
                         logger.info(f"Created support for risk_factor with footnotes: {source_indices}")
@@ -1452,7 +1567,7 @@ RSI: {tech_indicators['rsi']:.1f}
                             start_index=0,
                             end_index=len(clean_text),
                             text=clean_text,
-                            source_indices=list(set(source_indices))[:5]
+                            source_indices=list(set(source_indices))
                         )
                         grounding_supports.append(support)
                 
@@ -1471,7 +1586,7 @@ RSI: {tech_indicators['rsi']:.1f}
                             start_index=0,
                             end_index=len(clean_text),
                             text=clean_text,
-                            source_indices=list(set(source_indices))[:5]
+                            source_indices=list(set(source_indices))
                         )
                         grounding_supports.append(support)
                 
@@ -1490,7 +1605,7 @@ RSI: {tech_indicators['rsi']:.1f}
                             start_index=0,
                             end_index=len(clean_text),
                             text=clean_text,
-                            source_indices=list(set(source_indices))[:5]
+                            source_indices=list(set(source_indices))
                         )
                         grounding_supports.append(support)
             

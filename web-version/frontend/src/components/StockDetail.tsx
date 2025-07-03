@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { API_BASE } from '../config';
 import ProfessionalStockChart from './ProfessionalStockChart';
-import { BookOpen, TrendingUp, Gem, ArrowLeft, Sparkles, Download, FileText, ChevronDown, ChevronUp, Brain, ExternalLink, Activity, BarChart3, TrendingDown } from 'lucide-react';
+import { BookOpen, TrendingUp, Gem, ArrowLeft, Sparkles, Download, FileText, ChevronDown, ChevronUp, Brain, ExternalLink, Activity, BarChart3 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import './StockDetail.css';
@@ -347,6 +347,59 @@ const StockDetail: React.FC = () => {
     groundingSupports: GroundingSupport[], 
     sources: SourceCitation[]
   ): React.ReactElement => {
+    // 텍스트에 이미 풋노트가 포함되어 있는지 확인
+    const footnotePattern = /\[(\d+(?:,\s*\d+)*)\]/g;
+    const hasFootnotes = footnotePattern.test(text);
+    
+    if (hasFootnotes) {
+      // 텍스트에 이미 풋노트가 있는 경우 직접 파싱하여 링크로 변환
+      const parts: (string | React.ReactElement)[] = [];
+      let lastIndex = 0;
+      let match: RegExpExecArray | null;
+      
+      // 패턴 재설정 (test() 호출로 인한 lastIndex 변경 방지)
+      footnotePattern.lastIndex = 0;
+      
+      while ((match = footnotePattern.exec(text)) !== null) {
+        const currentMatch = match; // match를 로컬 변수에 저장
+        // 풋노트 앞의 텍스트 추가
+        if (currentMatch.index > lastIndex) {
+          parts.push(text.substring(lastIndex, currentMatch.index));
+        }
+        
+        // 풋노트 번호들을 파싱하여 링크 추가
+        const numbers = currentMatch[1].split(',').map(n => parseInt(n.trim()));
+        numbers.forEach((num, idx) => {
+          if (num - 1 < sources.length) {
+            parts.push(
+              <a 
+                key={`${currentMatch.index}-${num}`}
+                href={sources[num - 1]?.url || '#'} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="footnote-link"
+                title={sources[num - 1]?.title || ''}
+              >
+                [{num}]
+              </a>
+            );
+          } else {
+            parts.push(`[${num}]`);
+          }
+        });
+        
+        lastIndex = currentMatch.index + currentMatch[0].length;
+      }
+      
+      // 마지막 부분 추가
+      if (lastIndex < text.length) {
+        parts.push(text.substring(lastIndex));
+      }
+      
+      return <span className="footnote-text">{parts}</span>;
+    }
+    
+    // 기존 로직: groundingSupports를 사용한 풋노트 추가
     if (!groundingSupports || groundingSupports.length === 0) {
       return <span>{text}</span>;
     }
