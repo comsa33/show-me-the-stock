@@ -1,19 +1,17 @@
 .footer {
   background: var(--bg-tertiary);
   border-top: 1px solid var(--border-primary);
-  margin-top: auto;
+  margin-top: 60px;
   width: 100%;
   position: relative;
 }
 
-/* Desktop: Align with header - no gaps with sidebar and browser edge */
+/* Desktop: Use full width dynamically */
 @media (min-width: 1025px) {
   .footer {
-    position: absolute;
-    left: 280px;
-    right: 0;
-    width: auto;
     margin-left: 0;
+    width: 100%;
+    position: relative;
   }
 }
 
@@ -29,9 +27,9 @@
 /* Desktop: Full width content to fill footer completely */
 @media (min-width: 1025px) {
   .footer-content {
-    max-width: none;
-    margin: 0;
-    padding: 48px 24px 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 48px 40px 24px;
     width: 100%;
     box-sizing: border-box;
   }
@@ -120,9 +118,9 @@
 /* Desktop: Full width content to fill footer completely */
 @media (min-width: 1025px) {
   .footer-bottom-content {
-    max-width: none;
-    margin: 0;
-    padding: 0 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 40px;
     width: 100%;
     box-sizing: border-box;
   }

@@ -190,15 +190,16 @@
  */
 .quant-content {
   flex: 1;
-  padding: 40px 0;
+  padding: 40px 0 80px 0;
   background: var(--bg-primary);
-  min-height: calc(100vh - 400px);
+  overflow: visible;
 }
 
 .content-container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 16px;
+  min-height: auto;
 }
 
 /* 모바일 최적화 */
@@ -268,24 +269,26 @@
  */
 .section-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
   margin-bottom: 32px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border-primary);
-  justify-content: space-between;
+  justify-content: flex-start;
 }
 
 .section-header-content {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
+  flex: 1;
 }
 
 .section-actions {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-left: auto;
 }
 
 /* refresh-btn styles moved to global index.css */
@@ -499,6 +502,7 @@
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 40px;
 }
 
 .data-table th {
@@ -585,6 +589,7 @@
   border-radius: 12px;
   padding: 24px;
   margin-top: 24px;
+  margin-bottom: 40px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
@@ -745,7 +750,7 @@
   border: 1px solid var(--border-primary);
   border-radius: 12px;
   padding: 24px;
-  margin-bottom: 24px;
+  margin-bottom: 32px;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 20px;
@@ -875,6 +880,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 24px;
+  margin-bottom: 40px;
 }
 
 .recommendation-card {
@@ -1300,6 +1306,18 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
+  }
+  
+  .section-header-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .section-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-start;
   }
 }
 

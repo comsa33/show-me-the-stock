@@ -244,12 +244,14 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
   const renderBacktestTab = () => (
     <div className="backtest-section">
       <div className="section-header">
-        <div className="section-icon">
-          <Target size={18} />
-        </div>
-        <div className="section-info">
-          <h3>개별 종목 백테스트</h3>
-          <p>원하는 종목에 투자했다면 얼마의 수익/손실이 있었을지 시뮬레이션해보세요</p>
+        <div className="section-header-content">
+          <div className="section-icon">
+            <Target size={18} />
+          </div>
+          <div className="section-info">
+            <h3>개별 종목 백테스트</h3>
+            <p>원하는 종목에 투자했다면 얼마의 수익/손실이 있었을지 시뮬레이션해보세요</p>
+          </div>
         </div>
       </div>
 
@@ -563,12 +565,14 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
   const renderRecommendationsTab = () => (
     <div className="recommendations-section">
       <div className="section-header">
-        <div className="section-icon">
-          <TrendingUp size={18} />
-        </div>
-        <div className="section-info">
-          <h3>AI 투자 추천</h3>
-          <p>현재 시장 분석을 바탕으로 향후 3개월 수익 가능성이 높은 종목들을 추천합니다</p>
+        <div className="section-header-content">
+          <div className="section-icon">
+            <TrendingUp size={18} />
+          </div>
+          <div className="section-info">
+            <h3>AI 투자 추천</h3>
+            <p>현재 시장 분석을 바탕으로 향후 3개월 수익 가능성이 높은 종목들을 추천합니다</p>
+          </div>
         </div>
       </div>
 

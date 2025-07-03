@@ -32,6 +32,8 @@ const ViewManager: React.FC<ViewManagerProps> = ({
   const { currentView } = useApp();
 
   switch (currentView) {
+    case 'stocks':
+      return <StockDetail />;
     case 'quant':
       return <QuantView selectedMarket={selectedMarket} />;
     case 'watchlist':
