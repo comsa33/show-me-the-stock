@@ -1,7 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { ApiData } from './Dashboard';
-import PortfolioView from './views/PortfolioView';
 import WatchlistView from './views/WatchlistView';
 import NewsView from './views/NewsView';
 import ReportsView from './views/ReportsView';
@@ -33,12 +32,8 @@ const ViewManager: React.FC<ViewManagerProps> = ({
   const { currentView } = useApp();
 
   switch (currentView) {
-    case 'stocks':
-      return <StockDetail />;
     case 'quant':
       return <QuantView selectedMarket={selectedMarket} />;
-    case 'portfolio':
-      return <PortfolioView selectedMarket={selectedMarket} />;
     case 'watchlist':
       return <WatchlistView selectedMarket={selectedMarket} />;
     case 'news':

@@ -7,9 +7,20 @@
   background: transparent;
   z-index: 1000;
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
   align-items: flex-start;
   padding-top: 80px;
+  padding-right: 20px;
+}
+
+/* Desktop: Adjust position for notification button alignment */
+@media (min-width: 1025px) {
+  .notification-overlay {
+    left: 280px;
+    width: calc(100% - 280px);
+    padding-top: 75px;
+    padding-right: 60px;
+  }
 }
 
 .notification-panel {
@@ -18,11 +29,23 @@
   border: 1px solid var(--border-primary);
   border-radius: var(--border-radius-lg);
   width: 90%;
-  max-width: 500px;
+  max-width: 400px;
   max-height: 80vh;
   overflow: hidden;
   animation: slideDown 0.3s ease-out;
   box-shadow: var(--shadow-lg);
+}
+
+/* Mobile: Center the notification panel */
+@media (max-width: 1024px) {
+  .notification-overlay {
+    justify-content: center;
+    padding-right: 20px;
+  }
+  
+  .notification-panel {
+    max-width: 500px;
+  }
 }
 
 @keyframes slideDown {

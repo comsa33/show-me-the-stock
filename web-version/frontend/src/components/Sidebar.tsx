@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { BarChart3, TrendingUp, Briefcase, Star, Newspaper, FileText, Calculator } from 'lucide-react';
+import { BarChart3, Star, Newspaper, FileText, Calculator } from 'lucide-react';
 import './Sidebar.css';
 
 const StockLogo = () => (
@@ -115,9 +115,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const menuItems = [
     { id: 'dashboard', label: '대시보드', icon: BarChart3 },
-    { id: 'stocks', label: '주식 분석', icon: TrendingUp },
     { id: 'quant', label: '퀀트 투자', icon: Calculator },
-    { id: 'portfolio', label: '포트폴리오', icon: Briefcase },
     { id: 'watchlist', label: '관심종목', icon: Star },
     { id: 'news', label: '뉴스', icon: Newspaper },
     { id: 'reports', label: '리포트', icon: FileText },

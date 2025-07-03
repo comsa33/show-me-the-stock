@@ -12,6 +12,18 @@
   padding-top: 80px;
 }
 
+/* Desktop: Adjust position for search bar alignment */
+@media (min-width: 1025px) {
+  .search-results-overlay {
+    left: 280px;
+    width: calc(100% - 280px);
+    padding-top: 75px;
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
 .search-results-panel {
   background: var(--bg-overlay);
   backdrop-filter: blur(20px);
@@ -23,6 +35,14 @@
   overflow: hidden;
   animation: slideDown 0.3s ease-out;
   box-shadow: var(--shadow-lg);
+}
+
+/* Desktop: Align search panel width with search bar */
+@media (min-width: 1025px) {
+  .search-results-panel {
+    width: 600px;
+    margin-left: -430px;
+  }
 }
 
 @keyframes slideDown {
