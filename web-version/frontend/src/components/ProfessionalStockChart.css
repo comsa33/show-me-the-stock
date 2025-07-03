@@ -143,7 +143,7 @@
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: #ccc transparent;
-  padding: 0 20px 20px 20px; /* 좌우 패딩 추가로 차트 마진 보상 */
+  padding: 0 20px 10px 20px; /* 좌우 패딩 추가, 하단 패딩 축소 */
   will-change: scroll-position; /* 스크롤 성능 최적화 */
 }
 
@@ -322,7 +322,7 @@
 /* 미니맵 컨테이너 */
 .minimap-container {
   position: relative;
-  margin: 12px 20px 0 20px; /* 좌우 마진 추가 */
+  margin: 8px 20px 0 20px; /* 상단 마진 축소 */
   background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
   border-radius: 8px;
@@ -406,7 +406,7 @@
   }
   
   .chart-scroll-container {
-    padding: 0 12px 20px 12px; /* 모바일 패딩 조정 */
+    padding: 0 12px 10px 12px; /* 모바일 하단 패딩 축소 */
   }
   
   .chart-controls-advanced {
@@ -439,7 +439,7 @@
   
   /* 모바일에서 미니맵 최적화 */
   .minimap-container {
-    margin: 8px 12px 0 12px; /* 모바일 마진 조정 */
+    margin: 6px 12px 0 12px; /* 모바일 상단 마진 축소 */
     padding: 0;
     border-radius: 8px; /* 모바일에서도 둥근 모서리 유지 */
   }
@@ -470,12 +470,12 @@
   }
   
   .chart-scroll-container {
-    padding: 0 8px 20px 8px; /* 작은 화면 패딩 */
+    padding: 0 8px 8px 8px; /* 작은 화면 하단 패딩 축소 */
   }
   
   /* 작은 화면에서 미니맵 */
   .minimap-container {
-    margin: 8px 8px 0 8px;
+    margin: 5px 8px 0 8px; /* 상단 마진 축소 */
   }
   
   .chart-legend {
