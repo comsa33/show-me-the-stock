@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import {
   ComposedChart,
   Line,
@@ -48,6 +48,9 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
   // 스크롤 관련 상태
   const [scrollPosition, setScrollPosition] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartX = useRef(0);
+  const dragStartScroll = useRef(0);
   
   // 차트 폭 계산 - 기간에 따라 동적으로 조정
   const chartWidthPercentage = useMemo(() => {
@@ -190,39 +193,113 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
     ];
   }, [processedData, showInterestRate, interestRateData]);
 
-  // 스크롤 이벤트 핸들러
+  // 스크롤 이벤트 핸들러 (디바운스 적용)
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
 
+    let scrollTimeout: NodeJS.Timeout;
     const handleScroll = () => {
-      const scrollLeft = container.scrollLeft;
-      const scrollWidth = container.scrollWidth;
-      const clientWidth = container.clientWidth;
-      const maxScroll = scrollWidth - clientWidth;
-      
-      if (maxScroll > 0) {
-        const scrollPercentage = (scrollLeft / maxScroll) * 100;
-        setScrollPosition(scrollPercentage);
-      }
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        const scrollLeft = container.scrollLeft;
+        const scrollWidth = container.scrollWidth;
+        const clientWidth = container.clientWidth;
+        const maxScroll = scrollWidth - clientWidth;
+        
+        if (maxScroll > 0) {
+          const scrollPercentage = (scrollLeft / maxScroll) * 100;
+          setScrollPosition(scrollPercentage);
+        }
+      }, 10); // 10ms 디바운스
     };
 
     const handleResize = () => {
       // 필요시 컨테이너 크기 처리
     };
 
-    container.addEventListener('scroll', handleScroll);
+    container.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('resize', handleResize);
     handleResize();
 
     return () => {
+      clearTimeout(scrollTimeout);
       container.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleResize);
     };
   }, []);
 
-  // 미니맵에서 클릭시 메인 차트 스크롤
-  const handleMinimapClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  // 글로벌 마우스 이벤트 (드래그 중 미니맵 밖에서도 작동)
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      
+      const container = scrollContainerRef.current;
+      const minimapElement = document.querySelector('.minimap-container');
+      if (!container || !minimapElement) return;
+
+      const rect = minimapElement.getBoundingClientRect();
+      const currentX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+      const percentage = currentX / rect.width;
+      
+      const scrollWidth = container.scrollWidth;
+      const clientWidth = container.clientWidth;
+      const maxScroll = scrollWidth - clientWidth;
+      
+      container.scrollLeft = maxScroll * percentage;
+    };
+
+    const handleGlobalMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isDragging]);
+
+  // 미니맵 드래그 핸들러
+  const handleMinimapMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+    dragStartX.current = e.clientX;
+    
+    const container = scrollContainerRef.current;
+    if (container) {
+      dragStartScroll.current = container.scrollLeft;
+    }
+  }, []);
+
+  const handleMinimapMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const currentX = e.clientX - rect.left;
+    const percentage = currentX / rect.width;
+    
+    const scrollWidth = container.scrollWidth;
+    const clientWidth = container.clientWidth;
+    const maxScroll = scrollWidth - clientWidth;
+    
+    container.scrollLeft = maxScroll * percentage;
+  }, [isDragging]);
+
+  const handleMinimapMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  const handleMinimapClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (isDragging) return; // 드래그 중이면 클릭 무시
+    
     const container = scrollContainerRef.current;
     if (!container) return;
 
@@ -235,7 +312,7 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
     const maxScroll = scrollWidth - clientWidth;
     
     container.scrollLeft = maxScroll * clickPercentage;
-  };
+  }, [isDragging]);
 
   // 포맷팅 함수들
   const formatPrice = (price: number) => {
@@ -296,8 +373,8 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
     return null;
   };
 
-  // 선형 차트 - 단순하고 트렌디한 디자인
-  const SimpleLineChart = () => (
+  // 선형 차트 - 메모이제이션으로 성능 최적화
+  const SimpleLineChart = React.memo(() => (
     <div style={{ position: 'relative' }}>
       <ResponsiveContainer width="100%" height={window.innerWidth <= 768 ? 520 : 460}>
         <ComposedChart 
@@ -389,7 +466,7 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
         </ComposedChart>
       </ResponsiveContainer>
     </div>
-  );
+  ));
 
 
   // 미니맵 차트
@@ -398,7 +475,15 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
     const visibleLeft = scrollPosition * (100 - visibleWidth) / 100;
     
     return (
-      <div className="minimap-container" onClick={handleMinimapClick}>
+      <div 
+        className="minimap-container" 
+        onClick={handleMinimapClick}
+        onMouseDown={handleMinimapMouseDown}
+        onMouseMove={handleMinimapMouseMove}
+        onMouseUp={handleMinimapMouseUp}
+        onMouseLeave={handleMinimapMouseUp}
+        style={{ cursor: isDragging ? 'grabbing' : 'pointer' }}
+      >
         <ResponsiveContainer width="100%" height={60}>
           <AreaChart 
             data={processedData} 
@@ -428,7 +513,12 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
               left: `${visibleLeft}%`,
               width: `${visibleWidth}%`,
               backgroundColor: isDarkMode ? 'rgba(96, 165, 250, 0.2)' : 'rgba(37, 99, 235, 0.2)',
-              borderColor: isDarkMode ? '#60a5fa' : '#2563eb'
+              borderColor: isDarkMode ? '#60a5fa' : '#2563eb',
+              pointerEvents: 'auto'
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              handleMinimapMouseDown(e);
             }}
           />
         )}

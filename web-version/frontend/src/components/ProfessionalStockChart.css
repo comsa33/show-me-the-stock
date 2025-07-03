@@ -340,9 +340,13 @@
   bottom: 4px;
   border: 2px solid;
   border-radius: 4px;
-  pointer-events: none;
-  transition: left 0.1s ease, width 0.3s ease;
+  cursor: grab;
+  transition: left 0.05s ease, width 0.3s ease;
   backdrop-filter: blur(1px);
+}
+
+.minimap-viewport:active {
+  cursor: grabbing;
 }
 
 /* 미니맵 스크롤바 숨기기 */
@@ -421,10 +425,11 @@
     font-size: 11px;
   }
   
-  /* 모바일에서 미니맵 높이 줄이기 */
+  /* 모바일에서 미니맵 최적화 */
   .minimap-container {
-    margin-top: 8px;
+    margin: 8px -8px 0 -8px; /* 좌우 음수 마진으로 전체 폭 사용 */
     padding: 2px;
+    border-radius: 0; /* 모바일에서 둥근 모서리 제거 */
   }
   
   .minimap-container .recharts-responsive-container {
@@ -441,6 +446,11 @@
   .professional-stock-chart {
     padding: 12px;
     margin: 12px -4px; /* 더 작은 화면에서 더 넓게 */
+  }
+  
+  /* 작은 화면에서 미니맵 전체 폭 사용 */
+  .minimap-container {
+    margin: 8px -12px 0 -12px;
   }
   
   .chart-type-btn {
