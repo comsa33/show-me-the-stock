@@ -1433,19 +1433,19 @@
   
   .chart-section {
     margin: 0 -4px;
-    border-radius: 0;
+    border-radius: 12px;
   }
   
   .analysis-section {
     margin: 0 -4px;
     padding: 12px;
-    border-radius: 0;
+    border-radius: 12px;
   }
   
   .stock-detail-info {
     margin: 12px -4px 0 -4px;
     padding: 12px;
-    border-radius: 0;
+    border-radius: 12px;
   }
   
   .chart-controls {

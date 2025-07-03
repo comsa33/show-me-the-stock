@@ -398,7 +398,7 @@
 @media (max-width: 768px) {
   .professional-stock-chart {
     margin: 16px -8px; /* 좌우 마진 음수로 카드 밖으로 확장 */
-    border-radius: 0; /* 모바일에서 둥근 모서리 제거 */
+    border-radius: 12px; /* 모바일에서도 둥근 모서리 유지 */
   }
   
   .chart-controls-advanced {
@@ -433,9 +433,7 @@
   .minimap-container {
     margin: 8px -8px 0 -8px; /* 좌우 음수 마진으로 전체 폭 사용 */
     padding: 0;
-    border-radius: 0; /* 모바일에서 둥근 모서리 제거 */
-    border-left: none;
-    border-right: none;
+    border-radius: 8px; /* 모바일에서도 둥근 모서리 유지 */
   }
   
   .minimap-container .recharts-responsive-container {
@@ -452,6 +450,7 @@
   .professional-stock-chart {
     padding: 12px;
     margin: 12px -4px; /* 더 작은 화면에서 더 넓게 */
+    border-radius: 8px; /* 작은 화면에서는 약간 작은 radius */
   }
   
   /* 작은 화면에서 미니맵 전체 폭 사용 */
