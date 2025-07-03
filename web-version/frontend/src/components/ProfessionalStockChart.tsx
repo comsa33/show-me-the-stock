@@ -72,24 +72,26 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
           month: 'numeric', 
           day: 'numeric' 
         });
-      } else if (period === '3mo' || period === '6mo') {
-        // 3개월, 6개월: 월/일 (주 단위로 표시)
+      } else if (period === '3mo') {
+        // 3개월: 월/일 (주 단위로 표시)
         if (index % 5 === 0) {
           displayDate = dateObj.toLocaleDateString('ko-KR', { 
             month: 'numeric', 
             day: 'numeric' 
           });
         }
-      } else if (period === '1y' || period === 'ytd') {
-        // 1년, YTD: 년/월 (월 단위로 표시)
-        if (index % 20 === 0) {
+      } else if (period === '6mo' || period === '1y' || period === 'ytd') {
+        // 6개월, 1년, YTD: 년/월 (월 단위로 표시)
+        const monthKey = `${dateObj.getFullYear()}-${dateObj.getMonth()}`;
+        if (index === 0 || (data[index - 1] && 
+            `${new Date(data[index - 1].Date).getFullYear()}-${new Date(data[index - 1].Date).getMonth()}` !== monthKey)) {
           displayDate = dateObj.toLocaleDateString('ko-KR', { 
             year: '2-digit', 
             month: 'numeric' 
           });
         }
       } else { // 5y, max
-        // 5년 이상: 년도 (분기 단위로 표시)
+        // 5년 이상: 년/월 (분기 단위로 표시)
         if (index % 60 === 0) {
           displayDate = dateObj.toLocaleDateString('ko-KR', { 
             year: 'numeric', 
@@ -124,6 +126,26 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
       Math.ceil(maxPrice + padding)
     ];
   }, [processedData]);
+
+  // 금리 Y축 도메인 계산 (최소/최대값의 위아래 10% 추가)
+  const interestRateDomain = useMemo(() => {
+    if (!processedData.length || !showInterestRate || !interestRateData.length) return [0, 5];
+    
+    const rates = processedData
+      .map(d => d.interestRate)
+      .filter(rate => rate !== null && rate !== undefined) as number[];
+    
+    if (rates.length === 0) return [0, 5];
+    
+    const minRate = Math.min(...rates);
+    const maxRate = Math.max(...rates);
+    const padding = (maxRate - minRate) * 0.1;
+    
+    return [
+      Math.max(0, minRate - padding), // 금리는 0 이하로 가지 않도록
+      maxRate + padding
+    ];
+  }, [processedData, showInterestRate, interestRateData]);
 
 
 
@@ -196,7 +218,7 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
             top: 20, 
             right: showInterestRate ? (window.innerWidth <= 768 ? 40 : 60) : 30, 
             left: 20, 
-            bottom: window.innerWidth <= 768 ? 80 : 60 
+            bottom: window.innerWidth <= 768 ? 65 : 60 
           }}
         >
           {/* 가로줄만 표시되는 격자 */}
@@ -233,10 +255,11 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
             <YAxis 
               yAxisId="right" 
               orientation="right"
+              domain={interestRateDomain}
               tick={{ fontSize: 12, fill: isDarkMode ? '#34d399' : '#10b981' }}
               axisLine={false}
               tickLine={false}
-              tickFormatter={(value) => `${value}%`}
+              tickFormatter={(value) => `${value.toFixed(1)}%`}
             />
           )}
           
