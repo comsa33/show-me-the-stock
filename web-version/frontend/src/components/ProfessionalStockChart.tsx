@@ -315,12 +315,12 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
   }, [isDragging]);
 
   // 포맷팅 함수들
-  const formatPrice = (price: number) => {
+  const formatPrice = useCallback((price: number) => {
     if (market === 'KR') {
       return `₩${price.toLocaleString()}`;
     }
     return `$${price.toFixed(2)}`;
-  };
+  }, [market]);
 
 
   // 커스텀 툴팁
@@ -373,100 +373,112 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
     return null;
   };
 
-  // 선형 차트 - 메모이제이션으로 성능 최적화
-  const SimpleLineChart = React.memo(() => (
-    <div style={{ position: 'relative' }}>
-      <ResponsiveContainer width="100%" height={window.innerWidth <= 768 ? 520 : 460}>
-        <ComposedChart 
-          data={processedData} 
-          margin={{ 
-            top: 20, 
-            right: showInterestRate ? (window.innerWidth <= 768 ? 40 : 60) : 30, 
-            left: 20, 
-            bottom: window.innerWidth <= 768 ? 65 : 60 
-          }}
-        >
-          {/* 가로줄만 표시되는 격자 */}
-          <CartesianGrid 
-            horizontal={true} 
-            vertical={false} 
-            stroke={isDarkMode ? '#2d2d2d' : '#f0f0f0'} 
-            strokeDasharray="1 1" 
-          />
-          
-          {/* X축 - 동적 틱 포맷 적용 */}
-          <XAxis 
-            dataKey="date" 
-            tick={{ fontSize: 11, fill: isDarkMode ? '#9ca3af' : '#666' }}
-            axisLine={{ stroke: isDarkMode ? '#374151' : '#ddd' }}
-            tickLine={false}
-            interval="preserveStartEnd"
-            angle={-45}
-            textAnchor="end"
-            height={60}
-          />
-          
-          {/* Y축 - 주가 */}
-          <YAxis 
-            domain={yDomain}
-            tick={{ fontSize: 12, fill: isDarkMode ? '#9ca3af' : '#666' }}
-            axisLine={false}
-            tickLine={false}
-            tickFormatter={formatPrice}
-          />
-          
-          {/* 금리 오버레이를 위한 Y축 */}
-          {showInterestRate && interestRateData.length > 0 && (
+  // 차트 데이터를 메모이제이션하여 불필요한 재계산 방지
+  const chartData = useMemo(() => ({
+    processedData,
+    yDomain,
+    interestRateDomain,
+    showInterestRate,
+    interestRateData,
+    isDarkMode,
+    formatPrice,
+    market
+  }), [processedData, yDomain, interestRateDomain, showInterestRate, interestRateData, isDarkMode, market, formatPrice]);
+
+  // 선형 차트 컴포넌트 - 별도 컴포넌트로 분리하여 완전한 격리
+  const ChartContent = React.memo(({ chartData }: { chartData: any }) => {
+    const { processedData, yDomain, interestRateDomain, showInterestRate, interestRateData, isDarkMode, formatPrice } = chartData;
+    
+    return (
+      <div style={{ position: 'relative' }}>
+        <ResponsiveContainer width="100%" height={window.innerWidth <= 768 ? 520 : 460}>
+          <ComposedChart 
+            data={processedData} 
+            margin={{ 
+              top: 20, 
+              right: showInterestRate ? (window.innerWidth <= 768 ? 40 : 60) : 30, 
+              left: 20, 
+              bottom: window.innerWidth <= 768 ? 65 : 60 
+            }}
+          >
+            <CartesianGrid 
+              horizontal={true} 
+              vertical={false} 
+              stroke={isDarkMode ? '#2d2d2d' : '#f0f0f0'} 
+              strokeDasharray="1 1" 
+            />
+            
+            <XAxis 
+              dataKey="date" 
+              tick={{ fontSize: 11, fill: isDarkMode ? '#9ca3af' : '#666' }}
+              axisLine={{ stroke: isDarkMode ? '#374151' : '#ddd' }}
+              tickLine={false}
+              interval="preserveStartEnd"
+              angle={-45}
+              textAnchor="end"
+              height={60}
+            />
+            
             <YAxis 
-              yAxisId="right" 
-              orientation="right"
-              domain={interestRateDomain}
-              tick={{ fontSize: 12, fill: isDarkMode ? '#34d399' : '#10b981' }}
+              domain={yDomain}
+              tick={{ fontSize: 12, fill: isDarkMode ? '#9ca3af' : '#666' }}
               axisLine={false}
               tickLine={false}
-              tickFormatter={(value) => `${value.toFixed(1)}%`}
+              tickFormatter={formatPrice}
             />
-          )}
-          
-          {/* 커스텀 툴팁 */}
-          <Tooltip content={<CustomTooltip />} />
-          
-          {/* 주가 라인 - 마지막 점에만 dot 표시 */}
-          <Line 
-            type="monotone" 
-            dataKey="Close" 
-            stroke={isDarkMode ? '#60a5fa' : '#2563eb'} 
-            strokeWidth={2.5}
-            dot={(dotProps: any) => {
-              if (dotProps.index === processedData.length - 1) {
-                return <circle key={`dot-${dotProps.index}`} cx={dotProps.cx} cy={dotProps.cy} r={5} fill={isDarkMode ? '#60a5fa' : '#2563eb'} stroke={isDarkMode ? '#1f2937' : '#ffffff'} strokeWidth={2} />;
-              }
-              return <g key={`empty-dot-${dotProps.index}`}></g>;
-            }}
-            activeDot={{ r: 4, fill: isDarkMode ? '#60a5fa' : '#2563eb' }}
-          />
-          
-          {/* 금리 라인 오버레이 */}
-          {showInterestRate && interestRateData.length > 0 && (
+            
+            {showInterestRate && interestRateData.length > 0 && (
+              <YAxis 
+                yAxisId="right" 
+                orientation="right"
+                domain={interestRateDomain}
+                tick={{ fontSize: 12, fill: isDarkMode ? '#34d399' : '#10b981' }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(value) => `${value.toFixed(1)}%`}
+              />
+            )}
+            
+            <Tooltip content={<CustomTooltip />} />
+            
             <Line 
-              yAxisId="right"
               type="monotone" 
-              dataKey="interestRate" 
-              stroke={isDarkMode ? '#34d399' : '#10b981'} 
-              strokeWidth={1.5}
+              dataKey="Close" 
+              stroke={isDarkMode ? '#60a5fa' : '#2563eb'} 
+              strokeWidth={2.5}
               dot={(dotProps: any) => {
                 if (dotProps.index === processedData.length - 1) {
-                  return <circle key={`rate-dot-${dotProps.index}`} cx={dotProps.cx} cy={dotProps.cy} r={4} fill={isDarkMode ? '#34d399' : '#10b981'} stroke={isDarkMode ? '#1f2937' : '#ffffff'} strokeWidth={2} />;
+                  return <circle key={`dot-${dotProps.index}`} cx={dotProps.cx} cy={dotProps.cy} r={5} fill={isDarkMode ? '#60a5fa' : '#2563eb'} stroke={isDarkMode ? '#1f2937' : '#ffffff'} strokeWidth={2} />;
                 }
-                return <g key={`empty-rate-dot-${dotProps.index}`}></g>;
+                return <g key={`empty-dot-${dotProps.index}`}></g>;
               }}
-              activeDot={{ r: 3, fill: isDarkMode ? '#34d399' : '#10b981' }}
+              activeDot={{ r: 4, fill: isDarkMode ? '#60a5fa' : '#2563eb' }}
             />
-          )}
-        </ComposedChart>
-      </ResponsiveContainer>
-    </div>
-  ));
+            
+            {showInterestRate && interestRateData.length > 0 && (
+              <Line 
+                yAxisId="right"
+                type="monotone" 
+                dataKey="interestRate" 
+                stroke={isDarkMode ? '#34d399' : '#10b981'} 
+                strokeWidth={1.5}
+                dot={(dotProps: any) => {
+                  if (dotProps.index === processedData.length - 1) {
+                    return <circle key={`rate-dot-${dotProps.index}`} cx={dotProps.cx} cy={dotProps.cy} r={4} fill={isDarkMode ? '#34d399' : '#10b981'} stroke={isDarkMode ? '#1f2937' : '#ffffff'} strokeWidth={2} />;
+                  }
+                  return <g key={`empty-rate-dot-${dotProps.index}`}></g>;
+                }}
+                activeDot={{ r: 3, fill: isDarkMode ? '#34d399' : '#10b981' }}
+              />
+            )}
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  }, (prevProps, nextProps) => {
+    // chartData 객체의 참조가 같으면 재렌더링 방지
+    return prevProps.chartData === nextProps.chartData;
+  });
 
 
   // 미니맵 차트
@@ -487,7 +499,7 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
         <ResponsiveContainer width="100%" height={60}>
           <AreaChart 
             data={processedData} 
-            margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+            margin={{ top: 2, right: 0, left: 0, bottom: 2 }}
           >
             <defs>
               <linearGradient id="colorArea" x1="0" y1="0" x2="0" y2="1">
@@ -536,7 +548,7 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
           style={{ overflowX: chartWidthPercentage > 100 ? 'auto' : 'hidden' }}
         >
           <div className="chart-content" style={{ width: `${chartWidthPercentage}%` }}>
-            <SimpleLineChart />
+            <ChartContent chartData={chartData} />
           </div>
         </div>
       </div>

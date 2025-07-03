@@ -144,6 +144,7 @@
   scrollbar-width: thin;
   scrollbar-color: #ccc transparent;
   padding-bottom: 20px; /* x축 라벨을 위한 추가 공간 */
+  will-change: scroll-position; /* 스크롤 성능 최적화 */
 }
 
 .chart-scroll-container::-webkit-scrollbar {
@@ -171,6 +172,8 @@
 .chart-content {
   width: 100%; /* JS에서 동적으로 설정 */
   transition: width 0.3s ease;
+  transform: translateZ(0); /* GPU 가속 */
+  backface-visibility: hidden; /* 렌더링 최적화 */
 }
 
 /* 캔들스틱 차트 스타일 */
@@ -323,7 +326,7 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
   border-radius: 8px;
-  padding: 4px;
+  padding: 0; /* 패딩 제거로 차트가 전체 영역 사용 */
   cursor: pointer;
   overflow: hidden;
 }
@@ -336,10 +339,11 @@
 /* 미니맵 뷰포트 (현재 보이는 영역) */
 .minimap-viewport {
   position: absolute;
-  top: 4px;
-  bottom: 4px;
-  border: 2px solid;
-  border-radius: 4px;
+  top: 0;
+  bottom: 0;
+  border-left: 2px solid;
+  border-right: 2px solid;
+  border-radius: 0;
   cursor: grab;
   transition: left 0.05s ease, width 0.3s ease;
   backdrop-filter: blur(1px);
@@ -428,8 +432,10 @@
   /* 모바일에서 미니맵 최적화 */
   .minimap-container {
     margin: 8px -8px 0 -8px; /* 좌우 음수 마진으로 전체 폭 사용 */
-    padding: 2px;
+    padding: 0;
     border-radius: 0; /* 모바일에서 둥근 모서리 제거 */
+    border-left: none;
+    border-right: none;
   }
   
   .minimap-container .recharts-responsive-container {
