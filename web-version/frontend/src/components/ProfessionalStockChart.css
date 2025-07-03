@@ -322,7 +322,7 @@
 /* 미니맵 컨테이너 */
 .minimap-container {
   position: relative;
-  margin: -10px 20px 0 20px; /* 음수 마진으로 차트에 더 가깝게 */
+  margin: 20px 20px 0 20px; /* 웹뷰에서 차트와 여유 간격 */
   background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
   border-radius: 8px;
@@ -446,7 +446,7 @@
   
   /* 모바일에서 미니맵 최적화 */
   .minimap-container {
-    margin: -8px 12px 0 12px; /* 모바일 음수 마진 */
+    margin: 12px 12px 0 12px; /* 모바일에서도 여유 간격 */
     padding: 0;
     border-radius: 8px; /* 모바일에서도 둥근 모서리 유지 */
   }
@@ -487,7 +487,7 @@
   
   /* 작은 화면에서 미니맵 */
   .minimap-container {
-    margin: -6px 8px 0 8px; /* 480px 이하 음수 마진 */
+    margin: 10px 8px 0 8px; /* 480px 이하에서도 여유 간격 */
   }
   
   .chart-legend {
