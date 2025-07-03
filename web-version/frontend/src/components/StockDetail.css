@@ -134,6 +134,7 @@
   gap: 24px;
   max-width: 1400px;
   margin: 0 auto;
+  overflow-x: hidden;
 }
 
 /* Modern Chart Section */
@@ -445,6 +446,8 @@
   padding: 28px;
   box-shadow: var(--shadow-xs);
   transition: box-shadow 0.3s ease;
+  overflow: hidden;
+  max-width: 100%;
 }
 
 .analysis-section:hover {
@@ -755,6 +758,8 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .analysis-summary h4 {
@@ -803,6 +808,9 @@
   background: var(--bg-overlay);
   border-radius: 8px;
   border: 1px solid var(--border-primary);
+  overflow: hidden;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 
 .analysis-section-item h5 {
@@ -812,6 +820,189 @@
   font-weight: 600;
 }
 
+/* Technical Indicators Cards - New Design */
+.technical-indicators-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.indicator-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--border-radius-lg);
+  padding: 20px;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.indicator-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-primary);
+}
+
+.indicator-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.indicator-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.indicator-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.indicator-icon {
+  color: var(--text-secondary);
+  opacity: 0.6;
+  transition: all 0.2s ease;
+}
+
+.indicator-card:hover .indicator-icon {
+  opacity: 0.8;
+  color: var(--accent-primary);
+}
+
+.indicator-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.indicator-signal {
+  margin-bottom: 12px;
+}
+
+.signal-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--border-radius-full);
+  transition: all 0.2s ease;
+}
+
+/* RSI Signal Colors */
+.signal-badge.rsi-과매수 {
+  background: rgba(248, 113, 113, 0.1);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.2);
+}
+
+.signal-badge.rsi-과매도 {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.signal-badge.rsi-중립,
+.signal-badge.rsi-none {
+  background: rgba(251, 191, 36, 0.1);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.signal-badge.rsi-정보 {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-secondary);
+}
+
+/* Moving Average Signal Colors */
+.signal-badge.ma-매수 {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.signal-badge.ma-매도 {
+  background: rgba(248, 113, 113, 0.1);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.2);
+}
+
+.signal-badge.ma-중립,
+.signal-badge.ma-neutral {
+  background: rgba(251, 191, 36, 0.1);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+/* Volume Signal Colors */
+.signal-badge.volume-증가 {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.signal-badge.volume-감소 {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.signal-badge.volume-평균,
+.signal-badge.volume-average {
+  background: rgba(156, 163, 175, 0.1);
+  color: #9ca3af;
+  border: 1px solid rgba(156, 163, 175, 0.2);
+}
+
+.indicator-description {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* RSI Value Colors */
+.indicator-value.rsi-과매수 { color: #f87171; }
+.indicator-value.rsi-과매도 { color: #10b981; }
+.indicator-value.rsi-중립 { color: #fbbf24; }
+.indicator-value.rsi-none { color: var(--text-tertiary); }
+
+/* Add subtle background patterns for different signal types */
+.indicator-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  opacity: 0.03;
+  pointer-events: none;
+  border-radius: 50%;
+  transition: opacity 0.3s ease;
+}
+
+.indicator-card:hover::before {
+  opacity: 0.05;
+}
+
+/* RSI Card Background */
+.indicator-card:has(.rsi-과매수)::before {
+  background: radial-gradient(circle, #f87171 0%, transparent 70%);
+}
+
+.indicator-card:has(.rsi-과매도)::before {
+  background: radial-gradient(circle, #10b981 0%, transparent 70%);
+}
+
+/* Old styles - keep for backward compatibility */
 .technical-indicators {
   display: flex;
   flex-direction: column;
@@ -829,15 +1020,6 @@
 .indicator:last-child {
   border-bottom: none;
 }
-
-.indicator-value {
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.rsi-과매수 { color: #f87171; }
-.rsi-과매도 { color: #10b981; }
-.rsi-중립 { color: #fbbf24; }
 
 /* Sources Section */
 .sources-list {
@@ -1140,6 +1322,35 @@
   text-decoration: none;
 }
 
+/* 기술적 분석 설명 스타일 */
+.technical-descriptions {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-primary);
+}
+
+.tech-desc {
+  margin: 12px 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.tech-desc strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* RSI 상태별 색상 */
+.rsi-none {
+  color: var(--text-tertiary);
+}
+
+.rsi-정보없음,
+.rsi-정보 {
+  color: var(--text-tertiary);
+}
+
 .analysis-markdown a:hover {
   text-decoration: underline;
 }
@@ -1219,6 +1430,14 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-width: 100%;
+}
+
+.sentiment-analysis p {
+  word-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
+  line-height: 1.6;
 }
 
 .sentiment-score {
@@ -1238,6 +1457,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  max-width: 100%;
 }
 
 .topic-tag {
@@ -1246,16 +1466,23 @@
   border-radius: 12px;
   font-size: 12px;
   color: var(--text-primary);
+  white-space: normal;
+  word-break: break-word;
+  max-width: 100%;
 }
 
 .insights-list, .risk-list {
   margin: 0;
   padding-left: 20px;
   color: var(--text-primary);
+  max-width: 100%;
 }
 
 .insights-list li, .risk-list li {
   margin-bottom: 8px;
+  word-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
   font-size: 14px;
   line-height: 1.5;
 }
@@ -1463,5 +1690,34 @@
   
   .detail-info-grid {
     gap: 8px;
+  }
+}
+
+/* Responsive styles for technical indicators */
+@media (max-width: 768px) {
+  .technical-indicators-cards {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .indicator-card {
+    padding: 16px;
+  }
+  
+  .indicator-value {
+    font-size: 24px;
+  }
+  
+  .indicator-name {
+    font-size: 13px;
+  }
+  
+  .signal-badge {
+    font-size: 12px;
+    padding: 4px 12px;
+  }
+  
+  .indicator-description {
+    font-size: 13px;
   }
 }

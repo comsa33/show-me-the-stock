@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { API_BASE } from '../config';
 import ProfessionalStockChart from './ProfessionalStockChart';
-import { BookOpen, TrendingUp, Gem, ArrowLeft, Sparkles, Download, FileText, ChevronDown, ChevronUp, Brain, ExternalLink } from 'lucide-react';
+import { BookOpen, TrendingUp, Gem, ArrowLeft, Sparkles, Download, FileText, ChevronDown, ChevronUp, Brain, ExternalLink, Activity, BarChart3, TrendingDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import './StockDetail.css';
@@ -80,7 +80,7 @@ interface AnalysisData {
     };
     technical_analysis: {
       rsi: {
-        value: number;
+        value: number | null;
         signal: string;
         description: string;
       };
@@ -269,7 +269,7 @@ const StockDetail: React.FC = () => {
     
     // 기술적 분석
     markdown += `## 📈 기술적 분석\n\n`;
-    markdown += `### RSI (${analysis.technical_analysis.rsi.value.toFixed(3)})\n`;
+    markdown += `### RSI${analysis.technical_analysis.rsi.value !== null ? ` (${analysis.technical_analysis.rsi.value.toFixed(1)})` : ''}\n`;
     markdown += `- **신호**: ${analysis.technical_analysis.rsi.signal}\n`;
     markdown += `- **설명**: ${analysis.technical_analysis.rsi.description}\n\n`;
     
@@ -351,62 +351,41 @@ const StockDetail: React.FC = () => {
       return <span>{text}</span>;
     }
 
-    const elements: React.ReactElement[] = [];
-    let lastIndex = 0;
+    // 현재 텍스트와 일치하는 support만 필터링
+    const matchingSupport = groundingSupports.find(support => 
+      support.text === text || support.text.includes(text) || text.includes(support.text)
+    );
 
-    // grounding supports를 시작 인덱스 순으로 정렬
-    const sortedSupports = [...groundingSupports].sort((a, b) => a.start_index - b.start_index);
+    if (!matchingSupport) {
+      return <span>{text}</span>;
+    }
 
-    sortedSupports.forEach((support, supportIndex) => {
-      // 이전 텍스트 추가
-      if (support.start_index > lastIndex) {
-        elements.push(
-          <span key={`text-${supportIndex}`}>
-            {text.substring(lastIndex, support.start_index)}
-          </span>
-        );
-      }
+    // 풋노트 번호 추출
+    const sourceNumbers = matchingSupport.source_indices
+      .filter(index => index < sources.length)
+      .map(index => index + 1);
 
-      // 풋노트가 있는 텍스트 부분
-      const sourceNumbers = support.source_indices
-        .filter(index => index < sources.length)
-        .map(index => index + 1);
-
-      if (sourceNumbers.length > 0) {
-        elements.push(
-          <span key={`footnote-${supportIndex}`} className="footnote-text">
-            {support.text}
-            {sourceNumbers.map(num => (
-              <a 
-                key={num}
-                href={sources[num - 1]?.url || '#'} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="footnote-link"
-                title={sources[num - 1]?.title || ''}
-              >
-                [{num}]
-              </a>
-            ))}
-          </span>
-        );
-      } else {
-        elements.push(
-          <span key={`plain-${supportIndex}`}>{support.text}</span>
-        );
-      }
-
-      lastIndex = support.end_index;
-    });
-
-    // 남은 텍스트 추가
-    if (lastIndex < text.length) {
-      elements.push(
-        <span key="remaining">{text.substring(lastIndex)}</span>
+    if (sourceNumbers.length > 0) {
+      return (
+        <span className="footnote-text">
+          {text}
+          {sourceNumbers.map(num => (
+            <a 
+              key={num}
+              href={sources[num - 1]?.url || '#'} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="footnote-link"
+              title={sources[num - 1]?.title || ''}
+            >
+              [{num}]
+            </a>
+          ))}
+        </span>
       );
     }
 
-    return <span>{elements}</span>;
+    return <span>{text}</span>;
   };
 
   // 모의 금리 데이터 생성 함수
@@ -691,20 +670,75 @@ const StockDetail: React.FC = () => {
               <div className="analysis-details">
                 <div className="analysis-section-item">
                   <h5>기술적 분석</h5>
-                  <div className="technical-indicators">
-                    <div className="indicator">
-                      <span>RSI</span>
-                      <span className={`indicator-value rsi-${analysisData.analysis.technical_analysis.rsi.signal.toLowerCase()}`}>
-                        {analysisData.analysis.technical_analysis.rsi.value.toFixed(3)} ({analysisData.analysis.technical_analysis.rsi.signal})
-                      </span>
+                  <div className="technical-indicators-cards">
+                    {/* RSI 카드 */}
+                    <div className="indicator-card">
+                      <div className="indicator-header">
+                        <div className="indicator-title-group">
+                          <span className="indicator-name">RSI</span>
+                          <Activity className="indicator-icon" size={20} />
+                        </div>
+                        <span className={`indicator-value rsi-${analysisData.analysis.technical_analysis.rsi.signal?.toLowerCase() || 'none'}`}>
+                          {analysisData.analysis.technical_analysis.rsi.value !== null && analysisData.analysis.technical_analysis.rsi.value !== undefined
+                            ? analysisData.analysis.technical_analysis.rsi.value.toFixed(1)
+                            : '—'}
+                        </span>
+                      </div>
+                      <div className="indicator-signal">
+                        <span className={`signal-badge rsi-${analysisData.analysis.technical_analysis.rsi.signal?.toLowerCase() || 'none'}`}>
+                          {analysisData.analysis.technical_analysis.rsi.signal || '정보 없음'}
+                        </span>
+                      </div>
+                      {analysisData.analysis.technical_analysis.rsi.description && (
+                        <p className="indicator-description">
+                          {analysisData.analysis.grounding_supports && analysisData.analysis.grounding_supports.length > 0 
+                            ? renderTextWithFootnotes(analysisData.analysis.technical_analysis.rsi.description, analysisData.analysis.grounding_supports, analysisData.analysis.sources)
+                            : analysisData.analysis.technical_analysis.rsi.description
+                          }
+                        </p>
+                      )}
                     </div>
-                    <div className="indicator">
-                      <span>이동평균</span>
-                      <span className="indicator-value">{analysisData.analysis.technical_analysis.moving_average.signal}</span>
+                    
+                    {/* 이동평균 카드 */}
+                    <div className="indicator-card">
+                      <div className="indicator-header">
+                        <span className="indicator-name">이동평균선</span>
+                        <TrendingUp className="indicator-icon" size={24} />
+                      </div>
+                      <div className="indicator-signal">
+                        <span className={`signal-badge ma-${analysisData.analysis.technical_analysis.moving_average.signal?.toLowerCase() || 'neutral'}`}>
+                          {analysisData.analysis.technical_analysis.moving_average.signal}
+                        </span>
+                      </div>
+                      {analysisData.analysis.technical_analysis.moving_average.description && (
+                        <p className="indicator-description">
+                          {analysisData.analysis.grounding_supports && analysisData.analysis.grounding_supports.length > 0 
+                            ? renderTextWithFootnotes(analysisData.analysis.technical_analysis.moving_average.description, analysisData.analysis.grounding_supports, analysisData.analysis.sources)
+                            : analysisData.analysis.technical_analysis.moving_average.description
+                          }
+                        </p>
+                      )}
                     </div>
-                    <div className="indicator">
-                      <span>거래량</span>
-                      <span className="indicator-value">{analysisData.analysis.technical_analysis.volume_analysis.trend}</span>
+                    
+                    {/* 거래량 카드 */}
+                    <div className="indicator-card">
+                      <div className="indicator-header">
+                        <span className="indicator-name">거래량 분석</span>
+                        <BarChart3 className="indicator-icon" size={24} />
+                      </div>
+                      <div className="indicator-signal">
+                        <span className={`signal-badge volume-${analysisData.analysis.technical_analysis.volume_analysis.trend?.toLowerCase() || 'average'}`}>
+                          {analysisData.analysis.technical_analysis.volume_analysis.trend}
+                        </span>
+                      </div>
+                      {analysisData.analysis.technical_analysis.volume_analysis.description && (
+                        <p className="indicator-description">
+                          {analysisData.analysis.grounding_supports && analysisData.analysis.grounding_supports.length > 0 
+                            ? renderTextWithFootnotes(analysisData.analysis.technical_analysis.volume_analysis.description, analysisData.analysis.grounding_supports, analysisData.analysis.sources)
+                            : analysisData.analysis.technical_analysis.volume_analysis.description
+                          }
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -749,7 +783,12 @@ const StockDetail: React.FC = () => {
                   <h5>리스크 요인</h5>
                   <ul className="risk-list">
                     {analysisData.analysis.risk_factors.map((risk, index) => (
-                      <li key={index}>{risk}</li>
+                      <li key={index}>
+                        {analysisData.analysis.grounding_supports && analysisData.analysis.grounding_supports.length > 0 
+                          ? renderTextWithFootnotes(risk, analysisData.analysis.grounding_supports, analysisData.analysis.sources)
+                          : risk
+                        }
+                      </li>
                     ))}
                   </ul>
                 </div>
