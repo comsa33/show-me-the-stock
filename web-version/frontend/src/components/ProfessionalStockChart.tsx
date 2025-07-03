@@ -391,14 +391,14 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
     
     return (
       <div style={{ position: 'relative' }}>
-        <ResponsiveContainer width="100%" height={window.innerWidth <= 768 ? 520 : 460}>
+        <ResponsiveContainer width="100%" height={window.innerWidth <= 768 ? 480 : 420}>
           <ComposedChart 
             data={processedData} 
             margin={{ 
               top: 20, 
               right: showInterestRate ? (window.innerWidth <= 768 ? 40 : 60) : 30, 
               left: 20, 
-              bottom: window.innerWidth <= 768 ? 65 : 60 
+              bottom: window.innerWidth <= 768 ? 45 : 40 
             }}
           >
             <CartesianGrid 
@@ -416,7 +416,7 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
               interval="preserveStartEnd"
               angle={-45}
               textAnchor="end"
-              height={60}
+              height={45}
             />
             
             <YAxis 
