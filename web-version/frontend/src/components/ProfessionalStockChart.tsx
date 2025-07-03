@@ -81,14 +81,27 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
           });
         }
       } else if (period === '6mo' || period === '1y' || period === 'ytd') {
-        // 6개월, 1년, YTD: 년/월 (월 단위로 표시)
-        const monthKey = `${dateObj.getFullYear()}-${dateObj.getMonth()}`;
-        if (index === 0 || (data[index - 1] && 
-            `${new Date(data[index - 1].Date).getFullYear()}-${new Date(data[index - 1].Date).getMonth()}` !== monthKey)) {
+        // 6개월, 1년, YTD: 년도가 바뀔 때는 YY.MM, 그 외에는 MM
+        const currentYear = dateObj.getFullYear();
+        const currentMonth = dateObj.getMonth();
+        const prevYear = index > 0 ? new Date(data[index - 1].Date).getFullYear() : null;
+        const prevMonth = index > 0 ? new Date(data[index - 1].Date).getMonth() : null;
+        
+        if (index === 0) {
+          // 첫 번째 데이터는 항상 YY.MM 형식
           displayDate = dateObj.toLocaleDateString('ko-KR', { 
             year: '2-digit', 
             month: 'numeric' 
-          });
+          }).replace('. ', '.').replace('.', '');
+        } else if (prevYear !== currentYear) {
+          // 년도가 바뀌면 YY.MM 형식
+          displayDate = dateObj.toLocaleDateString('ko-KR', { 
+            year: '2-digit', 
+            month: 'numeric' 
+          }).replace('. ', '.').replace('.', '');
+        } else if (prevMonth !== currentMonth) {
+          // 같은 년도 내에서 월이 바뀌면 MM만 표시
+          displayDate = (currentMonth + 1).toString();
         }
       } else { // 5y, max
         // 5년 이상: 년/월 (분기 단위로 표시)
@@ -211,7 +224,7 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
   // 선형 차트 - 단순하고 트렌디한 디자인
   const SimpleLineChart = () => (
     <div style={{ position: 'relative' }}>
-      <ResponsiveContainer width="100%" height={window.innerWidth <= 768 ? 450 : 400}>
+      <ResponsiveContainer width="100%" height={window.innerWidth <= 768 ? 520 : 460}>
         <ComposedChart 
           data={processedData} 
           margin={{ 

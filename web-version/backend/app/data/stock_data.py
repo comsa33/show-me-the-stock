@@ -1,10 +1,13 @@
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
+import logging
 
 import FinanceDataReader as fdr
 import pandas as pd
 import yfinance as yf
 from pykrx import stock
+
+logger = logging.getLogger(__name__)
 
 
 class StockDataFetcher:
@@ -305,12 +308,19 @@ class StockDataFetcher:
             start_date = today - timedelta(days=100)
         elif period == "6mo":
             start_date = today - timedelta(days=200)
+        elif period == "ytd":
+            # YTD: 올해 1월 1일부터
+            start_date = today.replace(month=1, day=1)
+            logger.info(f"YTD period selected: start_date={start_date.strftime('%Y-%m-%d')}, end_date={today.strftime('%Y-%m-%d')}")
         elif period == "1y":
             start_date = today - timedelta(days=400)
         elif period == "2y":
             start_date = today - timedelta(days=800)
         elif period == "5y":
             start_date = today - timedelta(days=2000)
+        elif period == "max":
+            # MAX: 최대한 많은 데이터 (10년)
+            start_date = today - timedelta(days=3650)
         else:
             start_date = today - timedelta(days=400)  # 기본값 1년
         

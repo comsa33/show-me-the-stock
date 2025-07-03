@@ -221,7 +221,7 @@ async def get_stock_data_v2(
     symbol: str,
     market: str = Query(..., description="시장 (KOSPI/KOSDAQ/US)"),
     period: str = Query(
-        default="1y", description="조회 기간 (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y)"
+        default="1y", description="조회 기간 (1d, 5d, 1mo, 3mo, 6mo, ytd, 1y, 2y, 5y, max)"
     ),
     stock_fetcher: PykrxStockDataFetcher = Depends(get_stock_fetcher),
 ):
@@ -236,19 +236,29 @@ async def get_stock_data_v2(
         from datetime import datetime, timedelta
 
         # 기간에 따른 시작일 계산
-        period_map = {
-            "1d": 1,
-            "5d": 5,
-            "1mo": 30,
-            "3mo": 90,
-            "6mo": 180,
-            "1y": 365,
-            "2y": 730,
-            "5y": 1825,
-        }
-        days = period_map.get(period, 365)
-        start_date = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
         end_date = datetime.now().strftime("%Y%m%d")
+        
+        if period == "ytd":
+            # YTD: 올해 1월 1일부터 오늘까지
+            start_date = datetime.now().replace(month=1, day=1).strftime("%Y%m%d")
+            logger.info(f"YTD period requested for {symbol}: start_date={start_date}, end_date={end_date}")
+        elif period == "max":
+            # MAX: 최대한 많은 데이터 (10년)
+            start_date = (datetime.now() - timedelta(days=3650)).strftime("%Y%m%d")
+        else:
+            # 기존 기간 맵핑
+            period_map = {
+                "1d": 1,
+                "5d": 5,
+                "1mo": 30,
+                "3mo": 90,
+                "6mo": 180,
+                "1y": 365,
+                "2y": 730,
+                "5y": 1825,
+            }
+            days = period_map.get(period, 365)
+            start_date = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
 
         # OHLCV 데이터 조회
         market_code = "KR" if market.upper() in ["KOSPI", "KOSDAQ", "KR"] else "US"
