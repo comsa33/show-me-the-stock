@@ -329,6 +329,8 @@
   padding: 0; /* 패딩 제거로 차트가 전체 영역 사용 */
   cursor: pointer;
   overflow: hidden;
+  display: flex;
+  align-items: center;
 }
 
 [data-theme='dark'] .minimap-container {
@@ -353,9 +355,14 @@
   cursor: grabbing;
 }
 
-/* 미니맵 스크롤바 숨기기 */
+/* 미니맵 차트 영역 최적화 */
 .minimap-container .recharts-wrapper {
   cursor: pointer;
+  width: 100% !important;
+}
+
+.minimap-container .recharts-responsive-container {
+  width: 100% !important;
 }
 
 /* 차트 범례 */
@@ -448,8 +455,13 @@
     margin: 15px 12px 12px 12px; /* 모바일 마진 조정 */
   }
   
-  .minimap-container .recharts-responsive-container {
-    height: 40px !important;
+  /* 모바일에서 미니맵 차트가 컨테이너를 꽉 채우도록 */
+  .minimap-container .recharts-surface {
+    overflow: visible !important;
+  }
+  
+  .minimap-container .recharts-wrapper {
+    margin: 0 !important;
   }
   
   /* 모바일에서 우측 Y축 라벨 크기 줄이기 */

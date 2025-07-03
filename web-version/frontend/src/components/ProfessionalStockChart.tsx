@@ -496,10 +496,10 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
         onMouseLeave={handleMinimapMouseUp}
         style={{ cursor: isDragging ? 'grabbing' : 'pointer' }}
       >
-        <ResponsiveContainer width="100%" height={60}>
+        <ResponsiveContainer width="100%" height={window.innerWidth <= 768 ? 50 : 60}>
           <AreaChart 
             data={processedData} 
-            margin={{ top: 2, right: 0, left: 0, bottom: 2 }}
+            margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
           >
             <defs>
               <linearGradient id="colorArea" x1="0" y1="0" x2="0" y2="1">
