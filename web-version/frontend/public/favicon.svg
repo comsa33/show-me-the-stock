@@ -1,18 +1,24 @@
-<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="faviconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stopColor="#8B5CF6" />
-      <stop offset="100%" stopColor="#C084FC" />
-    </linearGradient>
-  </defs>
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="32" height="32" rx="8" fill="#8B5CF6"/>
   
-  <!-- Simplified chart for small size -->
-  <rect x="2" y="2" width="12" height="12" rx="2" fill="url(#faviconGradient)" fillOpacity="0.2" stroke="url(#faviconGradient)" strokeWidth="1"/>
+  <!-- Stock chart line -->
+  <path d="M6 22L10 18L14 20L18 14L22 12L26 10" 
+        stroke="white" 
+        stroke-width="3" 
+        stroke-linecap="round" 
+        stroke-linejoin="round" 
+        fill="none"/>
   
-  <!-- Rising line -->
-  <path d="M4 10L6 8L8 9L10 6L12 4" stroke="url(#faviconGradient)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+  <!-- Chart points -->
+  <circle cx="18" cy="14" r="3" fill="white"/>
+  <circle cx="26" cy="10" r="3" fill="white"/>
   
-  <!-- Key points -->
-  <circle cx="10" cy="6" r="1.5" fill="url(#faviconGradient)"/>
-  <circle cx="12" cy="4" r="1.5" fill="url(#faviconGradient)"/>
+  <!-- Trend arrow -->
+  <path d="M20 8L26 8L26 14" 
+        stroke="white" 
+        stroke-width="3" 
+        stroke-linecap="round" 
+        stroke-linejoin="round" 
+        fill="none"/>
 </svg>
