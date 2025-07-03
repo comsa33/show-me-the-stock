@@ -185,6 +185,28 @@ class GeminiStockAnalyzer:
                                     logger.info(f"✅ Real source {i+1}: {source.title}")
                         else:
                             logger.warning("❌ No grounding_chunks found in metadata")
+                            
+                            # search_entry_point에서 실제 링크 추출 시도
+                            if hasattr(metadata, 'search_entry_point') and metadata.search_entry_point:
+                                search_entry = metadata.search_entry_point
+                                if hasattr(search_entry, 'rendered_content'):
+                                    logger.info("✅ Found search_entry_point with rendered_content")
+                                    rendered_html = search_entry.rendered_content
+                                    
+                                    # HTML에서 링크 추출
+                                    import re
+                                    link_pattern = r'<a[^>]*href="([^"]+)"[^>]*>([^<]*)</a>'
+                                    matches = re.findall(link_pattern, rendered_html)
+                                    
+                                    for i, (url, title) in enumerate(matches):
+                                        if i < 20:  # 최대 20개까지만
+                                            source = SourceCitation(
+                                                title=title.strip() if title.strip() else f"Search Result {i+1}",
+                                                url=url,
+                                                snippet=f"Search result from Google"
+                                            )
+                                            real_sources.append(source)
+                                            logger.info(f"✅ Real source {i+1} from search_entry_point: {source.title}")
                         
                         if supports:
                             logger.info(f"✅ Found {len(supports)} grounding supports")
@@ -290,6 +312,28 @@ class GeminiStockAnalyzer:
                                     logger.info(f"✅ Extracted: {source.title} - {source.url[:50]}...")
                         else:
                             logger.warning("❌ No grounding_chunks found")
+                            
+                        # search_entry_point에서 실제 링크 추출 시도
+                        if hasattr(metadata, 'search_entry_point') and metadata.search_entry_point:
+                            search_entry = metadata.search_entry_point
+                            if hasattr(search_entry, 'rendered_content'):
+                                logger.info("✅ Found search_entry_point with rendered_content")
+                                rendered_html = search_entry.rendered_content
+                                
+                                # HTML에서 링크 추출
+                                import re
+                                link_pattern = r'<a[^>]*href="([^"]+)"[^>]*>([^<]*)</a>'
+                                matches = re.findall(link_pattern, rendered_html)
+                                
+                                for i, (url, title) in enumerate(matches):
+                                    if i < 20:  # 최대 20개까지만
+                                        source = SourceCitation(
+                                            title=title.strip() if title.strip() else f"Search Result {i+1}",
+                                            url=url,
+                                            snippet=f"Search result from Google"
+                                        )
+                                        extracted_sources.append(source)
+                                        logger.info(f"✅ Extracted from search_entry_point: {source.title}")
                     else:
                         logger.warning("❌ Metadata is None")
                 else:
@@ -342,38 +386,23 @@ class GeminiStockAnalyzer:
                 json_data = self._validate_and_fill_json_data(json_data, symbol, market, stock_data)
             
             # Step 3: 소스 처리
-            # 실제 소스와 텍스트에서 발견된 풋노트를 병합
+            # 실제 소스와 추출된 소스 병합
             sources = []
             grounding_supports = []
             
-            # 먼저 텍스트에서 모든 풋노트 번호 추출
-            import re
-            footnote_pattern = r'\[(\d+(?:,\s*\d+)*)\]'
-            all_footnotes = re.findall(footnote_pattern, response_text)
-            unique_numbers = set()
-            for footnote in all_footnotes:
-                numbers = re.findall(r'\d+', footnote)
-                unique_numbers.update(int(num) for num in numbers)
-            
-            sorted_numbers = sorted(unique_numbers)
-            logger.info(f"Found footnote numbers in text: {sorted_numbers}")
-            
-            # real_sources가 있으면 우선 사용
+            # real_sources와 extracted_sources 병합
             if real_sources:
                 logger.info(f"✅ Using {len(real_sources)} real sources from initial query")
                 sources.extend(real_sources)
             
-            # 부족한 소스는 생성하여 추가
-            existing_count = len(sources)
-            for num in sorted_numbers:
-                if num > existing_count:
-                    source = SourceCitation(
-                        title=f"Grounding Search Result {num}",
-                        url=f"https://example.com/grounding-source-{num}",
-                        snippet=f"This source was found through Google Search grounding for footnote [{num}]. The content was analyzed and cited in the AI response."
-                    )
-                    sources.append(source)
-                    logger.info(f"✅ Created additional source for footnote [{num}]")
+            if extracted_sources:
+                logger.info(f"✅ Adding {len(extracted_sources)} extracted sources from detailed analysis")
+                # 중복 제거
+                existing_urls = {s.url for s in sources}
+                for source in extracted_sources:
+                    if source.url not in existing_urls:
+                        sources.append(source)
+                        existing_urls.add(source.url)
             
             logger.info(f"Total sources: {len(sources)}")
             
