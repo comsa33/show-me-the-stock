@@ -1,5 +1,12 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
+import { 
+  Bell, BellOff, Trash2, X, 
+  TrendingUp, BarChart3, 
+  Building2, Bot, Newspaper, 
+  CheckCircle, AlertCircle, XCircle, Info,
+  Flame, LineChart
+} from 'lucide-react';
 import './NotificationPanel.css';
 
 interface NotificationPanelProps {
@@ -13,23 +20,25 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
   if (!isOpen) return null;
 
   const getNotificationIcon = (type: string, category?: string) => {
+    const iconProps = { size: 18, className: `notification-icon notification-icon-${type}` };
+    
     if (category === 'price') {
       switch (type) {
-        case 'error': return '🔥'; // 급락
-        case 'warning': return '📈'; // 상승
-        default: return '📊'; // 가격 변동
+        case 'error': return <Flame {...iconProps} />; // 급락
+        case 'warning': return <TrendingUp {...iconProps} />; // 상승
+        default: return <LineChart {...iconProps} />; // 가격 변동
       }
     }
-    if (category === 'market') return '🏛️';
-    if (category === 'volume') return '📊';
-    if (category === 'ai') return '🤖';
-    if (category === 'news') return '📰';
+    if (category === 'market') return <Building2 {...iconProps} />;
+    if (category === 'volume') return <BarChart3 {...iconProps} />;
+    if (category === 'ai') return <Bot {...iconProps} />;
+    if (category === 'news') return <Newspaper {...iconProps} />;
     
     switch (type) {
-      case 'success': return '✅';
-      case 'warning': return '⚠️';
-      case 'error': return '❌';
-      default: return 'ℹ️';
+      case 'success': return <CheckCircle {...iconProps} />;
+      case 'warning': return <AlertCircle {...iconProps} />;
+      case 'error': return <XCircle {...iconProps} />;
+      default: return <Info {...iconProps} />;
     }
   };
 
@@ -65,7 +74,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
               onClick={toggleRealTime}
               title={isRealTimeEnabled ? '실시간 알림 비활성화' : '실시간 알림 활성화'}
             >
-              {isRealTimeEnabled ? '🔔' : '🔕'}
+              {isRealTimeEnabled ? <Bell size={18} /> : <BellOff size={18} />}
             </button>
             {notifications.length > 0 && (
               <button 
@@ -73,14 +82,11 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
                 onClick={clearAllNotifications}
                 title="모든 알림 삭제"
               >
-                🗑️
+                <Trash2 size={18} />
               </button>
             )}
             <button className="close-button" onClick={onClose}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
+              <X size={20} />
             </button>
           </div>
         </div>
@@ -88,7 +94,9 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
         <div className="notification-list">
           {!isRealTimeEnabled && (
             <div className="realtime-prompt">
-              <div className="prompt-icon">🔔</div>
+              <div className="prompt-icon">
+                <Bell size={48} />
+              </div>
               <p>실시간 주식 알림을 받으려면 위의 알림 버튼을 클릭하세요</p>
               <button className="enable-realtime-btn" onClick={toggleRealTime}>
                 실시간 알림 시작하기
@@ -98,7 +106,9 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
           
           {notifications.length === 0 ? (
             <div className="empty-notifications">
-              <div className="empty-icon">📬</div>
+              <div className="empty-icon">
+                <Bell size={48} style={{ opacity: 0.3 }} />
+              </div>
               <p>{isRealTimeEnabled ? '새로운 알림을 기다리는 중...' : '새로운 알림이 없습니다'}</p>
             </div>
           ) : (
@@ -127,10 +137,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
                   className="notification-remove"
                   onClick={() => removeNotification(notification.id)}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
+                  <X size={16} />
                 </button>
               </div>
             ))

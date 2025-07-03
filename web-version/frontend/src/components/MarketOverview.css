@@ -30,19 +30,41 @@
 
 .overview-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
 }
 
+/* 1400px 이상: 4개 모두 한 줄에 */
+@media (min-width: 1400px) {
+  .overview-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* 1024px ~ 1400px: 2x2 그리드 */
+@media (max-width: 1399px) and (min-width: 1024px) {
+  .overview-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* 768px ~ 1024px: 2x2 그리드 유지 */
+@media (max-width: 1023px) and (min-width: 768px) {
+  .overview-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
 /* 모바일 최적화 */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .market-overview {
     margin: 0 -4px 16px -4px; /* 좌우로 확장 */
   }
   
   .overview-grid {
     gap: 12px;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: 1fr; /* 모바일에서는 1열 */
   }
   
   .overview-card {

@@ -3,6 +3,8 @@ import { useApp } from '../context/AppContext';
 import { API_BASE } from '../config';
 import ProfessionalStockChart from './ProfessionalStockChart';
 import { BookOpen, TrendingUp, Gem, ArrowLeft, Sparkles, Download, FileText, ChevronDown, ChevronUp, Brain, ExternalLink } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import './StockDetail.css';
 
 interface StockData {
@@ -233,6 +235,7 @@ const StockDetail: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStock, period, currentView]);
+
 
   if (currentView !== 'stocks' || !selectedStock) {
     return null;
@@ -792,7 +795,7 @@ const StockDetail: React.FC = () => {
                   </div>
                 )}
 
-                {/* 상세 분석 내용 */}
+                {/* 분석 리포트 */}
                 {analysisData.analysis.original_text && (
                   <div className="analysis-section-item collapsible-section">
                     <div 
@@ -801,7 +804,7 @@ const StockDetail: React.FC = () => {
                     >
                       <h5>
                         <FileText size={18} />
-                        상세 분석 내용
+                        분석 리포트
                       </h5>
                       <button className="collapse-btn">
                         {showDetailedAnalysis ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -809,44 +812,23 @@ const StockDetail: React.FC = () => {
                     </div>
                     {showDetailedAnalysis && (
                       <div className="detailed-analysis-content">
-                        <pre className="analysis-markdown">
-                          {analysisData.analysis.original_text}
-                        </pre>
+                        <div className="analysis-markdown">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {analysisData.analysis.original_text}
+                          </ReactMarkdown>
+                        </div>
+                        <button 
+                          className="download-report-btn"
+                          onClick={downloadMarkdownReport}
+                          title="마크다운 파일로 다운로드"
+                        >
+                          <Download size={16} />
+                          <span>리포트 다운로드</span>
+                        </button>
                       </div>
                     )}
                   </div>
                 )}
-
-                {/* 분석 리포트 다운로드 */}
-                <div className="analysis-section-item report-section">
-                  <div className="report-header">
-                    <h5><FileText size={18} /> 분석 리포트</h5>
-                    <button 
-                      className="download-report-btn"
-                      onClick={downloadMarkdownReport}
-                      title="마크다운 파일로 다운로드"
-                    >
-                      <Download size={16} />
-                      <span>리포트 다운로드</span>
-                    </button>
-                  </div>
-                  <div className="report-preview">
-                    <p className="report-description">
-                      이 AI 분석 리포트는 {analysisData.symbol} 종목의 기술적 분석, 뉴스 감성 분석, 
-                      AI 인사이트 및 리스크 요인을 포함하고 있습니다.
-                    </p>
-                    <div className="report-info">
-                      <div className="info-item">
-                        <span className="info-label">파일 형식:</span>
-                        <span className="info-value">Markdown (.md)</span>
-                      </div>
-                      <div className="info-item">
-                        <span className="info-label">파일명:</span>
-                        <span className="info-value">{analysisData.symbol}_{new Date().toISOString().split('T')[0]}.md</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           )}

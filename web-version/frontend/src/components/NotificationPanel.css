@@ -166,8 +166,33 @@
 }
 
 .notification-icon {
-  font-size: 20px;
-  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.notification-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.notification-icon-success {
+  color: var(--accent-secondary);
+}
+
+.notification-icon-warning {
+  color: var(--accent-tertiary);
+}
+
+.notification-icon-error {
+  color: var(--accent-error);
+}
+
+.notification-icon-info {
+  color: var(--accent-primary);
 }
 
 .notification-content {
