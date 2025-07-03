@@ -374,9 +374,43 @@
 }
 
 .form-grid.backtest-grid {
-  grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 2fr 1.5fr 1fr 1fr 1.5fr;
   gap: 16px;
   align-items: start;
+}
+
+/* 데스크톱에서 더 넓은 화면 대응 */
+@media (max-width: 1200px) and (min-width: 1025px) {
+  .form-grid.backtest-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+}
+
+/* 태블릿에서 백테스트 폼 반응형 */
+@media (max-width: 1024px) {
+  .form-grid.backtest-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  
+  .form-grid.backtest-grid .form-group.button-group {
+    grid-column: 1 / -1;
+    justify-content: center;
+    margin-top: 16px;
+  }
+  
+  .form-grid.backtest-grid .btn {
+    min-width: 200px;
+  }
+}
+
+/* 작은 태블릿 */
+@media (max-width: 900px) {
+  .form-grid.backtest-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
 }
 
 .form-grid.backtest-grid .form-group {
@@ -389,6 +423,23 @@
 .form-grid.backtest-grid .form-group.button-group {
   justify-content: flex-end;
   align-items: flex-end;
+  height: 100%;
+}
+
+/* 1400px 이상에서 버튼 정렬 */
+@media (min-width: 1400px) {
+  .form-grid.backtest-grid .form-group.button-group {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: stretch;
+    min-height: 80px;
+  }
+  
+  .form-grid.backtest-grid .btn {
+    margin-top: auto;
+    align-self: stretch;
+  }
 }
 
 .form-grid.backtest-grid .form-input,
@@ -469,7 +520,7 @@
 
 .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
 }
 
 .btn-primary:disabled {
@@ -1217,6 +1268,17 @@
   .form-grid.backtest-grid {
     grid-template-columns: 1fr;
     gap: 16px;
+  }
+  
+  .form-grid.backtest-grid .form-group.button-group {
+    grid-column: 1;
+    justify-content: stretch;
+    align-items: stretch;
+  }
+  
+  .form-grid.backtest-grid .btn {
+    width: 100%;
+    justify-content: center;
   }
   
   .data-table {

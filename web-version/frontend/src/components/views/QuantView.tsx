@@ -253,6 +253,25 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
             <p>원하는 종목에 투자했다면 얼마의 수익/손실이 있었을지 시뮬레이션해보세요</p>
           </div>
         </div>
+        <div className="section-actions">
+          <button 
+            className="btn btn-primary ai-analyze-btn"
+            onClick={() => runBacktest()}
+            disabled={loading || !backtestSettings.symbol}
+          >
+            {loading ? (
+              <>
+                <div className="loading-spinner small"></div>
+                <span>백테스트 실행 중...</span>
+              </>
+            ) : (
+              <>
+                <Target size={18} />
+                <span>백테스트 실행</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       <div className="content-card">
@@ -325,16 +344,6 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
               placeholder={selectedMarket === 'KR' ? '1000000' : '1000'}
             />
             <div className="form-helper">{selectedMarket === 'KR' ? '원 (예: 1000000 = 100만원)' : '달러 (예: 1000 = $1,000)'}</div>
-          </div>
-          
-          <div className="form-group button-group">
-            <button 
-              className="btn btn-primary" 
-              onClick={runBacktest}
-              disabled={loading || !backtestSettings.symbol}
-            >
-              {loading ? '백테스트 실행 중...' : '백테스트 실행'}
-            </button>
           </div>
         </div>
       </div>
