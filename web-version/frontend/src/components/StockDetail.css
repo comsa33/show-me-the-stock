@@ -305,7 +305,7 @@
   min-height: 500px;
   display: flex;
   flex-direction: column;
-  padding: 24px;
+  padding: 0; /* 패딩 제거로 차트가 전체 영역 활용 */
 }
 
 .chart-loading, .chart-error {
@@ -1384,7 +1384,7 @@
   }
   
   .chart-container {
-    padding: 12px;
+    padding: 0; /* 모바일에서도 패딩 제거 */
     min-height: 380px;
   }
   
@@ -1453,7 +1453,7 @@
   }
   
   .chart-container {
-    padding: 10px;
+    padding: 0; /* 480px 이하에서도 패딩 제거 */
     min-height: 350px;
   }
   
