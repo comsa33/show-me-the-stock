@@ -147,31 +147,30 @@
 }
 
 .chart-scroll-container::-webkit-scrollbar {
-  height: 6px;
+  height: 4px;
 }
 
 .chart-scroll-container::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
-  border-radius: 3px;
+  background: transparent;
 }
 
 .chart-scroll-container::-webkit-scrollbar-thumb {
-  background: var(--border-secondary);
-  border-radius: 3px;
+  background: rgba(155, 155, 155, 0.5);
+  border-radius: 2px;
 }
 
 .chart-scroll-container::-webkit-scrollbar-thumb:hover {
-  background: var(--text-tertiary);
+  background: rgba(155, 155, 155, 0.7);
 }
 
 [data-theme='dark'] .chart-scroll-container {
   scrollbar-color: #4b5563 #1f2937;
 }
 
-/* 차트 내용 - 웹과 모바일 모두 동일한 넓이 */
+/* 차트 내용 - 동적 넓이 */
 .chart-content {
-  min-width: 250%; /* 모든 화면에서 2.5배 넓이 */
-  width: 250%;
+  width: 100%; /* JS에서 동적으로 설정 */
+  transition: width 0.3s ease;
 }
 
 /* 캔들스틱 차트 스타일 */
@@ -317,6 +316,40 @@
   font-weight: 600;
 }
 
+/* 미니맵 컨테이너 */
+.minimap-container {
+  position: relative;
+  margin-top: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  padding: 4px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+[data-theme='dark'] .minimap-container {
+  background: rgba(31, 41, 55, 0.6);
+  border-color: rgba(75, 85, 99, 0.5);
+}
+
+/* 미니맵 뷰포트 (현재 보이는 영역) */
+.minimap-viewport {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border: 2px solid;
+  border-radius: 4px;
+  pointer-events: none;
+  transition: left 0.1s ease, width 0.3s ease;
+  backdrop-filter: blur(1px);
+}
+
+/* 미니맵 스크롤바 숨기기 */
+.minimap-container .recharts-wrapper {
+  cursor: pointer;
+}
+
 /* 차트 범례 */
 .chart-legend {
   display: flex;
@@ -388,7 +421,15 @@
     font-size: 11px;
   }
   
-  /* 모바일에서도 동일한 차트 폭 유지 */
+  /* 모바일에서 미니맵 높이 줄이기 */
+  .minimap-container {
+    margin-top: 8px;
+    padding: 2px;
+  }
+  
+  .minimap-container .recharts-responsive-container {
+    height: 40px !important;
+  }
   
   /* 모바일에서 우측 Y축 라벨 크기 줄이기 */
   .recharts-yAxis.recharts-yAxisRight text {

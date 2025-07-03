@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import {
   ComposedChart,
   Line,
@@ -6,7 +6,9 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer
+  ResponsiveContainer,
+  AreaChart,
+  Area
 } from 'recharts';
 import { useTheme } from '../context/ThemeContext';
 import './ProfessionalStockChart.css';
@@ -42,6 +44,34 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
 }) => {
   const { theme } = useTheme();
   const isDarkMode = theme === 'dark';
+  
+  // 스크롤 관련 상태
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  // 차트 폭 계산 - 기간에 따라 동적으로 조정
+  const chartWidthPercentage = useMemo(() => {
+    switch (period) {
+      case '1d':
+      case '5d':
+        return 100; // 스크롤 없음
+      case '1mo':
+        return 150;
+      case '3mo':
+        return 200;
+      case '6mo':
+        return 250;
+      case '1y':
+      case 'ytd':
+        return 300;
+      case '5y':
+        return 400;
+      case 'max':
+        return 500;
+      default:
+        return 250;
+    }
+  }, [period]);
 
 
   // 데이터 전처리
@@ -160,7 +190,52 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
     ];
   }, [processedData, showInterestRate, interestRateData]);
 
+  // 스크롤 이벤트 핸들러
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
 
+    const handleScroll = () => {
+      const scrollLeft = container.scrollLeft;
+      const scrollWidth = container.scrollWidth;
+      const clientWidth = container.clientWidth;
+      const maxScroll = scrollWidth - clientWidth;
+      
+      if (maxScroll > 0) {
+        const scrollPercentage = (scrollLeft / maxScroll) * 100;
+        setScrollPosition(scrollPercentage);
+      }
+    };
+
+    const handleResize = () => {
+      // 필요시 컨테이너 크기 처리
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  // 미니맵에서 클릭시 메인 차트 스크롤
+  const handleMinimapClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickPercentage = clickX / rect.width;
+    
+    const scrollWidth = container.scrollWidth;
+    const clientWidth = container.clientWidth;
+    const maxScroll = scrollWidth - clientWidth;
+    
+    container.scrollLeft = maxScroll * clickPercentage;
+  };
 
   // 포맷팅 함수들
   const formatPrice = (price: number) => {
@@ -317,16 +392,69 @@ const ProfessionalStockChart: React.FC<ChartProps> = ({
   );
 
 
+  // 미니맵 차트
+  const MiniMapChart = () => {
+    const visibleWidth = (100 / chartWidthPercentage) * 100;
+    const visibleLeft = scrollPosition * (100 - visibleWidth) / 100;
+    
+    return (
+      <div className="minimap-container" onClick={handleMinimapClick}>
+        <ResponsiveContainer width="100%" height={60}>
+          <AreaChart 
+            data={processedData} 
+            margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+          >
+            <defs>
+              <linearGradient id="colorArea" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={isDarkMode ? '#60a5fa' : '#2563eb'} stopOpacity={0.3}/>
+                <stop offset="95%" stopColor={isDarkMode ? '#60a5fa' : '#2563eb'} stopOpacity={0.1}/>
+              </linearGradient>
+            </defs>
+            <Area 
+              type="monotone" 
+              dataKey="Close" 
+              stroke={isDarkMode ? '#60a5fa' : '#2563eb'} 
+              strokeWidth={1}
+              fill="url(#colorArea)"
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+        
+        {/* 현재 보이는 영역 표시 */}
+        {chartWidthPercentage > 100 && (
+          <div 
+            className="minimap-viewport"
+            style={{
+              left: `${visibleLeft}%`,
+              width: `${visibleWidth}%`,
+              backgroundColor: isDarkMode ? 'rgba(96, 165, 250, 0.2)' : 'rgba(37, 99, 235, 0.2)',
+              borderColor: isDarkMode ? '#60a5fa' : '#2563eb'
+            }}
+          />
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="professional-stock-chart">
       {/* 메인 차트 */}
       <div className="main-chart">
-        <div className="chart-scroll-container">
-          <div className="chart-content">
+        <div 
+          className="chart-scroll-container" 
+          ref={scrollContainerRef}
+          style={{ overflowX: chartWidthPercentage > 100 ? 'auto' : 'hidden' }}
+        >
+          <div className="chart-content" style={{ width: `${chartWidthPercentage}%` }}>
             <SimpleLineChart />
           </div>
         </div>
       </div>
+
+      {/* 미니맵 - 스크롤이 필요한 경우만 표시 */}
+      {chartWidthPercentage > 100 && (
+        <MiniMapChart />
+      )}
 
       {/* 차트 범례 */}
       <div className="chart-legend">
