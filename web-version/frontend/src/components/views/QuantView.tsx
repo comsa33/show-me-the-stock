@@ -364,26 +364,144 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
             </select>
           </div>
 
-          <div className="form-group">
+          <div className="date-input-group">
             <label className="form-label">시작 날짜</label>
-            <input 
-              className="form-input"
-              type="date" 
-              value={backtestSettings.startDate}
-              max="2025-07-02"
-              onChange={(e) => setBacktestSettings(prev => ({ ...prev, startDate: e.target.value }))}
-            />
+            <div className="date-input-wrapper">
+              <svg className="date-input-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <input 
+                className="form-input"
+                type="date" 
+                value={backtestSettings.startDate}
+                max={new Date().toISOString().split('T')[0]}
+                min="2020-01-01"
+                onChange={(e) => setBacktestSettings(prev => ({ ...prev, startDate: e.target.value }))}
+              />
+            </div>
           </div>
           
-          <div className="form-group">
+          <div className="date-input-group">
             <label className="form-label">종료 날짜</label>
-            <input 
-              className="form-input"
-              type="date" 
-              value={backtestSettings.endDate}
-              max="2025-07-02"
-              onChange={(e) => setBacktestSettings(prev => ({ ...prev, endDate: e.target.value }))}
-            />
+            <div className="date-input-wrapper">
+              <svg className="date-input-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <input 
+                className="form-input"
+                type="date" 
+                value={backtestSettings.endDate}
+                max={new Date().toISOString().split('T')[0]}
+                min={backtestSettings.startDate || "2020-01-01"}
+                onChange={(e) => setBacktestSettings(prev => ({ ...prev, endDate: e.target.value }))}
+              />
+            </div>
+            <div className="date-range-indicator">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span>
+                {(() => {
+                  const start = new Date(backtestSettings.startDate);
+                  const end = new Date(backtestSettings.endDate);
+                  const days = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                  return `${days}일 동안의 백테스트`;
+                })()}
+              </span>
+            </div>
+            <div className="quick-date-buttons">
+              <button 
+                type="button"
+                className="quick-date-btn"
+                onClick={() => {
+                  const end = new Date();
+                  end.setDate(end.getDate() - 1);
+                  const start = new Date(end);
+                  start.setMonth(start.getMonth() - 1);
+                  setBacktestSettings(prev => ({
+                    ...prev,
+                    startDate: start.toISOString().split('T')[0],
+                    endDate: end.toISOString().split('T')[0]
+                  }));
+                }}
+              >
+                1개월
+              </button>
+              <button 
+                type="button"
+                className="quick-date-btn"
+                onClick={() => {
+                  const end = new Date();
+                  end.setDate(end.getDate() - 1);
+                  const start = new Date(end);
+                  start.setMonth(start.getMonth() - 3);
+                  setBacktestSettings(prev => ({
+                    ...prev,
+                    startDate: start.toISOString().split('T')[0],
+                    endDate: end.toISOString().split('T')[0]
+                  }));
+                }}
+              >
+                3개월
+              </button>
+              <button 
+                type="button"
+                className="quick-date-btn"
+                onClick={() => {
+                  const end = new Date();
+                  end.setDate(end.getDate() - 1);
+                  const start = new Date(end);
+                  start.setMonth(start.getMonth() - 6);
+                  setBacktestSettings(prev => ({
+                    ...prev,
+                    startDate: start.toISOString().split('T')[0],
+                    endDate: end.toISOString().split('T')[0]
+                  }));
+                }}
+              >
+                6개월
+              </button>
+              <button 
+                type="button"
+                className="quick-date-btn"
+                onClick={() => {
+                  const end = new Date();
+                  end.setDate(end.getDate() - 1);
+                  const start = new Date(end);
+                  start.setFullYear(start.getFullYear() - 1);
+                  setBacktestSettings(prev => ({
+                    ...prev,
+                    startDate: start.toISOString().split('T')[0],
+                    endDate: end.toISOString().split('T')[0]
+                  }));
+                }}
+              >
+                1년
+              </button>
+              <button 
+                type="button"
+                className="quick-date-btn"
+                onClick={() => {
+                  const end = new Date();
+                  end.setDate(end.getDate() - 1);
+                  const start = new Date(end.getFullYear(), 0, 1); // 올해 1월 1일
+                  setBacktestSettings(prev => ({
+                    ...prev,
+                    startDate: start.toISOString().split('T')[0],
+                    endDate: end.toISOString().split('T')[0]
+                  }));
+                }}
+              >
+                YTD
+              </button>
+            </div>
           </div>
 
           <div className="form-group">
