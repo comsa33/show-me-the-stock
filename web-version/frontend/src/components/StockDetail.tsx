@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { API_BASE } from '../config';
 import ProfessionalStockChart from './ProfessionalStockChart';
-import { BookOpen, TrendingUp, Gem, ArrowLeft, Sparkles, Download, FileText, ChevronDown, ChevronUp, Brain, ExternalLink, Activity, BarChart3 } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { BookOpen, TrendingUp, Gem, ArrowLeft, Sparkles, Download, ChevronDown, ChevronUp, Brain, ExternalLink, Activity, BarChart3 } from 'lucide-react';
 import './StockDetail.css';
 
 interface StockData {
@@ -121,7 +119,6 @@ const StockDetail: React.FC = () => {
   const [interestRateData, setInterestRateData] = useState<Array<{ date: string; rate: number }>>([]);
   const [analysisType, setAnalysisType] = useState<'beginner' | 'swing' | 'invest'>('beginner');
   const [showSources, setShowSources] = useState(false); // 참고자료 접기/펼치기
-  const [showDetailedAnalysis, setShowDetailedAnalysis] = useState(true); // 상세 분석 접기/펼치기
 
   const periods = [
     { value: '1d', label: '1일' },
@@ -900,39 +897,17 @@ const StockDetail: React.FC = () => {
                   </div>
                 )}
 
-                {/* 분석 리포트 */}
+                {/* 리포트 다운로드 버튼 */}
                 {analysisData.analysis.original_text && (
-                  <div className="analysis-section-item collapsible-section">
-                    <div 
-                      className="section-header clickable"
-                      onClick={() => setShowDetailedAnalysis(!showDetailedAnalysis)}
-                    >
-                      <h5>
-                        <FileText size={18} />
-                        분석 리포트
-                      </h5>
-                      <button className="collapse-btn">
-                        {showDetailedAnalysis ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                      </button>
-                    </div>
-                    {showDetailedAnalysis && (
-                      <div className="detailed-analysis-content">
-                        <div className="analysis-markdown">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {analysisData.analysis.original_text}
-                          </ReactMarkdown>
-                        </div>
-                        <button 
-                          className="download-report-btn"
-                          onClick={downloadMarkdownReport}
-                          title="마크다운 파일로 다운로드"
-                        >
-                          <Download size={16} />
-                          <span>리포트 다운로드</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <button 
+                    className="btn-primary ai-analyze-btn"
+                    onClick={downloadMarkdownReport}
+                    title="마크다운 파일로 다운로드"
+                    style={{ marginTop: '24px', width: '100%' }}
+                  >
+                    <Download size={18} />
+                    <span>리포트 다운로드</span>
+                  </button>
                 )}
               </div>
             </div>
