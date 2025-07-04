@@ -235,46 +235,58 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
 
     setLoading(true);
     
-    // 실제 API 호출 대신 시뮬레이션
-    setTimeout(() => {
-      const selectedStock = availableStocks.find(s => s.symbol === backtestSettings.symbol);
-      if (!selectedStock) return;
-
-      // 백테스트 시뮬레이션 계산
-      const periodDays = Math.ceil((new Date(backtestSettings.endDate).getTime() - new Date(backtestSettings.startDate).getTime()) / (1000 * 60 * 60 * 24));
-      const periodYears = periodDays / 365;
-      
-      // 가상의 수익률 계산 (실제로는 API에서 과거 데이터로 계산)
-      const basePrice = selectedStock.currentPrice || 100;
-      const annualReturn = (Math.random() - 0.2) * 30; // -20% ~ +30%
-      const totalReturn = annualReturn * periodYears;
-      const finalAmount = backtestSettings.investmentAmount * (1 + totalReturn / 100);
-      const profit = finalAmount - backtestSettings.investmentAmount;
-      
-      const result: BacktestResult = {
+    try {
+      // 실제 백테스트 API 호출
+      const params = new URLSearchParams({
         symbol: backtestSettings.symbol,
-        companyName: selectedStock.name,
-        strategy: backtestSettings.strategy === 'buy_hold' ? '매수 후 보유' : backtestSettings.strategy === 'technical' ? '기술적 분석' : '가치 투자',
-        period: `${periodDays}일 (${Math.round(periodYears * 10) / 10}년)`,
-        investmentAmount: backtestSettings.investmentAmount,
-        finalAmount: Math.round(finalAmount),
-        totalReturn: Math.round(profit),
-        totalReturnPercent: Math.round(totalReturn * 100) / 100,
-        annualReturn: Math.round(annualReturn * 100) / 100,
-        maxDrawdown: -(Math.random() * 15 + 5),
-        winRate: Math.random() * 30 + 60,
-        trades: backtestSettings.strategy === 'buy_hold' ? 1 : Math.floor(Math.random() * 10 + 5),
-        bestTrade: Math.random() * 20 + 5,
-        worstTrade: -(Math.random() * 15 + 3),
-        startDate: backtestSettings.startDate,
-        endDate: backtestSettings.endDate,
-        startPrice: basePrice * (0.8 + Math.random() * 0.4),
-        endPrice: basePrice
+        market: selectedMarket,
+        start_date: backtestSettings.startDate,
+        end_date: backtestSettings.endDate,
+        investment_amount: backtestSettings.investmentAmount.toString(),
+        strategy: backtestSettings.strategy
+      });
+
+      const response = await fetch(`${API_BASE}/v1/backtest/run?${params}`, {
+        method: 'POST'
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || '백테스트 실행 실패');
+      }
+
+      const data = await response.json();
+      const apiResult = data.result;
+
+      // API 응답을 프론트엔드 형식으로 변환
+      const result: BacktestResult = {
+        symbol: apiResult.symbol,
+        companyName: apiResult.company_name,
+        strategy: apiResult.strategy,
+        period: apiResult.period,
+        investmentAmount: apiResult.investment_amount,
+        finalAmount: apiResult.final_amount,
+        totalReturn: apiResult.total_return,
+        totalReturnPercent: apiResult.total_return_percent,
+        annualReturn: apiResult.annual_return,
+        maxDrawdown: apiResult.max_drawdown,
+        winRate: apiResult.win_rate,
+        trades: apiResult.trades,
+        bestTrade: apiResult.best_trade,
+        worstTrade: apiResult.worst_trade,
+        startDate: apiResult.start_date,
+        endDate: apiResult.end_date,
+        startPrice: apiResult.start_price,
+        endPrice: apiResult.end_price
       };
 
       setBacktestResult(result);
+    } catch (error) {
+      console.error('Backtest error:', error);
+      alert(error instanceof Error ? error.message : '백테스트 실행 중 오류가 발생했습니다.');
+    } finally {
       setLoading(false);
-    }, 2000);
+    }
   };
 
   const formatCurrency = (amount: number) => {
