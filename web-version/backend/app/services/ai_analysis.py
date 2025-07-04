@@ -144,7 +144,11 @@ class GeminiStockAnalyzer:
             )
             
             grounding_config = types.GenerateContentConfig(
-                tools=[grounding_tool]
+                tools=[grounding_tool],
+                max_output_tokens=64000,
+                thinking_config=types.ThinkingConfig(
+                    thinking_budget=0
+                )
             )
             
             # Step 1a: 먼저 간단한 쿼리로 실제 소스 수집
@@ -155,7 +159,7 @@ class GeminiStockAnalyzer:
             try:
                 logger.info(f"Fetching real sources with query: {simple_query}")
                 source_response = self.client.models.generate_content(
-                    model="gemini-2.5-flash",
+                    model="gemini-2.5-flash-lite-preview-06-17",
                     contents=simple_query,
                     config=grounding_config
                 )

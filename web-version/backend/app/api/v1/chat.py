@@ -10,7 +10,10 @@ import json
 import asyncio
 import logging
 from datetime import datetime
+
 from google import genai
+from google.genai import types
+
 from app.core.config import get_settings
 from app.core.redis_client import RedisClient
 import uuid
@@ -36,13 +39,13 @@ class ChatSession:
     def __init__(self, session_id: str):
         self.session_id = session_id
         self.chat = client.chats.create(
-            model="gemini-2.5-flash",
-            config={
-                "temperature": 0.7,
-                "top_p": 0.95,
-                "top_k": 40,
-                "max_output_tokens": 8192,  # 토큰 제한 증가
-            }
+            model="gemini-2.5-flash-lite-preview-06-17",
+            config=types.GenerateContentConfig(
+                max_output_tokens=64000,
+                thinking_config=types.ThinkingConfig(
+                    thinking_budget=0
+                )
+            )
         )
         self.created_at = datetime.now()
         
@@ -137,7 +140,7 @@ async def generate_sse_response(message: str, session_id: Optional[str] = None):
                 }
                 response_text = f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
                 yield response_text
-                await asyncio.sleep(0)  # Force yield to event loop
+                await asyncio.sleep(0.01)  # 10ms 딜레이로 부드러운 스트리밍
         
         # 스트림 종료 신호
         yield f"data: {json.dumps({'type': 'end'})}\n\n"

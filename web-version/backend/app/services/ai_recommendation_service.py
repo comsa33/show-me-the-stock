@@ -2,6 +2,7 @@ import os
 from typing import List, Dict, Any
 from datetime import datetime
 from google import genai
+from google.genai import types
 from pydantic import BaseModel, Field
 import json
 import logging
@@ -76,16 +77,16 @@ class AIRecommendationService:
             
             # 4. Gemini API 호출
             response = self.client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-2.5-flash-lite-preview-06-17",
                 contents=prompt,
-                config={
-                    "response_mime_type": "application/json",
-                    "response_schema": list[StockRecommendation],
-                    "temperature": 0.7,
-                    "top_p": 0.95,
-                    "top_k": 40,
-                    "max_output_tokens": 8192,
-                }
+                config=types.GenerateContentConfig(
+                    max_output_tokens=64000,
+                    response_mime_type="application/json",
+                    response_schema=list[StockRecommendation],
+                    thinking_config=types.ThinkingConfig(
+                        thinking_budget=0
+                    )
+                ),
             )
             
             # 5. 응답 파싱

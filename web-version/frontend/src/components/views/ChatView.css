@@ -274,16 +274,44 @@
 }
 
 .typing-indicator {
-  animation: typing 1.4s ease-in-out infinite;
-  margin-left: 4px;
+  margin-left: 8px;
+  display: inline-block;
+  position: relative;
+  width: 20px;
+  height: 10px;
 }
 
-@keyframes typing {
-  0%, 60%, 100% {
-    opacity: 1;
+.typing-indicator::before,
+.typing-indicator::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  animation: bounce 1.4s ease-in-out infinite;
+}
+
+.typing-indicator::before {
+  left: 0;
+  animation-delay: -0.32s;
+}
+
+.typing-indicator::after {
+  right: 0;
+  animation-delay: -0.16s;
+}
+
+@keyframes bounce {
+  0%, 80%, 100% {
+    transform: scale(0.8);
+    opacity: 0.5;
   }
-  30% {
-    opacity: 0.3;
+  40% {
+    transform: scale(1);
+    opacity: 1;
   }
 }
 
@@ -542,6 +570,51 @@
   color: inherit;
   white-space: pre-wrap;
   word-wrap: break-word;
+  position: relative;
+}
+
+/* 스트리밍 텍스트 애니메이션 */
+.streaming-text {
+  display: inline;
+}
+
+/* 각 새로운 청크에 애니메이션 적용 */
+.streaming-chunk {
+  display: inline-block;
+  animation: slideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  animation-fill-mode: both;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+    filter: blur(0);
+  }
+}
+
+/* 메시지 전체에 부드러운 그라데이션 효과 */
+.message.assistant .streaming-content {
+  background: linear-gradient(to right, 
+    var(--bg-secondary) 0%, 
+    var(--bg-secondary) 95%, 
+    transparent 100%);
+  background-size: 200% 100%;
+  animation: gradientSlide 1s ease-out;
+}
+
+@keyframes gradientSlide {
+  from {
+    background-position: -100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
 }
 
 /* 마크다운 콘텐츠 스타일 */

@@ -338,8 +338,8 @@ const ChatView: React.FC<ChatViewProps> = ({ isFloating = false, onClose }) => {
                     {message.isStreaming ? (
                       // 스트리밍 중에는 plain text로 표시
                       <div className="streaming-content">
-                        {message.content}
-                        <span className="typing-indicator">●</span>
+                        <span className="streaming-text">{message.content}</span>
+                        <span className="typing-indicator"></span>
                       </div>
                     ) : (
                       // 스트리밍 완료 후 마크다운 렌더링
