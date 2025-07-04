@@ -5,7 +5,7 @@
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional
 import pandas as pd
 import numpy as np
 from pydantic import BaseModel
@@ -71,6 +71,7 @@ class BacktestService:
                 return None
             
             # 실제 백테스트 기간 데이터만 필터링
+            # timezone 처리는 이미 _get_historical_prices에서 완료됨
             backtest_data = price_data[price_data.index >= start_dt]
             if backtest_data.empty:
                 logger.error(f"No data in backtest period for {symbol}")
@@ -136,11 +137,15 @@ class BacktestService:
         try:
             # 날짜 범위 계산
             days = (end_date - start_date).days
-            interval = "1d"
             
             # StockDataFetcher 사용
             data = self.stock_fetcher.get_stock_data(symbol, f"{days}d", market)
             if data is not None and not data.empty:
+                # timezone-aware index를 timezone-naive로 변환하거나 반대로 처리
+                if data.index.tz is not None:
+                    # timezone-aware index인 경우, 비교를 위해 timezone 제거
+                    data.index = data.index.tz_localize(None)
+                
                 # 날짜 범위 필터링
                 data = data[(data.index >= start_date) & (data.index <= end_date)]
             return data
@@ -231,7 +236,6 @@ class BacktestService:
         # 거래 통계
         if trades:
             winning_trades = [t for t in trades if t > 0]
-            losing_trades = [t for t in trades if t <= 0]
             win_rate = (len(winning_trades) / len(trades)) * 100
             best_trade = max(trades)
             worst_trade = min(trades)
@@ -325,7 +329,7 @@ class BacktestService:
                 if stock['symbol'] == symbol:
                     return stock['name']
             return symbol
-        except:
+        except Exception:
             return symbol
     
     def _get_strategy_name(self, strategy: str) -> str:

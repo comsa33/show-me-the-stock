@@ -35,8 +35,12 @@ async def run_backtest(
         if start_dt >= end_dt:
             raise ValueError("종료일은 시작일보다 이후여야 합니다")
         
-        if end_dt > datetime.now():
-            raise ValueError("종료일은 오늘 이전이어야 합니다")
+        current_date = datetime.now()
+        if end_dt > current_date:
+            raise ValueError(f"종료일은 오늘({current_date.strftime('%Y-%m-%d')}) 이전이어야 합니다")
+            
+        if start_dt > current_date:
+            raise ValueError(f"시작일은 오늘({current_date.strftime('%Y-%m-%d')}) 이전이어야 합니다")
         
         # 백테스트 실행
         result = await backtest_service.run_backtest(

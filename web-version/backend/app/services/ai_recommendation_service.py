@@ -31,6 +31,10 @@ class TimeHorizon(str, enum.Enum):
     MEDIUM = "MEDIUM"  # 3-6개월
     LONG = "LONG"  # 6개월 이상
 
+class KeyIndicator(BaseModel):
+    name: str = Field(description="지표명 (예: PER, PBR, ROE)")
+    value: float = Field(description="지표값")
+
 class StockRecommendation(BaseModel):
     symbol: str = Field(description="종목 코드")
     name: str = Field(description="종목명")
@@ -40,7 +44,7 @@ class StockRecommendation(BaseModel):
     confidence: float = Field(description="추천 신뢰도 (0-100)")
     risk_level: RiskLevel = Field(description="투자 위험도")
     time_horizon: TimeHorizon = Field(description="투자 기간")
-    key_indicators: Dict[str, float] = Field(description="핵심 지표들 (PER, PBR, ROE 등)")
+    key_indicators: List[KeyIndicator] = Field(description="핵심 지표들 (PER, PBR, ROE 등)")
     reasoning: List[str] = Field(description="추천 이유 3-5개")
     warnings: List[str] = Field(description="주의사항 및 리스크 요인", default_factory=list)
 
@@ -95,6 +99,12 @@ class AIRecommendationService:
             # 6. 결과 변환
             result = []
             for rec in recommendations:
+                # key_indicators를 딕셔너리로 변환
+                key_indicators_dict = {
+                    indicator.name: indicator.value 
+                    for indicator in rec.key_indicators
+                }
+                
                 result.append({
                     "symbol": rec.symbol,
                     "name": rec.name,
@@ -102,9 +112,9 @@ class AIRecommendationService:
                     "predictedPrice": rec.predicted_price,
                     "predictedReturn": rec.predicted_return,
                     "confidence": rec.confidence,
-                    "riskLevel": rec.risk_level,
-                    "timeHorizon": rec.time_horizon,
-                    "keyIndicators": rec.key_indicators,
+                    "riskLevel": rec.risk_level.value,
+                    "timeHorizon": rec.time_horizon.value,
+                    "keyIndicators": key_indicators_dict,
                     "reasoning": rec.reasoning,
                     "warnings": rec.warnings
                 })
@@ -113,11 +123,8 @@ class AIRecommendationService:
             
         except Exception as e:
             logger.error(f"AI recommendation error: {str(e)}")
-            # 에러 시 기본 추천 반환
-            if 'sorted_stocks' in locals():
-                return self._get_fallback_recommendations(sorted_stocks[:top_n])
-            else:
-                return []
+            # 에러 시 빈 배열 반환
+            return []
     
     def _create_analysis_prompt(self, stocks: List[Dict], market: str) -> str:
         """AI 분석을 위한 프롬프트 생성"""

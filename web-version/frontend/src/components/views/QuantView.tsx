@@ -72,10 +72,24 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
   const [activeTab, setActiveTab] = useState<'indicators' | 'backtest' | 'recommendations'>('indicators');
   const [availableStocks, setAvailableStocks] = useState<StockOption[]>([]);
   const [stocksLoading, setStocksLoading] = useState(false);
+  // 백테스트 기본 날짜 설정 (최근 3개월)
+  const getDefaultDates = () => {
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() - 1); // 어제
+    const startDate = new Date(endDate);
+    startDate.setMonth(startDate.getMonth() - 3); // 3개월 전
+    
+    return {
+      start: startDate.toISOString().split('T')[0],
+      end: endDate.toISOString().split('T')[0]
+    };
+  };
+
+  const defaultDates = getDefaultDates();
   const [backtestSettings, setBacktestSettings] = useState<BacktestSettings>({
     symbol: '',
-    startDate: '2024-01-01',
-    endDate: '2025-07-02',
+    startDate: defaultDates.start,
+    endDate: defaultDates.end,
     investmentAmount: selectedMarket === 'KR' ? 1000000 : 1000, // 100만원 또는 $1000
     strategy: 'buy_hold'
   });
@@ -175,7 +189,7 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
     
     // 시장이 변경되면 백테스트 결과 초기화
     setBacktestResult(null);
-    // 백테스트 설정에서 종목 선택도 초기화
+    // 백테스트 설정에서 종목 선택과 투자금액 초기화
     setBacktestSettings(prev => ({
       ...prev,
       symbol: '',
