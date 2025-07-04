@@ -291,8 +291,6 @@ class GeminiStockAnalyzer:
                 contents=simple_analysis_prompt,
                 config=grounding_config
             )
-            from pprint import pprint
-            pprint(grounded_response)
             logger.info(f"Analysis completed for {symbol}")
             
             # 즉시 grounding metadata 추출 (객체가 사라지기 전에)
@@ -396,11 +394,8 @@ class GeminiStockAnalyzer:
             if not response_text:
                 logger.error("No response text from Gemini")
                 raise Exception("No response text from Gemini")
-            from pprint import pprint
-            pprint(response_text)
             # 먼저 JSON 추출 시도
             json_data = self._extract_json_from_response(response_text)
-            pprint(json_data)
             
             # JSON 추출 실패시 간단한 파싱으로 폴백
             if not json_data:

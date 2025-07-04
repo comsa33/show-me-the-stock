@@ -35,8 +35,6 @@ async def analyze_stock(
         
         # Pydantic 모델을 딕셔너리로 변환
         analysis_dict = analysis_result.model_dump()
-        # from pprint import pprint
-        # pprint(analysis_dict)
 
         return {
             "symbol": symbol,

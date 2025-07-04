@@ -5,6 +5,8 @@ Stock Dashboard FastAPI Application
 from app.api.v1.api import api_router
 from app.core.config import get_settings
 from app.services.realtime_service import realtime_service
+from app.services.cache_scheduler import cache_scheduler
+from app.core.cache import init_redis
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
@@ -40,22 +42,40 @@ logger = logging.getLogger(__name__)
 async def startup_event():
     """애플리케이션 시작 시 실행되는 이벤트"""
     try:
+        # Redis 초기화
+        logger.info("Redis 초기화 중...")
+        await init_redis()
+        
+        # 실시간 서비스 초기화
         logger.info("실시간 주식 알림 서비스 초기화 중...")
         await realtime_service.initialize()
         await realtime_service.start_monitoring()
         logger.info("실시간 주식 알림 서비스가 성공적으로 시작되었습니다.")
+        
+        # 캐시 스케줄러 시작
+        logger.info("캐시 스케줄러 시작 중...")
+        cache_scheduler.start()
+        logger.info("캐시 스케줄러가 성공적으로 시작되었습니다.")
+        
     except Exception as e:
-        logger.error(f"실시간 서비스 시작 실패: {e}")
+        logger.error(f"서비스 시작 실패: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """애플리케이션 종료 시 실행되는 이벤트"""
     try:
+        # 실시간 서비스 종료
         logger.info("실시간 주식 알림 서비스 종료 중...")
         await realtime_service.stop_monitoring()
         logger.info("실시간 주식 알림 서비스가 안전하게 종료되었습니다.")
+        
+        # 캐시 스케줄러 종료
+        logger.info("캐시 스케줄러 종료 중...")
+        cache_scheduler.stop()
+        logger.info("캐시 스케줄러가 안전하게 종료되었습니다.")
+        
     except Exception as e:
-        logger.error(f"실시간 서비스 종료 중 오류: {e}")
+        logger.error(f"서비스 종료 중 오류: {e}")
 
 
 @app.get("/")

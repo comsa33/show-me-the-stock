@@ -322,14 +322,15 @@
   width: 48px;
   height: 48px;
   border: 3px solid var(--border-primary);
-  border-top-color: var(--accent-primary);
+  border-top-color: transparent;
   border-radius: 50%;
+  background: conic-gradient(from 0deg, var(--primary-gradient));
+  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 3px), black calc(100% - 3px));
+  mask: radial-gradient(closest-side, transparent calc(100% - 3px), black calc(100% - 3px));
   animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+/* keyframes spin is defined globally in App.css */
 
 .chart-loading p,
 .chart-error p {
@@ -740,10 +741,10 @@
   }
 }
 
+/* AI analyze button loading spinner - white version for blue background */
 .ai-analyze-btn .loading-spinner.small {
-  width: 18px;
-  height: 18px;
-  border-width: 2px;
+  border-color: rgba(255, 255, 255, 0.3);
+  background: conic-gradient(from 0deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.1) 100%);
 }
 
 .analysis-loading {
@@ -752,6 +753,18 @@
   align-items: center;
   gap: 15px;
   padding: 40px;
+}
+
+.analysis-loading .loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid var(--border-primary);
+  border-top-color: transparent;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, var(--primary-gradient));
+  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 3px), black calc(100% - 3px));
+  mask: radial-gradient(closest-side, transparent calc(100% - 3px), black calc(100% - 3px));
+  animation: spin 1s linear infinite;
 }
 
 .analysis-results {

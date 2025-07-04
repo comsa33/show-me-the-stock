@@ -197,6 +197,9 @@
 .news-stats {
   padding: 12px 20px;
   margin: 0 0 24px 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .news-stats-inner {
@@ -212,7 +215,7 @@
   align-items: center;
   gap: 8px;
   padding: 0;
-  background: white;
+  background:#6877e029;
   transition: all 0.3s ease;
   padding: 5px 20px 5px 20px;
   border-radius: 20px; 
@@ -234,10 +237,8 @@
 .stat-value {
   font-size: 18px;
   font-weight: 700;
-  background: var(--primary-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--text-primary);
+  opacity: 0.9;
 }
 
 /* 뉴스 리스트 */
@@ -260,6 +261,63 @@
   position: relative;
   overflow: hidden;
   margin: 0;
+}
+
+/* 뉴스 소스 배지 - 유리 효과 */
+.news-source-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px; /* 번호가 있던 자리에 위치 */
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+  opacity: 0;
+  transform: translateY(-5px);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.news-source-badge .domain-full {
+  font-size: 9px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  letter-spacing: 0.3px;
+  opacity: 0.7;
+}
+
+.news-source-badge .domain-name {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+}
+
+/* 라이트 모드 소스 배지 */
+[data-theme="light"] .news-source-badge {
+  background: rgba(0, 0, 0, 0.01);
+  border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="light"] .news-source-badge .domain-full {
+  color: var(--text-tertiary);
+  opacity: 0.6;
+}
+
+[data-theme="light"] .news-source-badge .domain-name {
+  color: var(--text-secondary);
+}
+
+/* 호버 시 배지 표시 */
+.news-item:hover .news-source-badge {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* 첫번째와 마지막 아이템 스타일 제거 - 모든 아이템이 동일한 스타일 */
@@ -289,6 +347,7 @@
 .news-main {
   flex: 1;
   min-width: 0;
+  padding-right: 0; /* 번호 제거로 여유 공간 확보 */
 }
 
 .news-title {
@@ -299,14 +358,22 @@
 }
 
 .news-title a {
-  color: var(--text-primary);
+  color: var(--primary);
   text-decoration: none;
   display: block;
-  transition: color 0.3s ease;
+  transition: all 0.3s ease;
+  background: linear-gradient(to right, var(--primary), var(--primary-dark));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .news-title a:hover {
-  color: var(--primary);
+  background: linear-gradient(to right, var(--primary-dark), var(--primary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  transform: translateX(2px);
 }
 
 .news-description {
@@ -357,7 +424,8 @@
   height: 12px;
 }
 
-/* 뉴스 번호 */
+/* 뉴스 번호 - 제거됨 */
+/*
 .news-index {
   display: flex;
   align-items: center;
@@ -371,12 +439,15 @@
   color: var(--text-tertiary);
   flex-shrink: 0;
   transition: all 0.3s ease;
+  position: relative;
+  z-index: 5;
 }
 
 .news-item:hover .news-index {
   background: var(--primary-gradient);
   color: white;
 }
+*/
 
 /* 빈 상태 */
 .empty-state {
@@ -559,17 +630,28 @@
     gap: 16px;
   }
   
-  .news-index {
-    position: absolute;
-    top: 16px;
+  /* 뉴스 번호 제거됨 */
+  
+  /* 모바일에서는 소스 배지 항상 표시 */
+  .news-source-badge {
+    opacity: 1;
+    transform: translateY(0);
+    top: auto;
+    bottom: 16px;
     right: 16px;
-    width: 32px;
-    height: 32px;
-    font-size: 14px;
+    padding: 3px 10px;
+  }
+  
+  .news-source-badge .domain-full {
+    font-size: 8px;
+  }
+  
+  .news-source-badge .domain-name {
+    font-size: 9px;
   }
   
   .news-main {
-    padding-right: 48px;
+    padding-right: 0;
   }
   
   .news-title {
@@ -627,8 +709,23 @@
   }
 }
 
-/* 다크 모드 지원 */
+/* 라이트 모드에서 제목 색상 조정 */
+[data-theme='light'] .news-title a {
+  background: linear-gradient(to right, var(--primary), var(--primary-dark));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700; /* 라이트 모드에서 더 진하게 */
+}
 
+[data-theme='light'] .news-title a:hover {
+  background: linear-gradient(to right, var(--primary-dark), var(--primary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 다크 모드 지원 */
 [data-theme='dark'] .stat-item {
   background: var(--bg-glass);
 }
@@ -647,4 +744,106 @@
 
 [data-theme='dark'] .loading-spinner {
   border-color: var(--border-secondary);
+}
+
+/* 페이지네이션 */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 32px;
+  padding: 24px 0;
+}
+
+.pagination-btn {
+  padding: 8px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+  border-color: var(--primary);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-numbers {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pagination-number {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pagination-number:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--primary);
+}
+
+.pagination-number.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+  font-weight: 600;
+}
+
+.pagination-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+
+/* 모바일 페이지네이션 */
+@media (max-width: 768px) {
+  .pagination {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px 0;
+  }
+  
+  .pagination-numbers {
+    order: 2;
+    width: 100%;
+    justify-content: center;
+    gap: 2px;
+  }
+  
+  .pagination-number {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+  }
+  
+  .pagination-btn {
+    padding: 8px 20px;
+    flex: 1;
+  }
 }

@@ -3,9 +3,11 @@
 """
 
 from typing import Dict, List, Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from app.data.stock_data import StockDataFetcher
+from app.core.cache import cache_manager
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +15,9 @@ router = APIRouter()
 
 # 전역 스톡 데이터 페처 인스턴스
 stock_fetcher = StockDataFetcher()
+
+# 캐시 TTL 설정 (24시간)
+CACHE_TTL_24H = 86400
 
 
 @router.get("/prices/{market}")
@@ -330,6 +335,122 @@ async def get_popular_stocks(
         )
 
 
+@router.get("/list/simple")
+async def get_simple_stock_list(
+    market: str = Query(..., description="시장 (KR/US/ALL)"),
+):
+    """
+    간단한 종목 목록 조회 (종목 코드와 이름만)
+    페이지네이션 없이 전체 목록 반환
+    Redis 캐싱 적용 (24시간)
+    """
+    try:
+        # 캐시 키 생성
+        cache_key = f"stocks:list:simple:{market.upper()}"
+        
+        # 캐시에서 조회
+        cached_data = await cache_manager.get(cache_key)
+        if cached_data:
+            logger.info(f"Cache hit for key: {cache_key}")
+            return cached_data
+        
+        # 캐시 미스 시 DB에서 조회
+        logger.info(f"Cache miss for key: {cache_key}")
+        stocks = []
+        
+        if market.upper() in ["ALL", "KR"]:
+            kr_stocks = stock_fetcher.get_all_kr_stocks()
+            # 종목 코드와 이름만 포함하는 간단한 형태로 변환
+            simple_kr_stocks = [
+                {
+                    "symbol": stock["symbol"],
+                    "name": stock["name"],
+                    "market": "KR"
+                }
+                for stock in kr_stocks
+            ]
+            stocks.extend(simple_kr_stocks)
+        
+        if market.upper() in ["ALL", "US"]:
+            us_stocks = stock_fetcher.get_all_us_stocks()
+            # 종목 코드와 이름만 포함하는 간단한 형태로 변환
+            simple_us_stocks = [
+                {
+                    "symbol": stock["symbol"],
+                    "name": stock["name"],
+                    "market": "US"
+                }
+                for stock in us_stocks
+            ]
+            stocks.extend(simple_us_stocks)
+        
+        if not stocks and market.upper() not in ["KR", "US", "ALL"]:
+            raise HTTPException(status_code=400, detail="지원하지 않는 시장입니다 (KR/US/ALL)")
+        
+        result = {
+            "market": market.upper(),
+            "total_count": len(stocks),
+            "stocks": stocks
+        }
+        
+        # 결과를 캐시에 저장 (24시간)
+        await cache_manager.set(cache_key, result, ttl=CACHE_TTL_24H)
+        logger.info(f"Cached data for key: {cache_key}")
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"간단한 종목 목록 조회 중 오류 발생: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"간단한 종목 목록 조회 중 오류 발생: {str(e)}"
+        )
+
+
+@router.get("/list/simple/{market_type}")
+async def get_simple_stock_list_by_market_type(
+    market_type: str,
+):
+    """
+    시장별 간단한 종목 목록 조회 (KOSPI/KOSDAQ/US)
+    """
+    try:
+        stocks = []
+        
+        if market_type.upper() == "KOSPI":
+            all_stocks = stock_fetcher.get_all_kospi_stocks()
+        elif market_type.upper() == "KOSDAQ":
+            all_stocks = stock_fetcher.get_all_kosdaq_stocks()
+        elif market_type.upper() == "US":
+            all_stocks = stock_fetcher.get_all_us_stocks()
+        else:
+            raise HTTPException(status_code=400, detail="지원하지 않는 시장입니다 (KOSPI/KOSDAQ/US)")
+        
+        # 종목 코드와 이름만 포함하는 간단한 형태로 변환
+        simple_stocks = [
+            {
+                "symbol": stock["symbol"],
+                "name": stock["name"]
+            }
+            for stock in all_stocks
+        ]
+        
+        return {
+            "market_type": market_type.upper(),
+            "total_count": len(simple_stocks),
+            "stocks": simple_stocks
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"시장별 간단한 종목 목록 조회 중 오류 발생: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"시장별 간단한 종목 목록 조회 중 오류 발생: {str(e)}"
+        )
+
+
 @router.get("/market/status")
 async def get_market_status():
     """시장 상태 정보"""
@@ -372,4 +493,28 @@ async def get_market_status():
         logger.error(f"시장 상태 조회 중 오류 발생: {e}")
         raise HTTPException(
             status_code=500, detail=f"시장 상태 조회 중 오류 발생: {str(e)}"
+        )
+
+
+@router.delete("/cache/clear")
+async def clear_stock_cache():
+    """
+    종목 목록 캐시 수동 초기화 (관리자용)
+    stocks:list:simple:* 패턴의 모든 캐시를 삭제
+    """
+    try:
+        # 종목 목록 캐시 삭제
+        deleted_count = await cache_manager.clear_pattern("stocks:list:simple:*")
+        
+        logger.info(f"Cleared {deleted_count} stock list cache entries")
+        
+        return {
+            "message": "Stock list cache cleared successfully",
+            "deleted_count": deleted_count
+        }
+        
+    except Exception as e:
+        logger.error(f"캐시 초기화 중 오류 발생: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"캐시 초기화 중 오류 발생: {str(e)}"
         )

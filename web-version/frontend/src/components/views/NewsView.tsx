@@ -22,12 +22,24 @@ interface NewsResponse {
   start: number;
   display: number;
   items: NewsItem[];
+  page_info?: {
+    current_page: number;
+    total_pages: number;
+    items_per_page: number;
+    total_items: number;
+    start_index: number;
+  };
 }
 
 interface CachedNews {
   data: NewsResponse;
   timestamp: number;
   query: string;
+}
+
+interface SimpleStock {
+  symbol: string;
+  name: string;
 }
 
 const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
@@ -37,6 +49,9 @@ const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
   const [error, setError] = useState<string | null>(null);
   const [selectedSymbol, setSelectedSymbol] = useState<string>('');
   const [displayCount, setDisplayCount] = useState<number>(10);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [allStocks, setAllStocks] = useState<SimpleStock[]>([]);
+  const [stocksLoading, setStocksLoading] = useState(false);
   const [popularStocks] = useState([
     // 한국 주식
     { symbol: '005930', name: '삼성전자', market: 'KR' },
@@ -62,6 +77,123 @@ const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
   const CACHE_DURATION = 5 * 60 * 1000; // 5분
   const [newsCache, setNewsCache] = useState<Map<string, CachedNews>>(new Map());
 
+  // 도메인 추출 함수
+  const extractDomain = (url: string): string => {
+    try {
+      const urlObj = new URL(url);
+      let domain = urlObj.hostname;
+      
+      // www. 제거
+      domain = domain.replace(/^www\./, '');
+      
+      // 전체 도메인 반환 (매핑 테이블에서 찾기 위해)
+      return domain;
+    } catch (error) {
+      return 'Unknown';
+    }
+  };
+
+  // 도메인별 표시 이름 매핑
+  const getDomainDisplayName = (domain: string): string => {
+    // 전체 도메인으로 먼저 매칭 시도
+    const fullDomainMap: { [key: string]: string } = {
+      'news.naver.com': '네이버',
+      'n.news.naver.com': '네이버',
+      'naver.com': '네이버',
+      'daum.net': '다음',
+      'news.daum.net': '다음',
+      'hankyung.com': '한국경제',
+      'mk.co.kr': '매일경제',
+      'news.mt.co.kr': '머니투데이',
+      'mt.co.kr': '머니투데이',
+      'edaily.co.kr': '이데일리',
+      'sedaily.com': '서울경제',
+      'etnews.com': '전자신문',
+      'chosun.com': '조선일보',
+      'donga.com': '동아일보',
+      'news.joins.com': '중앙일보',
+      'joongang.co.kr': '중앙일보',
+      'khan.co.kr': '경향신문',
+      'hani.co.kr': '한겨레',
+      'yna.co.kr': '연합뉴스',
+      'yonhapnews.co.kr': '연합뉴스',
+      'news.sbs.co.kr': 'SBS',
+      'imnews.imbc.com': 'MBC',
+      'news.kbs.co.kr': 'KBS',
+      'news.jtbc.co.kr': 'JTBC',
+      'ytn.co.kr': 'YTN',
+      'sisunnews.co.kr': '시선뉴스',
+      'fnnews.com': '파이낸셜뉴스',
+      'newsis.com': '뉴시스',
+      'news1.kr': '뉴스1',
+      'asiae.co.kr': '아시아경제',
+      'ajunews.com': '아주경제',
+      'inews24.com': '아이뉴스24',
+      'zdnet.co.kr': 'ZDNet',
+      'bloter.net': '블로터',
+      'thelec.kr': '더엘렉',
+      'economist.co.kr': '이코노미스트'
+    };
+    
+    // 전체 도메인으로 매칭
+    if (fullDomainMap[domain.toLowerCase()]) {
+      return fullDomainMap[domain.toLowerCase()];
+    }
+    
+    // 도메인의 첫 부분으로 다시 시도
+    const parts = domain.split('.');
+    const mainPart = parts[0];
+    
+    const partialMap: { [key: string]: string } = {
+      'naver': '네이버',
+      'daum': '다음',
+      'hankyung': '한국경제',
+      'mk': '매일경제',
+      'mt': '머니투데이',
+      'edaily': '이데일리',
+      'sedaily': '서울경제',
+      'etnews': '전자신문',
+      'chosun': '조선일보',
+      'donga': '동아일보',
+      'joongang': '중앙일보',
+      'khan': '경향신문',
+      'hani': '한겨레',
+      'yonhap': '연합뉴스',
+      'yna': '연합뉴스'
+    };
+    
+    if (partialMap[mainPart.toLowerCase()]) {
+      return partialMap[mainPart.toLowerCase()];
+    }
+    
+    // 둘 다 실패하면 도메인의 주요 부분 반환
+    if (parts.length >= 2) {
+      // co.kr, .com 등을 제거하고 주요 부분만 반환
+      const name = parts[0].replace(/news|www/, '');
+      return name.toUpperCase();
+    }
+    
+    return domain.split('.')[0].toUpperCase();
+  };
+
+  // 종목 목록 가져오기
+  const fetchStocks = useCallback(async () => {
+    setStocksLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/v1/stocks/list/simple?market=${selectedMarket}`);
+      if (!response.ok) throw new Error('Failed to fetch stocks');
+      const data = await response.json();
+      // API 응답 형식에 맞게 처리
+      setAllStocks(data.stocks || data);
+    } catch (error) {
+      console.error('Failed to fetch stocks:', error);
+      // 실패 시 인기 종목만 사용
+      setAllStocks([]);
+    } finally {
+      setStocksLoading(false);
+    }
+  }, [selectedMarket]);
+
   // 선택된 주식이 있으면 해당 주식으로 설정
   useEffect(() => {
     if (selectedStock) {
@@ -69,11 +201,16 @@ const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
     }
   }, [selectedStock]);
 
+  // 종목 목록 가져오기
+  useEffect(() => {
+    fetchStocks();
+  }, [fetchStocks]);
+
   // 뉴스 가져오기
-  const fetchNews = useCallback(async (forceRefresh: boolean = false) => {
+  const fetchNews = useCallback(async (forceRefresh: boolean = false, page: number = 1) => {
     if (!selectedSymbol) return;
 
-    const cacheKey = `${selectedSymbol}-${displayCount}`;
+    const cacheKey = `${selectedSymbol}-${displayCount}-${page}`;
     const cached = newsCache.get(cacheKey);
 
     // 캐시 확인
@@ -86,10 +223,10 @@ const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
     setError(null);
 
     try {
-      const stock = popularStocks.find(s => s.symbol === selectedSymbol);
+      const stock = [...allStocks, ...popularStocks].find(s => s.symbol === selectedSymbol);
       const query = stock ? encodeURIComponent(stock.name) : encodeURIComponent(selectedSymbol);
       
-      const response = await fetch(`${API_BASE}/v1/news/search?query=${query}&display=${displayCount}&sort=sim`);
+      const response = await fetch(`${API_BASE}/v1/news/search?query=${query}&display=${displayCount}&page=${page}&sort=sim`);
 
       if (!response.ok) {
         throw new Error('뉴스를 불러오는데 실패했습니다.');
@@ -111,14 +248,14 @@ const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
     } finally {
       setLoading(false);
     }
-  }, [selectedSymbol, displayCount, newsCache, popularStocks, CACHE_DURATION]);
+  }, [selectedSymbol, displayCount, newsCache, popularStocks, allStocks, CACHE_DURATION]);
 
-  // 심볼 변경 시 뉴스 자동 로드
+  // 심볼, 페이지, 표시 개수 변경 시 뉴스 자동 로드
   useEffect(() => {
     if (selectedSymbol) {
-      fetchNews();
+      fetchNews(false, currentPage);
     }
-  }, [selectedSymbol, displayCount, fetchNews]);
+  }, [selectedSymbol, displayCount, currentPage, fetchNews]);
 
   // 날짜 포맷팅
   const formatDate = (dateString: string) => {
@@ -164,29 +301,62 @@ const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
             <select 
               className="stock-selector"
               value={selectedSymbol}
-              onChange={(e) => setSelectedSymbol(e.target.value)}
+              onChange={(e) => {
+                setSelectedSymbol(e.target.value);
+                setCurrentPage(1); // 종목 변경 시 첫 페이지로
+              }}
+              disabled={stocksLoading}
             >
               <option value="">종목 선택</option>
-              <optgroup label="한국 주식">
-                {popularStocks.filter(s => s.market === 'KR').map(stock => (
-                  <option key={stock.symbol} value={stock.symbol}>
-                    {stock.name} ({stock.symbol})
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="미국 주식">
-                {popularStocks.filter(s => s.market === 'US').map(stock => (
-                  <option key={stock.symbol} value={stock.symbol}>
-                    {stock.name} ({stock.symbol})
-                  </option>
-                ))}
-              </optgroup>
+              {allStocks.length > 0 ? (
+                // 실제 종목 데이터 표시
+                selectedMarket === 'KR' ? (
+                  <>
+                    <optgroup label="코스피">
+                      {allStocks.filter(s => s.symbol.startsWith('0')).map(stock => (
+                        <option key={stock.symbol} value={stock.symbol}>
+                          {stock.name} ({stock.symbol})
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="코스닥">
+                      {allStocks.filter(s => !s.symbol.startsWith('0')).map(stock => (
+                        <option key={stock.symbol} value={stock.symbol}>
+                          {stock.name} ({stock.symbol})
+                        </option>
+                      ))}
+                    </optgroup>
+                  </>
+                ) : (
+                  <optgroup label="미국 주식">
+                    {allStocks.map(stock => (
+                      <option key={stock.symbol} value={stock.symbol}>
+                        {stock.name} ({stock.symbol})
+                      </option>
+                    ))}
+                  </optgroup>
+                )
+              ) : (
+                // 로딩 중이거나 실패 시 인기 종목만 표시
+                <>
+                  <optgroup label="인기 종목">
+                    {popularStocks.filter(s => s.market === selectedMarket).map(stock => (
+                      <option key={stock.symbol} value={stock.symbol}>
+                        {stock.name} ({stock.symbol})
+                      </option>
+                    ))}
+                  </optgroup>
+                </>
+              )}
             </select>
 
             <select 
               className="count-selector"
               value={displayCount}
-              onChange={(e) => setDisplayCount(Number(e.target.value))}
+              onChange={(e) => {
+                setDisplayCount(Number(e.target.value));
+                setCurrentPage(1); // 표시 개수 변경 시 첫 페이지로
+              }}
             >
               <option value={10}>10개</option>
               <option value={20}>20개</option>
@@ -196,7 +366,7 @@ const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
 
             <button 
               className="refresh-button"
-              onClick={() => fetchNews(true)}
+              onClick={() => fetchNews(true, currentPage)}
               disabled={loading || !selectedSymbol}
               title="새로고침"
             >
@@ -254,9 +424,17 @@ const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
 
               {/* 뉴스 리스트 */}
               <div className="news-list">
-                {newsData.items.map((item, index) => (
-                  <article key={index} className="news-item">
-                    <div className="news-main">
+                {newsData.items.map((item, index) => {
+                  const domain = extractDomain(item.originallink);
+                  const domainName = getDomainDisplayName(domain);
+                  
+                  return (
+                    <article key={index} className="news-item">
+                      <div className="news-source-badge">
+                        <span className="domain-full">{domain}</span>
+                        <span className="domain-name">{domainName}</span>
+                      </div>
+                      <div className="news-main">
                       <h3 className="news-title">
                         <a 
                           href={item.originallink} 
@@ -283,12 +461,87 @@ const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
                         </a>
                       </div>
                     </div>
-                    <div className="news-index">
-                      {index + 1}
-                    </div>
-                  </article>
-                ))}
+                    </article>
+                  );
+                })}
               </div>
+
+              {/* 페이지네이션 */}
+              {newsData && newsData.page_info && newsData.page_info.total_pages > 1 && (
+                <div className="pagination">
+                  <button
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    이전
+                  </button>
+                  
+                  <div className="pagination-numbers">
+                    {(() => {
+                      const totalPages = newsData.page_info.total_pages;
+                      const pageNumbers = [];
+                      let startPage = Math.max(1, currentPage - 2);
+                      let endPage = Math.min(totalPages, currentPage + 2);
+                      
+                      // 첫 페이지
+                      if (startPage > 1) {
+                        pageNumbers.push(
+                          <button
+                            key={1}
+                            className={`pagination-number ${currentPage === 1 ? 'active' : ''}`}
+                            onClick={() => setCurrentPage(1)}
+                          >
+                            1
+                          </button>
+                        );
+                        if (startPage > 2) {
+                          pageNumbers.push(<span key="dots1" className="pagination-dots">...</span>);
+                        }
+                      }
+                      
+                      // 중간 페이지들
+                      for (let i = startPage; i <= endPage; i++) {
+                        pageNumbers.push(
+                          <button
+                            key={i}
+                            className={`pagination-number ${currentPage === i ? 'active' : ''}`}
+                            onClick={() => setCurrentPage(i)}
+                          >
+                            {i}
+                          </button>
+                        );
+                      }
+                      
+                      // 마지막 페이지
+                      if (endPage < totalPages) {
+                        if (endPage < totalPages - 1) {
+                          pageNumbers.push(<span key="dots2" className="pagination-dots">...</span>);
+                        }
+                        pageNumbers.push(
+                          <button
+                            key={totalPages}
+                            className={`pagination-number ${currentPage === totalPages ? 'active' : ''}`}
+                            onClick={() => setCurrentPage(totalPages)}
+                          >
+                            {totalPages}
+                          </button>
+                        );
+                      }
+                      
+                      return pageNumbers;
+                    })()}
+                  </div>
+                  
+                  <button
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage(prev => Math.min(newsData.page_info!.total_pages, prev + 1))}
+                    disabled={currentPage === newsData.page_info.total_pages}
+                  >
+                    다음
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>

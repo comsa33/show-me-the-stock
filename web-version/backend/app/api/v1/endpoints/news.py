@@ -21,6 +21,7 @@ async def search_news(
     query: str = Query(..., description="검색할 키워드"),
     display: int = Query(10, ge=1, le=100, description="한 번에 표시할 검색 결과 개수"),
     start: int = Query(1, ge=1, le=1000, description="검색 시작 위치"),
+    page: Optional[int] = Query(None, ge=1, description="페이지 번호 (start 대신 사용 가능)"),
     sort: str = Query("sim", regex="^(sim|date)$", description="정렬 옵션 (sim: 유사도순, date: 날짜순)")
 ):
     """
@@ -30,11 +31,16 @@ async def search_news(
         query: 검색 키워드
         display: 검색 결과 출력 건수 (기본값: 10, 최대: 100)
         start: 검색 시작 위치 (기본값: 1, 최대: 1000)
+        page: 페이지 번호 (옵션, start 대신 사용 가능)
         sort: 정렬 옵션 (sim: 유사도순, date: 날짜순)
     
     Returns:
         네이버 뉴스 검색 결과
     """
+    
+    # page 파라미터가 제공된 경우 start 값으로 변환
+    if page is not None:
+        start = (page - 1) * display + 1
     
     # 설정에서 네이버 API 키 가져오기
     client_id = settings.naver_client_id
@@ -69,6 +75,21 @@ async def search_news(
             response.raise_for_status()
             data = response.json()
             logger.info(f"Found {data.get('total', 0)} news items for query: {query}")
+            
+            # 페이지 정보 추가
+            total_items = data.get('total', 0)
+            current_page = ((start - 1) // display) + 1
+            total_pages = (total_items + display - 1) // display if total_items > 0 else 0
+            
+            # 응답에 페이지 정보 포함
+            data['page_info'] = {
+                'current_page': current_page,
+                'total_pages': total_pages,
+                'items_per_page': display,
+                'total_items': total_items,
+                'start_index': start
+            }
+            
             return data
             
         except httpx.HTTPStatusError as e:

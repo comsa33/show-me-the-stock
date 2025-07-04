@@ -63,37 +63,37 @@ const MarketStats: React.FC<MarketStatsProps> = ({ selectedMarket }) => {
 
   if (loading) {
     return (
-      <div className="stats-grid">
-        <div className="stat-item loading-placeholder" />
-        <div className="stat-item loading-placeholder" />
-        <div className="stat-item loading-placeholder" />
+      <div className="sidebar-stats-grid">
+        <div className="sidebar-stat-item loading-placeholder" />
+        <div className="sidebar-stat-item loading-placeholder" />
+        <div className="sidebar-stat-item loading-placeholder" />
       </div>
     );
   }
 
   if (!marketData || marketData.length === 0) {
     return (
-      <div className="stats-grid">
-        <div className="stat-item">
-          <div className="stat-label">데이터 없음</div>
-          <div className="stat-value">-</div>
+      <div className="sidebar-stats-grid">
+        <div className="sidebar-stat-item">
+          <div className="sidebar-stat-label">데이터 없음</div>
+          <div className="sidebar-stat-value">-</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="stats-grid">
+    <div className="sidebar-stats-grid">
       {marketData.slice(0, 3).map((item) => {
         if (!item) return null;
         return (
-          <div key={item.symbol || Math.random()} className="stat-item">
-            <div className="stat-label">{item.name || item.symbol || '알 수 없음'}</div>
-            <div className="stat-value-container">
-              <div className="stat-value">
+          <div key={item.symbol || Math.random()} className="sidebar-stat-item">
+            <div className="sidebar-stat-label">{item.name || item.symbol || '알 수 없음'}</div>
+            <div className="sidebar-stat-value-container">
+              <div className="sidebar-stat-value">
                 {typeof item.current_price === 'number' ? item.current_price.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '0'}
               </div>
-              <div className={`stat-change ${(item.change_percent || 0) >= 0 ? 'status-positive' : 'status-negative'}`}>
+              <div className={`sidebar-stat-change ${(item.change_percent || 0) >= 0 ? 'status-positive' : 'status-negative'}`}>
                 {(item.change_percent || 0) >= 0 ? '+' : ''}{(item.change_percent || 0).toFixed(2)}%
               </div>
             </div>
