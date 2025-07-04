@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import { API_BASE } from '../../config';
-import { Newspaper, RefreshCw, Calendar, ExternalLink, Search } from 'lucide-react';
+import { RefreshCw, Calendar, ExternalLink, Search } from 'lucide-react';
 import { stockCache } from '../../utils/stockCache';
 import SearchableSelect from '../common/SearchableSelect';
 import './NewsView.css';

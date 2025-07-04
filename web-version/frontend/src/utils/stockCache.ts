@@ -187,6 +187,7 @@ export function useCachedStocks<T>(
     return () => {
       mounted = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]); // fetcher는 의존성에서 제외 (무한 루프 방지)
 
   return { data, loading, error, isStale };

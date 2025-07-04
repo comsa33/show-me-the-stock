@@ -54,8 +54,16 @@ interface RecommendedStock {
   predictedReturn: number;
   confidence: number;
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
-  timeHorizon: string;
+  timeHorizon: 'SHORT' | 'MEDIUM' | 'LONG';
+  keyIndicators: {
+    PER?: number;
+    PBR?: number;
+    ROE?: number;
+    quantScore?: number;
+    [key: string]: number | undefined;
+  };
   reasoning: string[];
+  warnings?: string[];
 }
 
 
@@ -73,6 +81,8 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
   });
   const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);
   const [recommendations, setRecommendations] = useState<RecommendedStock[]>([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
+  const [recommendationsFetched, setRecommendationsFetched] = useState(false);
   const [sortField, setSortField] = useState<keyof import('../../context/AppContext').QuantIndicator>('limited_quant_score');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [filters, setFilters] = useState({
@@ -121,12 +131,44 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
     }
   }, [selectedMarket]);
 
+  // AI 추천 가져오기
+  const fetchAIRecommendations = useCallback(async () => {
+    const cacheKey = `ai_recommendations_${selectedMarket}`;
+    
+    // 캐시 확인 (빈 배열이 아닌 경우에만 사용)
+    const cached = stockCache.get<RecommendedStock[]>(cacheKey);
+    if (cached && cached.length > 0) {
+      setRecommendations(cached);
+      setRecommendationsLoading(false);
+      return;
+    }
+    
+    setRecommendationsLoading(true);
+    try {
+      const url = `${API_BASE}/v1/ai-recommendations/top-stocks?market=${selectedMarket}&top_n=6`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch AI recommendations');
+      
+      const data = await response.json();
+      const recommendations = data.recommendations || [];
+      
+      setRecommendations(recommendations);
+      // 캐시에 저장 (1시간) - 데이터가 있을 때만
+      if (recommendations.length > 0) {
+        stockCache.set(cacheKey, recommendations, 60 * 60 * 1000);
+      }
+    } catch (error) {
+      console.error('Failed to fetch AI recommendations:', error);
+      // 실패 시 빈 배열
+      setRecommendations([]);
+    } finally {
+      setRecommendationsLoading(false);
+    }
+  }, [selectedMarket]);
+
   useEffect(() => {
     // 종목 목록 가져오기
     fetchStocks();
-    
-    // 추천 종목 생성
-    generateRecommendations();
     
     // 퀀트 데이터 로드 (캐시된 데이터 사용)
     fetchQuantData(selectedMarket);
@@ -139,7 +181,17 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
       symbol: '',
       investmentAmount: selectedMarket === 'KR' ? 1000000 : 1000
     }));
+    // AI 추천도 다시 가져와야 함
+    setRecommendationsFetched(false);
   }, [selectedMarket, fetchQuantData, fetchStocks]);
+
+  // AI 추천 탭이 활성화될 때 데이터 가져오기
+  useEffect(() => {
+    if (activeTab === 'recommendations' && !recommendationsFetched && !recommendationsLoading) {
+      fetchAIRecommendations();
+      setRecommendationsFetched(true);
+    }
+  }, [activeTab, recommendationsFetched, recommendationsLoading, fetchAIRecommendations]);
 
   const handleSort = (field: keyof import('../../context/AppContext').QuantIndicator) => {
     if (sortField === field) {
@@ -173,38 +225,6 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
   const SortIcon = ({ field }: { field: keyof import('../../context/AppContext').QuantIndicator }) => {
     if (sortField !== field) return null;
     return sortDirection === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />;
-  };
-
-  const generateRecommendations = () => {
-    // 현재 사용 가능한 종목이 있으면 그것을 사용, 없으면 빈 배열
-    const stocksForRecommendation = availableStocks.length > 0 ? availableStocks : [];
-    
-    const mockRecommendations: RecommendedStock[] = stocksForRecommendation
-      .slice(0, 5)
-      .map((stock, index) => {
-        const predictedReturn = (Math.random() - 0.3) * 40; // -30% ~ +40%
-        const currentPrice = stock.currentPrice || 100; // 기본값 설정
-        const predictedPrice = currentPrice * (1 + predictedReturn / 100);
-        const confidence = Math.random() * 40 + 60; // 60-100%
-        
-        return {
-          symbol: stock.symbol,
-          name: stock.name,
-          currentPrice: currentPrice,
-          predictedPrice: Math.round(predictedPrice * 100) / 100,
-          predictedReturn: Math.round(predictedReturn * 100) / 100,
-          confidence: Math.round(confidence),
-          riskLevel: confidence > 80 ? 'LOW' : confidence > 70 ? 'MEDIUM' : 'HIGH',
-          timeHorizon: '3개월',
-          reasoning: [
-            '기술적 분석 상승 신호',
-            '재무 지표 개선',
-            '업계 전망 긍정적'
-          ]
-        };
-      });
-
-    setRecommendations(mockRecommendations);
   };
 
   const runBacktest = async () => {
@@ -617,72 +637,113 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
           </div>
           <div className="section-info">
             <h3>AI 투자 추천</h3>
-            <p>현재 시장 분석을 바탕으로 향후 3개월 수익 가능성이 높은 종목들을 추천합니다</p>
+            <p>퀴트 지표 상위 종목을 AI가 심층 분석하여 투자 인사이트를 제공합니다</p>
           </div>
         </div>
       </div>
 
-      <div className="recommendations-grid">
-        {recommendations.map((rec, index) => (
-          <div key={rec.symbol} className="recommendation-card">
-            <div className="rec-header">
-              <div className="rec-rank">#{index + 1}</div>
-              <div className="rec-risk-badge" data-risk={rec.riskLevel.toLowerCase()}>
-                {rec.riskLevel === 'LOW' ? '안전' : rec.riskLevel === 'MEDIUM' ? '보통' : '위험'}
-              </div>
-            </div>
+      {recommendationsLoading ? (
+        <div className="loading">
+          <div className="loading-spinner"></div>
+          <div className="loading-text">AI가 종목을 분석하고 있습니다...</div>
+          <div className="loading-subtext">퀴트 지표 상위 종목을 심층 분석 중입니다</div>
+        </div>
+      ) : recommendations.length === 0 ? (
+        <div className="empty-state">
+          <p>AI 추천 종목이 없습니다.</p>
+          <p className="empty-state-sub">잠시 후 다시 시도해주세요.</p>
+        </div>
+      ) : (
+        <div className="recommendations-grid">
+          {recommendations.map((rec, idx) => {
+            const timeHorizonText = rec.timeHorizon === 'SHORT' ? '1-3개월' : 
+                                   rec.timeHorizon === 'MEDIUM' ? '3-6개월' : '6개월 이상';
             
-            <div className="rec-company">
-              <h4>{rec.name}</h4>
-              <span className="rec-symbol">({rec.symbol})</span>
-            </div>
+            return (
+              <div key={rec.symbol} className="recommendation-card">
+                <div className="rec-header">
+                  <div className="rec-rank">#{idx + 1}</div>
+                  <div className="rec-risk-badge" data-risk={rec.riskLevel.toLowerCase()}>
+                    {rec.riskLevel === 'LOW' ? '안전' : rec.riskLevel === 'MEDIUM' ? '보통' : '위험'}
+                  </div>
+                </div>
+                
+                <div className="rec-company">
+                  <h4>{rec.name}</h4>
+                  <span className="rec-symbol">({rec.symbol})</span>
+                </div>
 
-            <div className="rec-prices">
-              <div className="price-row">
-                <span>현재가</span>
-                <span className="current-price">{formatCurrency(rec.currentPrice)}</span>
+                <div className="rec-prices">
+                  <div className="price-row">
+                    <span>현재가</span>
+                    <span className="current-price">{formatCurrency(rec.currentPrice)}</span>
+                  </div>
+                  <div className="price-row">
+                    <span>예상가 ({timeHorizonText})</span>
+                    <span className="predicted-price">{formatCurrency(rec.predictedPrice)}</span>
+                  </div>
+                </div>
+
+                <div className={`rec-return ${rec.predictedReturn >= 0 ? 'positive' : 'negative'}`}>
+                  <span className="return-label">예상 수익률</span>
+                  <span className="return-value">
+                    {rec.predictedReturn >= 0 ? '+' : ''}{rec.predictedReturn}%
+                  </span>
+                </div>
+
+                <div className="rec-confidence">
+                  <span>신뢰도: {rec.confidence}%</span>
+                  <div className="confidence-bar">
+                    <div className="confidence-fill" style={{ width: `${rec.confidence}%` }}></div>
+                  </div>
+                </div>
+
+                {rec.keyIndicators && (
+                  <div className="rec-indicators">
+                    <h5>핵심 지표</h5>
+                    <div className="indicators-grid">
+                      {rec.keyIndicators.PER && <span>PER: {rec.keyIndicators.PER}</span>}
+                      {rec.keyIndicators.PBR && <span>PBR: {rec.keyIndicators.PBR}</span>}
+                      {rec.keyIndicators.ROE && <span>ROE: {rec.keyIndicators.ROE}%</span>}
+                      {rec.keyIndicators.quantScore && <span>퀴트: {rec.keyIndicators.quantScore}점</span>}
+                    </div>
+                  </div>
+                )}
+
+                <div className="rec-reasoning">
+                  <h5>추천 이유</h5>
+                  <ul>
+                    {rec.reasoning.map((reason, reasonIdx) => (
+                      <li key={reasonIdx}>{reason}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                {rec.warnings && rec.warnings.length > 0 && (
+                  <div className="rec-warnings">
+                    <h5>주의사항</h5>
+                    <ul>
+                      {rec.warnings.map((warning, warningIdx) => (
+                        <li key={warningIdx}>{warning}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <button 
+                  className="rec-backtest-btn"
+                  onClick={() => {
+                    setBacktestSettings(prev => ({ ...prev, symbol: rec.symbol }));
+                    setActiveTab('backtest');
+                  }}
+                >
+                  백테스트 해보기
+                </button>
               </div>
-              <div className="price-row">
-                <span>예상가 ({rec.timeHorizon})</span>
-                <span className="predicted-price">{formatCurrency(rec.predictedPrice)}</span>
-              </div>
-            </div>
-
-            <div className={`rec-return ${rec.predictedReturn >= 0 ? 'positive' : 'negative'}`}>
-              <span className="return-label">예상 수익률</span>
-              <span className="return-value">
-                {rec.predictedReturn >= 0 ? '+' : ''}{rec.predictedReturn}%
-              </span>
-            </div>
-
-            <div className="rec-confidence">
-              <span>신뢰도: {rec.confidence}%</span>
-              <div className="confidence-bar">
-                <div className="confidence-fill" style={{ width: `${rec.confidence}%` }}></div>
-              </div>
-            </div>
-
-            <div className="rec-reasoning">
-              <h5>추천 이유</h5>
-              <ul>
-                {rec.reasoning.map((reason, idx) => (
-                  <li key={idx}>{reason}</li>
-                ))}
-              </ul>
-            </div>
-
-            <button 
-              className="rec-backtest-btn"
-              onClick={() => {
-                setBacktestSettings(prev => ({ ...prev, symbol: rec.symbol }));
-                setActiveTab('backtest');
-              }}
-            >
-              백테스트 해보기
-            </button>
-          </div>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 

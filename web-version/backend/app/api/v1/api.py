@@ -4,6 +4,7 @@ API v1 라우터
 """
 
 from app.api.v1.endpoints import ai_analysis, interest_rates, stocks, stocks_v2, quant, indices, realtime, news
+from app.api.v1 import ai_recommendations
 from fastapi import APIRouter
 
 api_router = APIRouter()
@@ -19,4 +20,5 @@ api_router.include_router(quant.router, prefix="/quant", tags=["quant-analysis"]
 api_router.include_router(indices.router, prefix="/indices", tags=["indices"])
 api_router.include_router(realtime.router, prefix="/stocks", tags=["realtime"])
 api_router.include_router(news.router, prefix="/news", tags=["news"])
+api_router.include_router(ai_recommendations.router, tags=["ai-recommendations"])
 # api_router.include_router(predictions.router, prefix="/predictions", tags=["predictions"])
