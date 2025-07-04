@@ -654,27 +654,41 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
 
       <div className="quant-tabs">
         <div className="tabs-container">
-          <button
-            className={`tab-button ${activeTab === 'indicators' ? 'active' : ''}`}
-            onClick={() => setActiveTab('indicators')}
-          >
-            <Activity className="tab-icon" size={20} />
-            <span className="tab-label">퀀트 지표</span>
-          </button>
-          <button
-            className={`tab-button ${activeTab === 'backtest' ? 'active' : ''}`}
-            onClick={() => setActiveTab('backtest')}
-          >
-            <BarChart3 className="tab-icon" size={20} />
-            <span className="tab-label">백테스트</span>
-          </button>
-          <button
-            className={`tab-button ${activeTab === 'recommendations' ? 'active' : ''}`}
-            onClick={() => setActiveTab('recommendations')}
-          >
-            <TrendingUp className="tab-icon" size={20} />
-            <span className="tab-label">AI 추천</span>
-          </button>
+          <div className="tab-selector">
+            <button
+              className={`tab-btn ${activeTab === 'indicators' ? 'active' : ''}`}
+              onClick={() => setActiveTab('indicators')}
+              title="퀀트 지표 분석"
+            >
+              <Activity size={20} />
+              <span>
+                <div className="tab-title">퀀트 지표</div>
+                <div className="tab-subtitle">정량적 분석</div>
+              </span>
+            </button>
+            <button
+              className={`tab-btn ${activeTab === 'backtest' ? 'active' : ''}`}
+              onClick={() => setActiveTab('backtest')}
+              title="백테스트 시뮬레이션"
+            >
+              <BarChart3 size={20} />
+              <span>
+                <div className="tab-title">백테스트</div>
+                <div className="tab-subtitle">전략 검증</div>
+              </span>
+            </button>
+            <button
+              className={`tab-btn ${activeTab === 'recommendations' ? 'active' : ''}`}
+              onClick={() => setActiveTab('recommendations')}
+              title="AI 추천 종목"
+            >
+              <TrendingUp size={20} />
+              <span>
+                <div className="tab-title">AI 추천</div>
+                <div className="tab-subtitle">예측 분석</div>
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 
