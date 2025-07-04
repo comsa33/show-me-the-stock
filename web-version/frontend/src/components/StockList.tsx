@@ -79,14 +79,14 @@ const StockList: React.FC<StockListProps> = ({
     };
   };
 
-  const handleStockDetail = (stock: Stock) => {
+  const handleStockAnalysis = (stock: Stock) => {
     setSelectedStock({ ...stock, market: selectedMarket });
     setCurrentView('stocks');
   };
 
-  const handleStockAnalysis = (stock: Stock) => {
+  const handleStockNews = (stock: Stock) => {
     setSelectedStock({ ...stock, market: selectedMarket });
-    setCurrentView('stocks');
+    setCurrentView('news');
   };
 
   if (loading) {
@@ -216,16 +216,6 @@ const StockList: React.FC<StockListProps> = ({
 
               <div className="stock-actions">
                 <button 
-                  className="btn-secondary stock-btn"
-                  onClick={() => handleStockDetail(stock)}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polyline points="22,12 18,8 18,16"></polyline>
-                    <path d="M2,12h20"></path>
-                  </svg>
-                  상세보기
-                </button>
-                <button 
                   className="btn-primary stock-btn"
                   onClick={() => handleStockAnalysis(stock)}
                 >
@@ -234,6 +224,20 @@ const StockList: React.FC<StockListProps> = ({
                     <line x1="5" y1="12" x2="19" y2="12"></line>
                   </svg>
                   분석
+                </button>
+                <button 
+                  className="btn-secondary stock-btn"
+                  onClick={() => handleStockNews(stock)}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M2 3h20v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3z"></path>
+                    <path d="M2 3h20v5H2z"></path>
+                    <path d="M12 12h8"></path>
+                    <path d="M12 16h8"></path>
+                    <path d="M6 12h2"></path>
+                    <path d="M6 16h2"></path>
+                  </svg>
+                  뉴스보기
                 </button>
               </div>
             </div>

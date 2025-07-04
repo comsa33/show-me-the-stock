@@ -57,6 +57,10 @@ spec:
           value: "{{ .Values.alphaVantageApiKey }}"
         - name: SECRET_KEY
           value: "{{ .Values.secretKey }}"
+        - name: NAVER_CLIENT_ID
+          value: "{{ .Values.naverClientId }}"
+        - name: NAVER_CLIENT_SECRET
+          value: "{{ .Values.naverClientSecret }}"
         - name: ALLOWED_ORIGINS
           value: {{ .Values.backend.env.ALLOWED_ORIGINS | quote }}
         readinessProbe:

@@ -4,7 +4,7 @@
 """
 
 from functools import lru_cache
-from typing import List
+from typing import List, Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings
@@ -24,10 +24,10 @@ class Settings(BaseSettings):
     host: str = Field(default="0.0.0.0", description="서버 호스트")
     port: int = Field(default=8000, description="서버 포트")
 
-    # CORS 설정
-    allowed_origins: List[str] = Field(
-        default=["http://localhost:3000", "http://127.0.0.1:3000"],
-        description="허용된 CORS 오리진",
+    # CORS 설정 - 문자열로 받아서 내부적으로 파싱
+    allowed_origins: str = Field(
+        default="http://localhost:3000,http://127.0.0.1:3000",
+        description="허용된 CORS 오리진 (콤마로 구분)",
     )
 
     # Redis 설정
@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     # 외부 API 설정
     gemini_api_key: str = Field(default="", description="Gemini AI API 키")
     alpha_vantage_api_key: str = Field(default="", description="Alpha Vantage API 키")
+    naver_client_id: str = Field(default="", description="Naver API Client ID")
+    naver_client_secret: str = Field(default="", description="Naver API Client Secret")
 
     # 레이트 리미팅
     rate_limit_requests: int = Field(default=100, description="분당 요청 수 제한")
@@ -75,11 +77,17 @@ class Settings(BaseSettings):
         default=3600, description="개별 종목 지표 캐시 TTL (초, 1시간)"
     )
     max_chart_points: int = Field(default=1000, description="차트 최대 데이터 포인트")
+    
+    @property
+    def cors_origins(self) -> List[str]:
+        """CORS 오리진 리스트 반환"""
+        return [origin.strip() for origin in self.allowed_origins.split(',')]
 
     class Config:
-        env_file = ".env"
+        env_file = "../.env"
         env_file_encoding = "utf-8"
         case_sensitive = False
+        extra = "ignore"  # 추가 필드 무시
 
 
 @lru_cache()
