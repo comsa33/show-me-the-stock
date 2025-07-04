@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import { API_BASE } from '../../config';
 import { Newspaper, RefreshCw, Calendar, ExternalLink, Search } from 'lucide-react';
+import { stockCache } from '../../utils/stockCache';
 import './NewsView.css';
 
 interface NewsViewProps {
@@ -178,13 +179,29 @@ const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
 
   // 종목 목록 가져오기
   const fetchStocks = useCallback(async () => {
+    const cacheKey = `stocks_simple_${selectedMarket}`;
+    
+    // 캐시 확인
+    const cached = stockCache.get<SimpleStock[]>(cacheKey);
+    if (cached) {
+      setAllStocks(cached);
+      setStocksLoading(false);
+      return;
+    }
+    
+    // 캐시가 없으면 API 호출
     setStocksLoading(true);
     try {
       const response = await fetch(`${API_BASE}/v1/stocks/list/simple?market=${selectedMarket}`);
       if (!response.ok) throw new Error('Failed to fetch stocks');
       const data = await response.json();
+      
       // API 응답 형식에 맞게 처리
-      setAllStocks(data.stocks || data);
+      const stocks = data.stocks || data;
+      setAllStocks(stocks);
+      
+      // 캐시에 저장 (24시간)
+      stockCache.set(cacheKey, stocks);
     } catch (error) {
       console.error('Failed to fetch stocks:', error);
       // 실패 시 인기 종목만 사용
