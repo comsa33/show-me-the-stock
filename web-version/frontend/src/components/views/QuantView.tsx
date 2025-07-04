@@ -130,6 +130,15 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
     
     // 퀀트 데이터 로드 (캐시된 데이터 사용)
     fetchQuantData(selectedMarket);
+    
+    // 시장이 변경되면 백테스트 결과 초기화
+    setBacktestResult(null);
+    // 백테스트 설정에서 종목 선택도 초기화
+    setBacktestSettings(prev => ({
+      ...prev,
+      symbol: '',
+      investmentAmount: selectedMarket === 'KR' ? 1000000 : 1000
+    }));
   }, [selectedMarket, fetchQuantData, fetchStocks]);
 
   const handleSort = (field: keyof import('../../context/AppContext').QuantIndicator) => {
@@ -288,7 +297,11 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
                 subLabel: stock.symbol
               }))}
               value={backtestSettings.symbol}
-              onChange={(value) => setBacktestSettings(prev => ({ ...prev, symbol: value }))}
+              onChange={(value) => {
+                setBacktestSettings(prev => ({ ...prev, symbol: value }));
+                // 종목이 변경되면 이전 백테스트 결과 초기화
+                setBacktestResult(null);
+              }}
               placeholder="종목명 또는 코드로 검색..."
               loading={stocksLoading}
               disabled={stocksLoading}
