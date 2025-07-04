@@ -380,11 +380,19 @@ const StockDetail: React.FC = () => {
                 className="footnote-link"
                 title={sources[num - 1]?.title || ''}
               >
-                [{num}]
+                {num}
               </a>
             );
           } else {
-            parts.push(`[${num}]`);
+            parts.push(
+              <span 
+                key={`${currentMatch.index}-${num}-text`}
+                className="footnote-link-disabled"
+                title="출처 정보 없음"
+              >
+                {num}
+              </span>
+            );
           }
         });
         
@@ -431,7 +439,7 @@ const StockDetail: React.FC = () => {
               className="footnote-link"
               title={sources[num - 1]?.title || ''}
             >
-              [{num}]
+              {num}
             </a>
           ))}
         </span>
@@ -870,7 +878,7 @@ const StockDetail: React.FC = () => {
                         {analysisData.analysis.sources.map((source, index) => (
                           <div key={index} className="source-card">
                             <div className="source-header">
-                              <span className="source-number">[{index + 1}]</span>
+                              <span className="source-number">{index + 1}</span>
                               <a 
                                 href={source.url} 
                                 target="_blank" 
