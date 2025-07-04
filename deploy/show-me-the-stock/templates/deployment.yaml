@@ -68,7 +68,7 @@ spec:
             path: /health
             port: {{ .Values.backend.service.targetPort }}
           initialDelaySeconds: 10
-          periodSeconds: 5
+          periodSeconds: 3600
         livenessProbe:
           httpGet:
             path: /health
