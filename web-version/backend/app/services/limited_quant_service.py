@@ -45,7 +45,7 @@ class LimitedQuantService:
     def __init__(self):
         self.stock_fetcher = StockDataFetcher()
     
-    @cached(ttl=1800, key_prefix="quant_indicators")  # 30분 캐시
+    @cached(ttl=3600, key_prefix="quant_indicators")  # 1시간 캐시
     async def get_limited_quant_indicators(
         self, 
         market: str = "KR", 
