@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { API_BASE } from '../../config';
 import { Newspaper, RefreshCw, Calendar, ExternalLink, Search } from 'lucide-react';
 import { stockCache } from '../../utils/stockCache';
+import SearchableSelect from '../common/SearchableSelect';
 import './NewsView.css';
 
 interface NewsViewProps {
@@ -240,7 +241,9 @@ const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
     setError(null);
 
     try {
-      const stock = [...allStocks, ...popularStocks].find(s => s.symbol === selectedSymbol);
+      // allStocks와 popularStocks에서 중복 없이 찾기
+      const stock = allStocks.find(s => s.symbol === selectedSymbol) || 
+                   popularStocks.find(s => s.symbol === selectedSymbol);
       const query = stock ? encodeURIComponent(stock.name) : encodeURIComponent(selectedSymbol);
       
       const response = await fetch(`${API_BASE}/v1/news/search?query=${query}&display=${displayCount}&page=${page}&sort=sim`);
@@ -304,10 +307,7 @@ const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
       {/* 헤더 영역 - 스크롤 영역에서 제외 */}
       <div className="news-header">
         <div className="news-header-inner">
-          <div className="header-title-section">
-            <div className="header-icon">
-              <Newspaper />
-            </div>
+          <div className="header-left-section">
             <div className="header-text">
               <h2>실시간 뉴스</h2>
               <p>주식 관련 최신 뉴스를 확인하세요</p>
@@ -315,80 +315,58 @@ const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
           </div>
           
           <div className="header-controls">
-            <select 
-              className="stock-selector"
-              value={selectedSymbol}
-              onChange={(e) => {
-                setSelectedSymbol(e.target.value);
-                setCurrentPage(1); // 종목 변경 시 첫 페이지로
-              }}
-              disabled={stocksLoading}
-            >
-              <option value="">종목 선택</option>
-              {allStocks.length > 0 ? (
-                // 실제 종목 데이터 표시
-                selectedMarket === 'KR' ? (
-                  <>
-                    <optgroup label="코스피">
-                      {allStocks.filter(s => s.symbol.startsWith('0')).map(stock => (
-                        <option key={stock.symbol} value={stock.symbol}>
-                          {stock.name} ({stock.symbol})
-                        </option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="코스닥">
-                      {allStocks.filter(s => !s.symbol.startsWith('0')).map(stock => (
-                        <option key={stock.symbol} value={stock.symbol}>
-                          {stock.name} ({stock.symbol})
-                        </option>
-                      ))}
-                    </optgroup>
-                  </>
-                ) : (
-                  <optgroup label="미국 주식">
-                    {allStocks.map(stock => (
-                      <option key={stock.symbol} value={stock.symbol}>
-                        {stock.name} ({stock.symbol})
-                      </option>
-                    ))}
-                  </optgroup>
-                )
-              ) : (
-                // 로딩 중이거나 실패 시 인기 종목만 표시
-                <>
-                  <optgroup label="인기 종목">
-                    {popularStocks.filter(s => s.market === selectedMarket).map(stock => (
-                      <option key={stock.symbol} value={stock.symbol}>
-                        {stock.name} ({stock.symbol})
-                      </option>
-                    ))}
-                  </optgroup>
-                </>
-              )}
-            </select>
+            <div className="control-item stock-selector-wrapper">
+              <SearchableSelect
+                options={(() => {
+                  // allStocks가 비어있으면 popularStocks만 사용
+                  if (allStocks.length === 0) {
+                    return popularStocks.filter(s => s.market === selectedMarket).map(stock => ({
+                      value: stock.symbol,
+                      label: stock.name,
+                      subLabel: stock.symbol
+                    }));
+                  }
+                  // allStocks가 있으면 allStocks만 사용 (중복 제거)
+                  return allStocks.map(stock => ({
+                    value: stock.symbol,
+                    label: stock.name,
+                    subLabel: stock.symbol
+                  }));
+                })()}
+                value={selectedSymbol}
+                onChange={(value) => {
+                  setSelectedSymbol(value);
+                  setCurrentPage(1);
+                }}
+                placeholder="종목명 또는 코드로 검색..."
+                loading={stocksLoading}
+                disabled={stocksLoading}
+              />
+            </div>
 
-            <select 
-              className="count-selector"
-              value={displayCount}
-              onChange={(e) => {
-                setDisplayCount(Number(e.target.value));
-                setCurrentPage(1); // 표시 개수 변경 시 첫 페이지로
-              }}
-            >
-              <option value={10}>10개</option>
-              <option value={20}>20개</option>
-              <option value={30}>30개</option>
-              <option value={50}>50개</option>
-            </select>
+            <div className="control-item count-selector-wrapper">
+              <select 
+                className="count-selector"
+                value={displayCount}
+                onChange={(e) => {
+                  setDisplayCount(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+              >
+                <option value={10}>10개씩</option>
+                <option value={20}>20개씩</option>
+                <option value={30}>30개씩</option>
+                <option value={50}>50개씩</option>
+              </select>
+            </div>
 
             <button 
-              className="refresh-button"
+              className="refresh-button icon-only"
               onClick={() => fetchNews(true, currentPage)}
               disabled={loading || !selectedSymbol}
               title="새로고침"
             >
               <RefreshCw className={loading ? 'spinning' : ''} />
-              <span>새로고침</span>
             </button>
           </div>
         </div>

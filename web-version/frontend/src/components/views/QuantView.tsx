@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { TrendingUp, TrendingDown, BarChart3, Target, ChevronDown, ChevronUp, Activity, RefreshCw } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import SearchableSelect from '../common/SearchableSelect';
+import { API_BASE } from '../../config';
+import { stockCache } from '../../utils/stockCache';
 import './QuantView.css';
 
 interface QuantViewProps {
@@ -10,7 +13,7 @@ interface QuantViewProps {
 interface StockOption {
   symbol: string;
   name: string;
-  currentPrice: number;
+  currentPrice?: number;
   market: string;
 }
 
@@ -60,6 +63,7 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
   const { quantData, quantDataLoading, quantDataLastUpdated, fetchQuantData } = useApp();
   const [activeTab, setActiveTab] = useState<'indicators' | 'backtest' | 'recommendations'>('indicators');
   const [availableStocks, setAvailableStocks] = useState<StockOption[]>([]);
+  const [stocksLoading, setStocksLoading] = useState(false);
   const [backtestSettings, setBacktestSettings] = useState<BacktestSettings>({
     symbol: '',
     startDate: '2024-01-01',
@@ -79,48 +83,54 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
   });
   const [loading, setLoading] = useState(false);
 
-  // 인기 종목 목록 (시장별)
-  const popularStocks = {
-    KR: [
-      { symbol: '005930', name: '삼성전자', currentPrice: 67000 },
-      { symbol: '000660', name: 'SK하이닉스', currentPrice: 89000 },
-      { symbol: '035420', name: 'NAVER', currentPrice: 185000 },
-      { symbol: '051910', name: 'LG화학', currentPrice: 380000 },
-      { symbol: '005380', name: '현대차', currentPrice: 195000 },
-      { symbol: '068270', name: '셀트리온', currentPrice: 178000 },
-      { symbol: '035720', name: '카카오', currentPrice: 42000 },
-      { symbol: '207940', name: '삼성바이오로직스', currentPrice: 850000 }
-    ],
-    US: [
-      { symbol: 'AAPL', name: 'Apple Inc.', currentPrice: 193.50 },
-      { symbol: 'MSFT', name: 'Microsoft Corp.', currentPrice: 450.30 },
-      { symbol: 'GOOGL', name: 'Alphabet Inc.', currentPrice: 175.80 },
-      { symbol: 'AMZN', name: 'Amazon.com Inc.', currentPrice: 188.40 },
-      { symbol: 'TSLA', name: 'Tesla Inc.', currentPrice: 245.60 },
-      { symbol: 'META', name: 'Meta Platforms', currentPrice: 520.80 },
-      { symbol: 'NVDA', name: 'NVIDIA Corp.', currentPrice: 125.90 },
-      { symbol: 'NFLX', name: 'Netflix Inc.', currentPrice: 650.20 }
-    ]
-  };
+  // 백엔드에서 종목 목록 가져오기
+  const fetchStocks = useCallback(async () => {
+    const cacheKey = `stocks_simple_${selectedMarket}`;
+    
+    // 캐시 확인
+    const cached = stockCache.get<StockOption[]>(cacheKey);
+    if (cached) {
+      setAvailableStocks(cached);
+      setStocksLoading(false);
+      return;
+    }
+    
+    // 캐시가 없으면 API 호출
+    setStocksLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/v1/stocks/list/simple?market=${selectedMarket}`);
+      if (!response.ok) throw new Error('Failed to fetch stocks');
+      const data = await response.json();
+      
+      // API 응답 형식에 맞게 처리
+      const stocks = (data.stocks || data).map((stock: any) => ({
+        symbol: stock.symbol,
+        name: stock.name,
+        market: stock.market || selectedMarket
+      }));
+      setAvailableStocks(stocks);
+      
+      // 캐시에 저장 (24시간)
+      stockCache.set(cacheKey, stocks);
+    } catch (error) {
+      console.error('Failed to fetch stocks:', error);
+      // 실패 시 빈 배열
+      setAvailableStocks([]);
+    } finally {
+      setStocksLoading(false);
+    }
+  }, [selectedMarket]);
 
   useEffect(() => {
-    setAvailableStocks(popularStocks[selectedMarket].map(stock => ({
-      ...stock,
-      market: selectedMarket
-    })));
+    // 종목 목록 가져오기
+    fetchStocks();
     
-    // 첫 번째 종목을 기본 선택
-    if (popularStocks[selectedMarket].length > 0) {
-      setBacktestSettings(prev => ({
-        ...prev,
-        symbol: popularStocks[selectedMarket][0].symbol
-      }));
-    }
-
+    // 추천 종목 생성
     generateRecommendations();
+    
     // 퀀트 데이터 로드 (캐시된 데이터 사용)
     fetchQuantData(selectedMarket);
-  }, [selectedMarket, fetchQuantData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedMarket, fetchQuantData, fetchStocks]);
 
   const handleSort = (field: keyof import('../../context/AppContext').QuantIndicator) => {
     if (sortField === field) {
@@ -157,17 +167,21 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
   };
 
   const generateRecommendations = () => {
-    const mockRecommendations: RecommendedStock[] = popularStocks[selectedMarket]
+    // 현재 사용 가능한 종목이 있으면 그것을 사용, 없으면 빈 배열
+    const stocksForRecommendation = availableStocks.length > 0 ? availableStocks : [];
+    
+    const mockRecommendations: RecommendedStock[] = stocksForRecommendation
       .slice(0, 5)
       .map((stock, index) => {
         const predictedReturn = (Math.random() - 0.3) * 40; // -30% ~ +40%
-        const predictedPrice = stock.currentPrice * (1 + predictedReturn / 100);
+        const currentPrice = stock.currentPrice || 100; // 기본값 설정
+        const predictedPrice = currentPrice * (1 + predictedReturn / 100);
         const confidence = Math.random() * 40 + 60; // 60-100%
         
         return {
           symbol: stock.symbol,
           name: stock.name,
-          currentPrice: stock.currentPrice,
+          currentPrice: currentPrice,
           predictedPrice: Math.round(predictedPrice * 100) / 100,
           predictedReturn: Math.round(predictedReturn * 100) / 100,
           confidence: Math.round(confidence),
@@ -202,6 +216,7 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
       const periodYears = periodDays / 365;
       
       // 가상의 수익률 계산 (실제로는 API에서 과거 데이터로 계산)
+      const basePrice = selectedStock.currentPrice || 100;
       const annualReturn = (Math.random() - 0.2) * 30; // -20% ~ +30%
       const totalReturn = annualReturn * periodYears;
       const finalAmount = backtestSettings.investmentAmount * (1 + totalReturn / 100);
@@ -224,8 +239,8 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
         worstTrade: -(Math.random() * 15 + 3),
         startDate: backtestSettings.startDate,
         endDate: backtestSettings.endDate,
-        startPrice: selectedStock.currentPrice * (0.8 + Math.random() * 0.4),
-        endPrice: selectedStock.currentPrice
+        startPrice: basePrice * (0.8 + Math.random() * 0.4),
+        endPrice: basePrice
       };
 
       setBacktestResult(result);
@@ -253,25 +268,6 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
             <p>원하는 종목에 투자했다면 얼마의 수익/손실이 있었을지 시뮬레이션해보세요</p>
           </div>
         </div>
-        <div className="section-actions">
-          <button 
-            className="btn btn-primary ai-analyze-btn"
-            onClick={() => runBacktest()}
-            disabled={loading || !backtestSettings.symbol}
-          >
-            {loading ? (
-              <>
-                <div className="loading-spinner small"></div>
-                <span>백테스트 실행 중...</span>
-              </>
-            ) : (
-              <>
-                <Target size={18} />
-                <span>백테스트 실행</span>
-              </>
-            )}
-          </button>
-        </div>
       </div>
 
       <div className="content-card">
@@ -285,18 +281,18 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
         <div className="form-grid backtest-grid">
           <div className="form-group">
             <label className="form-label">종목 선택</label>
-            <select 
-              className="form-select"
-              value={backtestSettings.symbol} 
-              onChange={(e) => setBacktestSettings(prev => ({ ...prev, symbol: e.target.value }))}
-            >
-              <option value="">종목을 선택하세요</option>
-              {availableStocks.map(stock => (
-                <option key={stock.symbol} value={stock.symbol}>
-                  {stock.name} ({stock.symbol}) - {formatCurrency(stock.currentPrice)}
-                </option>
-              ))}
-            </select>
+            <SearchableSelect
+              options={availableStocks.map(stock => ({
+                value: stock.symbol,
+                label: stock.name,
+                subLabel: stock.symbol
+              }))}
+              value={backtestSettings.symbol}
+              onChange={(value) => setBacktestSettings(prev => ({ ...prev, symbol: value }))}
+              placeholder="종목명 또는 코드로 검색..."
+              loading={stocksLoading}
+              disabled={stocksLoading}
+            />
           </div>
           
           <div className="form-group">
@@ -346,6 +342,26 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
             <div className="form-helper">{selectedMarket === 'KR' ? '원 (예: 1000000 = 100만원)' : '달러 (예: 1000 = $1,000)'}</div>
           </div>
         </div>
+
+        <div className="backtest-actions">
+          <button 
+            className="btn btn-primary"
+            onClick={() => runBacktest()}
+            disabled={loading || !backtestSettings.symbol}
+          >
+            {loading ? (
+              <>
+                <div className="loading-spinner small"></div>
+                <span>백테스트 실행 중...</span>
+              </>
+            ) : (
+              <>
+                <Target size={18} />
+                <span>백테스트 실행</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {backtestResult && (
@@ -391,6 +407,14 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
             <div className="detail-row">
               <span>거래 횟수</span>
               <span>{backtestResult.trades}회</span>
+            </div>
+            <div className="detail-row">
+              <span>최고 수익 거래</span>
+              <span className="positive">+{backtestResult.bestTrade.toFixed(1)}%</span>
+            </div>
+            <div className="detail-row">
+              <span>최대 손실 거래</span>
+              <span className="negative">{backtestResult.worstTrade.toFixed(1)}%</span>
             </div>
           </div>
 
