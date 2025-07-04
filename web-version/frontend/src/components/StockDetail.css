@@ -1456,19 +1456,63 @@
 .key-topics {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
   max-width: 100%;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-primary);
 }
 
 .topic-tag {
-  padding: 4px 12px;
-  background: var(--bg-overlay);
-  border-radius: 12px;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text-primary);
   white-space: normal;
   word-break: break-word;
   max-width: 100%;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.topic-tag:hover {
+  background: var(--bg-overlay);
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 풋노트 링크가 있는 경우 태그 내부 스타일 */
+.topic-tag .footnote-link {
+  margin-left: 4px;
+  color: var(--primary-color);
+  font-weight: 600;
+  font-size: 11px;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.topic-tag .footnote-link:hover {
+  color: var(--primary-hover);
+  text-decoration: underline;
+}
+
+/* 키워드 섹션 제목 추가 (선택사항) */
+.key-topics::before {
+  content: "주요 키워드";
+  display: block;
+  width: 100%;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .insights-list, .risk-list {

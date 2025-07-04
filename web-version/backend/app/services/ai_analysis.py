@@ -219,46 +219,71 @@ class GeminiStockAnalyzer:
             # Step 1b: 이제 상세 분석 실행 (간단한 형식으로)
             logger.info(f"Step 1b: Executing detailed analysis for {symbol}")
             
-            # 더 간단한 프롬프트 사용
+            # 개선된 프롬프트 - 풋노트 사용을 명시적으로 요청
+            currency = "₩" if market.upper() == "KR" else "$"
+            price_str = f"{currency}{stock_data.get('current_price', 0):,.0f}" if stock_data.get('data_available') else '데이터 없음'
+            
             simple_analysis_prompt = f"""
-{symbol} ({market}) 주식 분석을 해주세요. 다음 항목들을 포함해주세요:
-최근 정보들을 검색하여, 아래 json 형태로 응답해주세요.
+{symbol} ({market}) 주식에 대한 상세 분석을 제공해주세요.
+
+중요: 모든 분석 내용에는 반드시 출처를 [숫자] 형식의 풋노트로 표시해주세요.
+예시: "매출이 증가했습니다. [1]" 또는 "여러 애널리스트가 긍정적 전망을 제시했습니다. [2, 3, 5]"
+
+아래 JSON 형식으로 정확히 응답해주세요:
 ```json
 {{
-    ai_insights: ["인사이트1", "인사이트2", "인사이트3"],
-    news_analysis: {{
-        key_topics: ["주요 토픽1", "주요 토픽2"],
-        score: 85,
-        sentiment: "긍정"| "부정"|"중립",
-        summary: "최근 뉴스 요약"
+    "ai_insights": [
+        "첫 번째 인사이트 (풋노트 포함) [숫자]",
+        "두 번째 인사이트 (풋노트 포함) [숫자, 숫자]",
+        "세 번째 인사이트 (풋노트 포함) [숫자]"
+    ],
+    "news_analysis": {{
+        "key_topics": [
+            "주요 토픽1 [숫자]",
+            "주요 토픽2 [숫자, 숫자]"
+        ],
+        "score": 0-100 사이의 숫자,
+        "sentiment": "긍정" 또는 "부정" 또는 "중립",
+        "summary": "뉴스 요약 내용 (풋노트 포함) [숫자, 숫자]"
     }},
-    risk_factors: ["리스크1", "리스크2", "리스크3"],
-    summary: {{
-        analysis_period: "최근 3개월",
-        confidence: "85%",
-        overall_signal: "상승"| "하락"|"횡보",
-        recommendation: "매수"| "매도"|"보유",
-        target_price: "₩85,000"| "$150.50"
+    "risk_factors": [
+        "리스크 요인1 [숫자]",
+        "리스크 요인2 [숫자, 숫자]",
+        "리스크 요인3 [숫자]"
+    ],
+    "summary": {{
+        "analysis_period": "최근 3개월",
+        "confidence": "퍼센트%",
+        "overall_signal": "상승" 또는 "하락" 또는 "횡보",
+        "recommendation": "매수" 또는 "매도" 또는 "보유",
+        "target_price": "{currency}숫자"
     }},
-    technical_analysis: {{
-        moving_average: {{
-            description: "5일 이동평균선 상승",
-            signal: "매수"|"매도"|"중립"
+    "technical_analysis": {{
+        "moving_average": {{
+            "description": "이동평균선 설명 (풋노트 포함) [숫자]",
+            "signal": "매수" 또는 "매도" 또는 "중립"
         }},
-        rsi: {{
-            description: "RSI 70 이상",
-            signal: "과매수",
-            value: 75.0
+        "rsi": {{
+            "description": "RSI 설명 (풋노트 포함) [숫자]",
+            "signal": "과매수" 또는 "과매도" 또는 "중립",
+            "value": 숫자 또는 null
         }},
-        volume_analysis: {{
-            description: "거래량 급증",
-            trend: "증가"| "감소"|"평균"
+        "volume_analysis": {{
+            "description": "거래량 설명 (풋노트 포함) [숫자]",
+            "trend": "증가" 또는 "감소" 또는 "평균"
         }}
     }}
 }}
 ```
 
-현재 데이터: {'현재가: $' + str(stock_data.get('current_price', 'N/A')) if stock_data.get('data_available') else '데이터 없음'}
+현재가: {price_str}
+분석 유형: {analysis_type}
+
+주의사항:
+1. 모든 텍스트 필드에 풋노트를 포함시켜주세요
+2. RSI value는 숫자여야 하며, 정보가 없으면 null을 사용하세요
+3. score는 0-100 사이의 숫자여야 합니다
+4. 한국 주식은 ₩, 미국 주식은 $ 기호를 사용하세요
 """
             
             grounded_response = self.client.models.generate_content(
@@ -404,7 +429,30 @@ class GeminiStockAnalyzer:
                         sources.append(source)
                         existing_urls.add(source.url)
             
-            logger.info(f"Total sources: {len(sources)}")
+            # 텍스트에서 최대 풋노트 번호 찾기
+            import re
+            footnote_pattern = r'\[(\d+(?:,\s*\d+)*)\]'
+            all_footnotes = re.findall(footnote_pattern, response_text) if response_text else []
+            max_footnote_num = 0
+            for footnote in all_footnotes:
+                numbers = re.findall(r'\d+', footnote)
+                for num in numbers:
+                    max_footnote_num = max(max_footnote_num, int(num))
+            
+            logger.info(f"Maximum footnote number in text: {max_footnote_num}")
+            logger.info(f"Current number of sources: {len(sources)}")
+            
+            # 부족한 소스 수만큼 추가 (더미 소스 생성 방지, 실제 검색 결과만 사용)
+            if max_footnote_num > len(sources) and len(sources) > 0:
+                # 기존 소스를 순환하여 재사용
+                logger.info(f"Reusing existing sources to match footnote numbers")
+                original_sources_count = len(sources)
+                for i in range(len(sources) + 1, max_footnote_num + 1):
+                    # 기존 소스를 순환하여 재사용
+                    source_index = (i - 1) % original_sources_count
+                    sources.append(sources[source_index])
+            
+            logger.info(f"Total sources after adjustment: {len(sources)}")
             
             # AI 응답 텍스트를 기반으로 grounding supports 생성
             if sources and response_text:

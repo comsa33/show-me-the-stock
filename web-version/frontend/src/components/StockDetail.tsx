@@ -812,7 +812,12 @@ const StockDetail: React.FC = () => {
                     </p>
                     <div className="key-topics">
                       {analysisData.analysis.news_analysis.key_topics.map((topic, index) => (
-                        <span key={index} className="topic-tag">{topic}</span>
+                        <span key={index} className="topic-tag">
+                          {analysisData.analysis.grounding_supports && analysisData.analysis.grounding_supports.length > 0 
+                            ? renderTextWithFootnotes(topic, analysisData.analysis.grounding_supports, analysisData.analysis.sources)
+                            : topic
+                          }
+                        </span>
                       ))}
                     </div>
                   </div>
