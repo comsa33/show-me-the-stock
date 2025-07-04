@@ -301,9 +301,6 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
     <div className="backtest-section">
       <div className="section-header">
         <div className="section-header-content">
-          <div className="section-icon">
-            <Target size={18} />
-          </div>
           <div className="section-info">
             <h3>개별 종목 백테스트</h3>
             <p>원하는 종목에 투자했다면 얼마의 수익/손실이 있었을지 시뮬레이션해보세요</p>
@@ -494,9 +491,6 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
     <div className="quant-indicators">
       <div className="section-header">
         <div className="section-header-content">
-          <div className="section-icon">
-            <Activity size={18} />
-          </div>
           <div className="section-info">
             <h3>퀀트 지표 분석</h3>
             <p>재무 지표와 기술적 지표를 종합하여 투자 가치를 평가합니다</p>
@@ -644,9 +638,6 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
     <div className="recommendations-section">
       <div className="section-header">
         <div className="section-header-content">
-          <div className="section-icon">
-            <TrendingUp size={18} />
-          </div>
           <div className="section-info">
             <h3>AI 투자 추천</h3>
             <p>퀴트 지표 상위 종목을 AI가 심층 분석하여 투자 인사이트를 제공합니다</p>
