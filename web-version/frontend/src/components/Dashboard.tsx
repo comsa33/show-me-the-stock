@@ -4,6 +4,7 @@ import Sidebar from './Sidebar';
 import ViewManager from './ViewManager';
 import Footer from './Footer';
 import { API_BASE } from '../config';
+import { useApp } from '../context/AppContext';
 import './Dashboard.css';
 
 interface Stock {
@@ -40,6 +41,9 @@ const Dashboard: React.FC = () => {
   const [pageSize]                          = useState(20);
   const [totalPages, setTotalPages]         = useState(1);
   const [totalCount, setTotalCount]         = useState(0);
+  
+  // 현재 뷰 가져오기
+  const { currentView } = useApp();
 
   // ---------- API 데이터 ----------
   const [apiData, setApiData] = useState<ApiData>({
@@ -130,7 +134,7 @@ const Dashboard: React.FC = () => {
           onClose={() => setSidebarOpen(false)}
         />
 
-        <div className="main-content-wrapper">
+        <div className={`main-content-wrapper ${currentView === 'chat' ? 'chat-view-wrapper' : ''}`}>
           <ViewManager
             apiData={apiData}
             selectedMarket={selectedMarket}
@@ -141,7 +145,7 @@ const Dashboard: React.FC = () => {
             pageSize={pageSize}
             onPageChange={handlePageChange}
           />
-          <Footer />
+          {currentView !== 'chat' && <Footer />}
         </div>
       </div>
     </div>

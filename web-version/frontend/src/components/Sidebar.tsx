@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { BarChart3, Star, Newspaper, FileText, Calculator } from 'lucide-react';
+import { BarChart3, Star, Newspaper, FileText, Calculator, MessageCircle } from 'lucide-react';
 import './Sidebar.css';
 
 const StockLogo = () => (
@@ -119,6 +119,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     { id: 'watchlist', label: '관심종목', icon: Star },
     { id: 'news', label: '뉴스', icon: Newspaper },
     { id: 'reports', label: '리포트', icon: FileText },
+    { id: 'chat', label: 'AI 어시스턴트', icon: MessageCircle },
   ];
 
   const handleNavigation = (viewId: string) => {

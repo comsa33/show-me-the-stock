@@ -24,6 +24,20 @@
   }
 }
 
+/* 모바일 투명도 효과 */
+@media (max-width: 768px) {
+  .header {
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    background: var(--bg-tertiary-alpha);
+  }
+  
+  /* 투명 상태에서 배경 처리 */
+  .header[style*="opacity: 0"] {
+    pointer-events: none;
+  }
+}
+
 .header-visible { 
   transform: translateY(0); 
 }

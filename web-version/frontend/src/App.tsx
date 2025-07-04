@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Dashboard from './components/Dashboard';
+import FloatingChatButton from './components/common/FloatingChatButton';
 import './App.css';
 
 const AppContent = () => {
@@ -11,7 +12,12 @@ const AppContent = () => {
     fetchMarketIndices();
   }, [fetchMarketIndices]);
 
-  return <Dashboard />;
+  return (
+    <>
+      <Dashboard />
+      <FloatingChatButton />
+    </>
+  );
 }
 
 function App() {
