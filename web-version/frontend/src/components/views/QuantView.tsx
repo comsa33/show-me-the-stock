@@ -103,7 +103,7 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
     per: { min: 0, max: 50 },
     pbr: { min: 0, max: 5 },
     roe: { min: 0, max: 100 },
-    marketCap: { min: 0, max: 1000000 }
+    marketCap: { min: 0, max: 10000000 } // 10조원으로 증가
   });
   const [loading, setLoading] = useState(false);
 
@@ -739,7 +739,30 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
             </tr>
           </thead>
           <tbody>
-            {filteredAndSortedData.map((item) => (
+            {filteredAndSortedData.length === 0 ? (
+              <tr>
+                <td colSpan={11} style={{ textAlign: 'center', padding: '40px' }}>
+                  {quantDataLoading ? (
+                    <div>데이터를 불러오는 중...</div>
+                  ) : quantData[selectedMarket].length === 0 ? (
+                    <div>
+                      <p>퀀트 데이터가 없습니다.</p>
+                      <p style={{ fontSize: '0.9em', color: '#666', marginTop: '10px' }}>
+                        MongoDB에 데이터가 없을 수 있습니다. 데이터 수집이 필요합니다.
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p>필터 조건에 맞는 종목이 없습니다.</p>
+                      <p style={{ fontSize: '0.9em', color: '#666', marginTop: '10px' }}>
+                        필터 조건을 완화해보세요.
+                      </p>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ) : (
+              filteredAndSortedData.map((item) => (
               <tr key={item.symbol}>
                 <td>
                   <div className="stock-info">
@@ -778,7 +801,8 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
                   </span>
                 </td>
               </tr>
-            ))}
+              ))
+            )}
           </tbody>
         </table>
       </div>
