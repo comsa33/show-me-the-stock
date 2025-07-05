@@ -108,7 +108,7 @@ class MongoDBQuantService:
                 symbol, start_date=start_date, end_date=end_date
             )
             
-            if len(price_history) < 20:  # 최소 데이터 요구
+            if len(price_history) < 1:  # 최소 1일 데이터 요구
                 return None
             
             # 가격 데이터를 DataFrame으로 변환
@@ -172,35 +172,53 @@ class MongoDBQuantService:
         try:
             # 현재 가격
             current_price = df.iloc[-1]['close']
+            data_length = len(df)
             
-            # 모멘텀 계산
+            # 모멘텀 계산 (데이터가 있는 만큼만 계산)
             momentum_1m = 0.0
             momentum_3m = 0.0
             momentum_6m = 0.0
             
-            if len(df) >= 20:  # 1개월
-                price_1m_ago = df.iloc[-20]['close']
+            # 1개월 모멘텀 (20일 또는 가능한 만큼)
+            if data_length >= 2:
+                days_1m = min(20, data_length - 1)
+                price_1m_ago = df.iloc[-days_1m-1]['close']
                 momentum_1m = (current_price - price_1m_ago) / price_1m_ago * 100
             
-            if len(df) >= 60:  # 3개월
-                price_3m_ago = df.iloc[-60]['close']
+            # 3개월 모멘텀 (60일 또는 가능한 만큼)
+            if data_length >= 2:
+                days_3m = min(60, data_length - 1)
+                price_3m_ago = df.iloc[-days_3m-1]['close']
                 momentum_3m = (current_price - price_3m_ago) / price_3m_ago * 100
             
-            if len(df) >= 120:  # 6개월
-                price_6m_ago = df.iloc[-120]['close']
+            # 6개월 모멘텀 (120일 또는 가능한 만큼)
+            if data_length >= 2:
+                days_6m = min(120, data_length - 1)
+                price_6m_ago = df.iloc[-days_6m-1]['close']
                 momentum_6m = (current_price - price_6m_ago) / price_6m_ago * 100
             
-            # 변동성 (20일 표준편차)
-            returns = df['close'].pct_change().dropna()
-            volatility = returns.tail(20).std() * np.sqrt(252) * 100  # 연환산
+            # 변동성 (가능한 데이터로 계산)
+            volatility = 20.0  # 기본값
+            if data_length >= 2:
+                returns = df['close'].pct_change().dropna()
+                if len(returns) > 0:
+                    # 최대 20일치 데이터 사용
+                    volatility = returns.tail(min(20, len(returns))).std() * np.sqrt(252) * 100
+                    if pd.isna(volatility) or volatility == 0:
+                        volatility = 20.0
             
-            # RSI 계산
-            rsi = self._calculate_rsi(df['close'], period=14)
+            # RSI 계산 (최소 14일 필요, 없으면 중립값)
+            rsi = 50.0
+            if data_length >= 14:
+                rsi = self._calculate_rsi(df['close'], period=min(14, data_length-1))
             
-            # 거래량 비율
-            avg_volume = df.tail(20)['volume'].mean()
-            current_volume = df.iloc[-1]['volume']
-            volume_ratio = current_volume / avg_volume if avg_volume > 0 else 1.0
+            # 거래량 비율 (가능한 데이터로 계산)
+            volume_ratio = 1.0
+            if data_length >= 2:
+                avg_days = min(20, data_length)
+                avg_volume = df.tail(avg_days)['volume'].mean()
+                current_volume = df.iloc[-1]['volume']
+                volume_ratio = current_volume / avg_volume if avg_volume > 0 else 1.0
             
             return {
                 "momentum_1m": momentum_1m,
@@ -217,7 +235,7 @@ class MongoDBQuantService:
                 "momentum_1m": 0.0,
                 "momentum_3m": 0.0,
                 "momentum_6m": 0.0,
-                "volatility": 50.0,
+                "volatility": 20.0,
                 "rsi": 50.0,
                 "volume_ratio": 1.0
             }
@@ -225,15 +243,22 @@ class MongoDBQuantService:
     def _calculate_rsi(self, prices: pd.Series, period: int = 14) -> float:
         """RSI 계산"""
         try:
+            if len(prices) < period + 1:
+                return 50.0  # 데이터 부족시 중립값
+                
             delta = prices.diff()
             gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+            
+            # Avoid division by zero
+            loss = loss.replace(0, 0.00001)
             
             rs = gain / loss
             rsi = 100 - (100 / (1 + rs))
             
             return float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else 50.0
-        except:
+        except Exception as e:
+            logger.debug(f"RSI calculation failed: {e}")
             return 50.0
     
     def _calculate_quant_scores(
