@@ -45,7 +45,7 @@ interface SimpleStock {
 }
 
 const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
-  const { selectedStock } = useApp();
+  const { selectedStock, setCurrentView, setSelectedStock } = useApp();
   const [newsData, setNewsData] = useState<NewsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -310,7 +310,32 @@ const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
           <div className="header-left-section">
             <div className="header-text">
               <h2>실시간 뉴스</h2>
-              <p>주식 관련 최신 뉴스를 확인하세요</p>
+              <p>
+                {selectedSymbol && allStocks.length > 0 ? (
+                  <>
+                    <span 
+                      style={{ cursor: 'pointer', textDecoration: 'underline', color: '#4361ee' }}
+                      onClick={() => {
+                        const stock = allStocks.find(s => s.symbol === selectedSymbol);
+                        if (stock) {
+                          setSelectedStock({
+                            name: stock.name,
+                            symbol: stock.symbol,
+                            market: selectedMarket,
+                            display: `${stock.name} (${stock.symbol})`
+                          });
+                          setCurrentView('stocks');
+                        }
+                      }}
+                    >
+                      {allStocks.find(s => s.symbol === selectedSymbol)?.name || selectedSymbol}
+                    </span>
+                    <span> 관련 뉴스</span>
+                  </>
+                ) : (
+                  '주식 관련 최신 뉴스를 확인하세요'
+                )}
+              </p>
             </div>
           </div>
           

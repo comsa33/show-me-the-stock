@@ -187,17 +187,19 @@ async def collect_all_us_historical(background_tasks: BackgroundTasks,
         us_stocks = db.get_stock_list(market="US")
         
         if not us_stocks:
-            # Use default popular stocks
-            from ...collectors.scheduler import DataCollectionScheduler
-            scheduler = DataCollectionScheduler()
-            default_symbols = scheduler.us_stocks
+            # Get comprehensive US stock list
+            from ...collectors.us_stock_list import USStockListFetcher
             
-            # Collect stock list first
+            # Collect comprehensive stock list
             collector = StockDataCollector()
-            collector.collect_us_stock_list(default_symbols)
+            all_us_symbols = USStockListFetcher.get_all_us_stocks()
             
-            # Retry getting stocks
-            us_stocks = db.get_stock_list(market="US")
+            if all_us_symbols:
+                # Collect stock information
+                collector.collect_us_stock_list(list(all_us_symbols))
+                
+                # Retry getting stocks from MongoDB
+                us_stocks = db.get_stock_list(market="US")
             
             if not us_stocks:
                 raise HTTPException(
@@ -246,11 +248,29 @@ async def collect_yearly_data(background_tasks: BackgroundTasks,
                             batch_size: int = 10):
     """Collect data for a specific year (useful for collecting all historical data)"""
     try:
-        if not request.symbols:
-            raise HTTPException(
-                status_code=400,
-                detail="Symbols required for yearly data collection"
-            )
+        # Get symbols from request or fetch from database
+        symbols = request.symbols
+        
+        if not symbols:
+            # Get all stocks for the specified market from MongoDB
+            db = get_mongodb_client()
+            stocks = db.get_stock_list(market=request.market)
+            
+            if not stocks:
+                # If no stocks in DB, fetch from source
+                if request.market == "US":
+                    from ...collectors.us_stock_list import USStockListFetcher
+                    symbols = USStockListFetcher.get_all_us_stocks()
+                    # Collect stock list first
+                    collector = StockDataCollector()
+                    collector.collect_us_stock_list(symbols)
+                else:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"No stocks found for market {request.market}"
+                    )
+            else:
+                symbols = [stock["symbol"] for stock in stocks]
         
         # Calculate date range for the specific year
         start_date = datetime(year, 1, 1)
@@ -266,8 +286,8 @@ async def collect_yearly_data(background_tasks: BackgroundTasks,
         collector = StockDataCollector()
         
         # Process in batches to avoid overwhelming the system
-        for i in range(0, len(request.symbols), batch_size):
-            batch = request.symbols[i:i + batch_size]
+        for i in range(0, len(symbols), batch_size):
+            batch = symbols[i:i + batch_size]
             for symbol in batch:
                 background_tasks.add_task(
                     collector.collect_historical_data,
@@ -279,7 +299,7 @@ async def collect_yearly_data(background_tasks: BackgroundTasks,
         
         return CollectionResponse(
             status="started",
-            message=f"Data collection started for {len(request.symbols)} symbols for year {year}"
+            message=f"Data collection started for {len(symbols)} symbols for year {year}"
         )
         
     except Exception as e:
@@ -448,6 +468,37 @@ async def collect_financial_data(background_tasks: BackgroundTasks,
         
     except Exception as e:
         logger.error(f"Error starting financial data collection: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/collect-kr-financial-historical")
+async def collect_kr_financial_historical(background_tasks: BackgroundTasks,
+                                        year: int = 2024):
+    """Collect historical financial data for all Korean stocks for a specific year"""
+    try:
+        start_date = f"{year}-01-01"
+        end_date = f"{year}-12-31"
+        
+        # Adjust if end date is in the future
+        if datetime.strptime(end_date, "%Y-%m-%d") > datetime.now():
+            end_date = datetime.now().strftime("%Y-%m-%d")
+        
+        collector = StockDataCollector()
+        
+        background_tasks.add_task(
+            collector.collect_kr_financial_data_range,
+            start_date,
+            end_date,
+            7  # Weekly intervals
+        )
+        
+        return CollectionResponse(
+            status="started",
+            message=f"Korean financial data collection started for year {year} (weekly intervals)"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error starting Korean financial historical collection: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

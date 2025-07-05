@@ -353,6 +353,40 @@ class StockDataCollector:
         
         logger.info("Korean financial data collection completed")
     
+    def collect_kr_financial_data_range(self, start_date: str, end_date: str, interval_days: int = 7):
+        """
+        Collect Korean financial data for a date range
+        Since financial data changes less frequently, we collect at intervals
+        
+        Args:
+            start_date: Start date (YYYY-MM-DD)
+            end_date: End date (YYYY-MM-DD)  
+            interval_days: Days between data points (default: 7 for weekly)
+        """
+        logger.info(f"Collecting Korean financial data from {start_date} to {end_date} with {interval_days} day intervals")
+        
+        # Get all Korean stocks
+        kr_stocks = self.db.get_stock_list(market="KR")
+        total_stocks = len(kr_stocks)
+        
+        # Generate dates at intervals
+        start = datetime.strptime(start_date, "%Y-%m-%d")
+        end = datetime.strptime(end_date, "%Y-%m-%d")
+        current_date = start
+        
+        dates = []
+        while current_date <= end:
+            dates.append(current_date.strftime("%Y%m%d"))  # pykrx format
+            current_date += timedelta(days=interval_days)
+        
+        logger.info(f"Will collect data for {total_stocks} stocks on {len(dates)} dates")
+        
+        for date in dates:
+            logger.info(f"Collecting financial data for date: {date}")
+            self.collect_kr_financial_data(date)
+            
+        logger.info(f"Korean financial data range collection completed: {total_stocks} stocks × {len(dates)} dates")
+    
     def collect_us_financial_data(self, symbols: Optional[List[str]] = None, date: Optional[str] = None):
         """Collect US stock financial data"""
         if not date:

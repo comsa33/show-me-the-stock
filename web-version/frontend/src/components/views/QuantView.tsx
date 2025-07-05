@@ -68,7 +68,7 @@ interface RecommendedStock {
 
 
 const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
-  const { quantData, quantDataLoading, quantDataLastUpdated, fetchQuantData } = useApp();
+  const { quantData, quantDataLoading, quantDataLastUpdated, fetchQuantData, setSelectedStock, setCurrentView } = useApp();
   const [activeTab, setActiveTab] = useState<'indicators' | 'backtest' | 'recommendations'>('indicators');
   const [availableStocks, setAvailableStocks] = useState<StockOption[]>([]);
   const [stocksLoading, setStocksLoading] = useState(false);
@@ -560,7 +560,22 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
       {backtestResult && (
         <div className="backtest-result">
           <div className="result-header">
-            <h4>{backtestResult.companyName} ({backtestResult.symbol}) 백테스트 결과</h4>
+            <h4>
+              <span 
+                style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                onClick={() => {
+                  setSelectedStock({ 
+                    name: backtestResult.companyName, 
+                    symbol: backtestResult.symbol, 
+                    market: selectedMarket,
+                    display: `${backtestResult.companyName} (${backtestResult.symbol})`
+                  });
+                  setCurrentView('stocks');
+                }}
+              >
+                {backtestResult.companyName} ({backtestResult.symbol})
+              </span> 백테스트 결과
+            </h4>
             <span className="result-strategy">{backtestResult.strategy} 전략 | {backtestResult.period}</span>
           </div>
 
@@ -765,8 +780,19 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
               filteredAndSortedData.map((item) => (
               <tr key={item.symbol}>
                 <td>
-                  <div className="stock-info">
-                    <span className="stock-name">{item.name}</span>
+                  <div className="stock-info" 
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => {
+                      setSelectedStock({ 
+                        name: item.name, 
+                        symbol: item.symbol, 
+                        market: selectedMarket,
+                        display: `${item.name} (${item.symbol})`
+                      });
+                      setCurrentView('stocks');
+                    }}
+                  >
+                    <span className="stock-name" style={{ textDecoration: 'underline' }}>{item.name}</span>
                     <span className="stock-symbol">({item.symbol})</span>
                   </div>
                 </td>
@@ -846,8 +872,19 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
                   </div>
                 </div>
                 
-                <div className="rec-company">
-                  <h4>{rec.name}</h4>
+                <div className="rec-company" 
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => {
+                    setSelectedStock({ 
+                      name: rec.name, 
+                      symbol: rec.symbol, 
+                      market: selectedMarket,
+                      display: `${rec.name} (${rec.symbol})`
+                    });
+                    setCurrentView('stocks');
+                  }}
+                >
+                  <h4 style={{ textDecoration: 'underline' }}>{rec.name}</h4>
                   <span className="rec-symbol">({rec.symbol})</span>
                 </div>
 
