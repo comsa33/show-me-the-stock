@@ -30,6 +30,11 @@
   transition: all 0.3s ease;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
 /* Back Button - Modern Minimal Style */
 .back-button {
   display: flex;
@@ -89,6 +94,44 @@
   color: var(--text-on-accent);
   border-radius: var(--border-radius-lg);
   border: none;
+}
+
+/* Header Actions */
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius-md);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-button:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.action-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.action-button span {
+  display: inline-block;
 }
 
 /* Current Price Section - Prominent Display */
@@ -1706,6 +1749,20 @@
     font-size: 28px;
   }
   
+  .header-actions {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    justify-content: center;
+    margin-top: 8px;
+  }
+  
+  .action-button {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  
   .stock-detail-content {
     gap: 16px;
   }
@@ -1808,6 +1865,10 @@
   
   .info-card {
     padding: 12px;
+  }
+  
+  .action-button span {
+    display: none;
   }
   
   .detail-info-grid {

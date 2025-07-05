@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { API_BASE } from '../config';
 import ProfessionalStockChart from './ProfessionalStockChart';
-import { BookOpen, TrendingUp, Gem, ArrowLeft, Sparkles, Download, ChevronDown, ChevronUp, Brain, ExternalLink, Activity, BarChart3 } from 'lucide-react';
+import { BookOpen, TrendingUp, Gem, ArrowLeft, Sparkles, Download, ChevronDown, ChevronUp, Brain, ExternalLink, Activity, BarChart3, TestTube, Newspaper } from 'lucide-react';
 import './StockDetail.css';
 
 interface StockData {
@@ -467,18 +467,39 @@ const StockDetail: React.FC = () => {
   return (
     <div className="stock-detail-container slide-up">
       <div className="stock-detail-header">
-        <button 
-          className="back-button"
-          onClick={() => setCurrentView('dashboard')}
-        >
-          <ArrowLeft size={16} />
-          돌아가기
-        </button>
+        <div className="header-left">
+          <button 
+            className="back-button"
+            onClick={() => setCurrentView('dashboard')}
+          >
+            <ArrowLeft size={16} />
+            돌아가기
+          </button>
+        </div>
         
         <div className="stock-header-info">
           <h2>{selectedStock.name}</h2>
           <span className="stock-symbol-large">{selectedStock.symbol}</span>
           <span className="market-badge">{selectedStock.market === 'KR' ? '한국' : '미국'}</span>
+        </div>
+        
+        <div className="header-actions">
+          <button 
+            className="action-button"
+            onClick={() => setCurrentView('quant')}
+            title="백테스트"
+          >
+            <TestTube size={16} />
+            <span>백테스트</span>
+          </button>
+          <button 
+            className="action-button"
+            onClick={() => setCurrentView('news')}
+            title="뉴스 보기"
+          >
+            <Newspaper size={16} />
+            <span>뉴스</span>
+          </button>
         </div>
 
         {stockData && (
