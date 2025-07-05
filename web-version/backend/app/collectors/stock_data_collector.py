@@ -191,7 +191,7 @@ class StockDataCollector:
                 }
                 
                 # Add financial metrics
-                financial = self.financial_service.get_financial_metrics(symbol, "KR")
+                financial = self.financial_service.get_financial_data(symbol, "KR")
                 if financial:
                     realtime_doc.update({
                         "market_cap": financial.get("market_cap", 0),
@@ -320,7 +320,7 @@ class StockDataCollector:
         for stock in kr_stocks:
             try:
                 symbol = stock["symbol"]
-                financial = self.financial_service.get_financial_metrics(symbol, "KR")
+                financial = self.financial_service.get_financial_data(symbol, "KR")
                 
                 if financial:
                     formatted_date = f"{date[:4]}-{date[4:6]}-{date[6:]}"

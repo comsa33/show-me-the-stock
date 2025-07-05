@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 import json
 import logging
 from app.core.config import get_settings
-from app.services.limited_quant_service import LimitedQuantService
+from app.services.quant_service_factory import QuantServiceFactory
 from app.core.redis_client import RedisClient
 from app.core.cache import cached
 import enum
@@ -51,7 +51,7 @@ class StockRecommendation(BaseModel):
 class AIRecommendationService:
     def __init__(self):
         self.client = client
-        self.quant_service = LimitedQuantService()
+        self.quant_service = QuantServiceFactory.get_service()
         self.redis_client = RedisClient.get_instance()
 
     @cached(ttl=3600, key_prefix="ai_recommendations")  # 1시간 캐시
@@ -61,14 +61,22 @@ class AIRecommendationService:
         """
         try:
             # 1. 퀀트 지표 데이터 가져오기
-            quant_indicators = await self.quant_service.get_limited_quant_indicators(market=market)
+            # MongoDB service uses get_quant_indicators, External API uses get_limited_quant_indicators
+            if hasattr(self.quant_service, 'get_quant_indicators'):
+                # MongoDB service
+                quant_indicators = await self.quant_service.get_quant_indicators(market=market)
+            else:
+                # External API service
+                quant_indicators = await self.quant_service.get_limited_quant_indicators(market=market)
             
             # 2. 퀀트 점수 기준 상위 종목 선택
-            # LimitedQuantIndicator 객체를 딕셔너리로 변환
+            # 객체를 딕셔너리로 변환
             indicators_dict = [indicator.model_dump() for indicator in quant_indicators]
+            # MongoDB service uses 'quant_score', External API uses 'limited_quant_score'
+            score_key = 'quant_score' if 'quant_score' in indicators_dict[0] else 'limited_quant_score'
             sorted_stocks = sorted(
                 indicators_dict, 
-                key=lambda x: x['limited_quant_score'], 
+                key=lambda x: x[score_key], 
                 reverse=True
             )[:top_n]
             
@@ -134,17 +142,17 @@ class AIRecommendationService:
         stock_info = "\n".join([
             f"""
 종목: {stock['name']} ({stock['symbol']})
-- 퀀트 점수: {stock['limited_quant_score']}/100
-- PER: {stock['per']}
-- PBR: {stock['pbr']}
-- 추정 ROE: {stock['estimated_roe']}%
-- EPS: {stock['eps']}
-- 현재가: {stock['current_price']:,}
-- 시가총액: {stock['market_cap']:,}백만원
-- 3개월 모멘텀: {stock['momentum_3m']}%
-- 변동성: {stock['volatility']}%
-- 추천 상태: {stock['recommendation']}
-- 데이터 완전성: {stock['data_completeness']}
+- 퀀트 점수: {stock.get('quant_score', stock.get('limited_quant_score', 0))}/100
+- PER: {stock.get('per', 'N/A')}
+- PBR: {stock.get('pbr', 'N/A')}
+- ROE: {stock.get('roe', stock.get('estimated_roe', 'N/A'))}%
+- EPS: {stock.get('eps', 'N/A')}
+- 현재가: {stock.get('current_price', 0):,}
+- 시가총액: {stock.get('market_cap', 0):,}백만원
+- 3개월 모멘텀: {stock.get('momentum_3m', 'N/A')}%
+- 변동성: {stock.get('volatility', 'N/A')}%
+- 추천 상태: {stock.get('recommendation', 'N/A')}
+- 데이터 완전성: {stock.get('data_completeness', 'N/A')}
 """
             for stock in stocks
         ])
@@ -185,7 +193,7 @@ ALWAYS ANSWER IN KOREAN.
         
         for stock in stocks:
             # 간단한 규칙 기반 추천
-            quant_score = stock.get('limited_quant_score', 0)
+            quant_score = stock.get('quant_score', stock.get('limited_quant_score', 0))
             momentum = stock.get('momentum_3m', 0)
             volatility = stock.get('volatility', 20)
             
@@ -214,15 +222,15 @@ ALWAYS ANSWER IN KOREAN.
                 "riskLevel": risk_level,
                 "timeHorizon": "MEDIUM",
                 "keyIndicators": {
-                    "PER": stock['per'],
-                    "PBR": stock['pbr'],
-                    "ROE": stock['estimated_roe'],
-                    "quantScore": stock['limited_quant_score']
+                    "PER": stock.get('per', 0),
+                    "PBR": stock.get('pbr', 0),
+                    "ROE": stock.get('roe', stock.get('estimated_roe', 0)),
+                    "quantScore": stock.get('quant_score', stock.get('limited_quant_score', 0))
                 },
                 "reasoning": [
-                    f"퀀트 점수 {stock['limited_quant_score']}점으로 상위권",
-                    f"PER {stock['per']}배로 {'저평가' if stock['per'] < 15 else '적정가'}",
-                    f"ROE {stock['estimated_roe']}%로 {'우수한' if stock['estimated_roe'] > 15 else '양호한'} 수익성",
+                    f"퀀트 점수 {stock.get('quant_score', stock.get('limited_quant_score', 0))}점으로 상위권",
+                    f"PER {stock.get('per', 0)}배로 {'저평가' if stock.get('per', 15) < 15 else '적정가'}",
+                    f"ROE {stock.get('roe', stock.get('estimated_roe', 0))}%로 {'우수한' if stock.get('roe', stock.get('estimated_roe', 0)) > 15 else '양호한'} 수익성",
                     f"3개월 모멘텀 {momentum}%로 {'상승' if momentum > 0 else '하락'} 추세"
                 ],
                 "warnings": [
