@@ -63,6 +63,8 @@ spec:
           value: "{{ .Values.naverClientSecret }}"
         - name: ALLOWED_ORIGINS
           value: {{ .Values.backend.env.ALLOWED_ORIGINS | quote }}
+        - name: MONGODB_URI
+          value: "{{ .Values.mongodbUri }}"
         readinessProbe:
           httpGet:
             path: /health

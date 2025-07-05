@@ -174,6 +174,7 @@ class AIRecommendationService:
 - 데이터 완전성이 제한적인 경우 보수적으로 평가
 
 각 종목별로 투자자가 이해하기 쉽게 설명해주세요.
+ALWAYS ANSWER IN KOREAN.
 """
         
         return prompt

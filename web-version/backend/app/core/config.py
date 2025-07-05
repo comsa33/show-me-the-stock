@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     cache_ttl: int = Field(default=300, description="캐시 TTL (초)")
     cache_enabled: bool = Field(default=True, description="캐시 활성화")
 
+    # MongoDB 설정
+    mongodb_uri: Optional[str] = Field(default=None, description="MongoDB 연결 URI")
+    use_mongodb: bool = Field(default=True, description="MongoDB 사용 여부 (False면 외부 API 사용)")
+    
     # 외부 API 설정
     gemini_api_key: str = Field(default="", description="Gemini AI API 키")
     alpha_vantage_api_key: str = Field(default="", description="Alpha Vantage API 키")

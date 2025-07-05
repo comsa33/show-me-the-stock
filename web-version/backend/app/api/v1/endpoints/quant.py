@@ -8,13 +8,16 @@ import logging
 
 from app.services.quant_service import quant_service, QuantIndicator, BacktestResult
 from app.services.limited_quant_service import limited_quant_service, LimitedQuantIndicator
+from app.services.mongodb_quant_service import MongoDBQuantIndicator
+from app.services.quant_service_factory import QuantServiceFactory
 from app.services.recommendation_service import recommendation_service, InvestmentProfile, StockRecommendation, PortfolioRecommendation
+from typing import Union
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/indicators", response_model=List[LimitedQuantIndicator])
+@router.get("/indicators", response_model=List[Union[MongoDBQuantIndicator, LimitedQuantIndicator]])
 async def get_quant_indicators(
     market: str = Query("KR", description="시장 (KR/US)"),
     limit: int = Query(50, description="반환할 종목 수", ge=1, le=100),
@@ -33,25 +36,33 @@ async def get_quant_indicators(
     주요 재무 지표와 기술적 지표를 계산하여 종합 퀀트 점수와 함께 반환합니다.
     """
     try:
-        # 제한된 실제 데이터로 퀀트 지표 계산
-        indicators = await limited_quant_service.get_limited_quant_indicators(market, limit * 2)
+        # 서비스 선택 (MongoDB 또는 외부 API)
+        quant_service = QuantServiceFactory.get_service()
+        
+        # 퀀트 지표 계산
+        if QuantServiceFactory.is_using_mongodb():
+            indicators = await quant_service.get_quant_indicators(market, limit * 2)
+        else:
+            indicators = await quant_service.get_limited_quant_indicators(market, limit * 2)
         
         # 필터링 적용
         filtered_indicators = []
         for indicator in indicators:
             include = True
             
-            if per_min is not None and indicator.per < per_min:
+            if per_min is not None and (not indicator.per or indicator.per < per_min):
                 include = False
-            if per_max is not None and indicator.per > per_max:
+            if per_max is not None and (not indicator.per or indicator.per > per_max):
                 include = False
-            if pbr_min is not None and indicator.pbr < pbr_min:
+            if pbr_min is not None and (not indicator.pbr or indicator.pbr < pbr_min):
                 include = False
-            if pbr_max is not None and indicator.pbr > pbr_max:
+            if pbr_max is not None and (not indicator.pbr or indicator.pbr > pbr_max):
                 include = False
-            if roe_min is not None and indicator.roe < roe_min:
+            # MongoDB는 roe, 기존은 estimated_roe
+            roe_value = getattr(indicator, 'roe', getattr(indicator, 'estimated_roe', None))
+            if roe_min is not None and (not roe_value or roe_value < roe_min):
                 include = False
-            if roe_max is not None and indicator.roe > roe_max:
+            if roe_max is not None and (not roe_value or roe_value > roe_max):
                 include = False
             
             if include:
@@ -61,19 +72,27 @@ async def get_quant_indicators(
         reverse = sort_order.lower() == "desc"
         
         if sort_by == "quant_score":
-            filtered_indicators.sort(key=lambda x: x.limited_quant_score, reverse=reverse)
+            # MongoDB는 quant_score, 기존은 limited_quant_score
+            filtered_indicators.sort(
+                key=lambda x: getattr(x, 'quant_score', getattr(x, 'limited_quant_score', 0)), 
+                reverse=reverse
+            )
         elif sort_by == "per":
-            filtered_indicators.sort(key=lambda x: x.per, reverse=reverse)
+            filtered_indicators.sort(key=lambda x: x.per or float('inf'), reverse=reverse)
         elif sort_by == "pbr":
-            filtered_indicators.sort(key=lambda x: x.pbr, reverse=reverse)
+            filtered_indicators.sort(key=lambda x: x.pbr or float('inf'), reverse=reverse)
         elif sort_by == "roe":
-            filtered_indicators.sort(key=lambda x: x.estimated_roe, reverse=reverse)
+            # MongoDB는 roe, 기존은 estimated_roe
+            filtered_indicators.sort(
+                key=lambda x: getattr(x, 'roe', getattr(x, 'estimated_roe', 0)), 
+                reverse=reverse
+            )
         elif sort_by == "momentum_3m":
             filtered_indicators.sort(key=lambda x: x.momentum_3m, reverse=reverse)
         elif sort_by == "volatility":
             filtered_indicators.sort(key=lambda x: x.volatility, reverse=reverse)
         elif sort_by == "market_cap":
-            filtered_indicators.sort(key=lambda x: x.market_cap, reverse=reverse)
+            filtered_indicators.sort(key=lambda x: x.market_cap or 0, reverse=reverse)
         elif sort_by == "name":
             filtered_indicators.sort(key=lambda x: x.name, reverse=reverse)
         
@@ -228,7 +247,15 @@ async def get_market_quant_summary(
     시장 퀀트 지표 요약 정보
     """
     try:
-        # 퀀트 지표 데이터 가져오기
+        # 서비스 선택 (MongoDB 또는 외부 API)
+        service = QuantServiceFactory.get_service()
+        
+        # MongoDB 서비스는 market_summary 메서드 제공
+        if QuantServiceFactory.is_using_mongodb():
+            summary = await service.get_market_summary(market)
+            return summary
+        
+        # 기존 퀀트 서비스 사용
         indicators = await quant_service.get_quant_indicators(market, 100)
         
         if not indicators:

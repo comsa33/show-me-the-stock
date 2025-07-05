@@ -7,6 +7,8 @@ from app.core.config import get_settings
 from app.services.realtime_service import realtime_service
 from app.services.cache_scheduler import cache_scheduler
 from app.core.cache import init_redis
+from app.collectors.scheduler import get_scheduler
+from app.database.mongodb_client import get_mongodb_client
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
@@ -57,6 +59,24 @@ async def startup_event():
         cache_scheduler.start()
         logger.info("캐시 스케줄러가 성공적으로 시작되었습니다.")
         
+        # MongoDB 사용 시 초기화
+        if settings.use_mongodb and settings.mongodb_uri:
+            logger.info("MongoDB 초기화 중...")
+            try:
+                mongodb_client = get_mongodb_client()
+                mongodb_client.create_indexes()
+                logger.info("MongoDB가 성공적으로 초기화되었습니다.")
+                
+                # 데이터 수집 스케줄러 시작
+                logger.info("데이터 수집 스케줄러 시작 중...")
+                data_scheduler = get_scheduler()
+                data_scheduler.start()
+                logger.info("데이터 수집 스케줄러가 성공적으로 시작되었습니다.")
+            except Exception as mongo_error:
+                logger.error(f"MongoDB 초기화 실패: {mongo_error}")
+                logger.info("외부 API 모드로 전환합니다.")
+                settings.use_mongodb = False
+        
     except Exception as e:
         logger.error(f"서비스 시작 실패: {e}")
 
@@ -73,6 +93,16 @@ async def shutdown_event():
         logger.info("캐시 스케줄러 종료 중...")
         cache_scheduler.stop()
         logger.info("캐시 스케줄러가 안전하게 종료되었습니다.")
+        
+        # MongoDB 사용 시 스케줄러 종료
+        if settings.use_mongodb and settings.mongodb_uri:
+            try:
+                logger.info("데이터 수집 스케줄러 종료 중...")
+                data_scheduler = get_scheduler()
+                data_scheduler.stop()
+                logger.info("데이터 수집 스케줄러가 안전하게 종료되었습니다.")
+            except Exception as scheduler_error:
+                logger.error(f"스케줄러 종료 중 오류: {scheduler_error}")
         
     except Exception as e:
         logger.error(f"서비스 종료 중 오류: {e}")

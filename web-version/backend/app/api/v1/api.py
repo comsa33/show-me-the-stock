@@ -4,7 +4,7 @@ API v1 라우터
 """
 
 from app.api.v1.endpoints import ai_analysis, interest_rates, stocks, stocks_v2, quant, indices, realtime, news
-from app.api.v1 import ai_recommendations, backtest, chat
+from app.api.v1 import ai_recommendations, backtest, chat, data_collection, data_cleanup
 from fastapi import APIRouter
 
 api_router = APIRouter()
@@ -23,4 +23,6 @@ api_router.include_router(news.router, prefix="/news", tags=["news"])
 api_router.include_router(ai_recommendations.router, tags=["ai-recommendations"])
 api_router.include_router(backtest.router, tags=["backtest"])
 api_router.include_router(chat.router, tags=["chat"])
+api_router.include_router(data_collection.router, tags=["data-collection"])
+api_router.include_router(data_cleanup.router, tags=["data-cleanup"])
 # api_router.include_router(predictions.router, prefix="/predictions", tags=["predictions"])

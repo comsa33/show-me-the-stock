@@ -5,17 +5,19 @@
 import logging
 from app.core.redis_client import RedisClient
 from app.data.pykrx_stock_data import PykrxStockDataFetcher
+from app.services.stock_service_factory import StockServiceFactory
+from app.services.mongodb_stock_service import MongoDBStockService
 from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Union
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-def get_stock_fetcher() -> PykrxStockDataFetcher:
-    """스톡 데이터 페처 의존성"""
-    redis_client = RedisClient.get_instance()
-    return PykrxStockDataFetcher(redis_client=redis_client)
+def get_stock_service() -> Union[MongoDBStockService, PykrxStockDataFetcher]:
+    """스톡 서비스 의존성 (MongoDB 또는 외부 API)"""
+    return StockServiceFactory.get_service()
 
 
 @router.get("/market/tickers/{market}")
@@ -23,7 +25,7 @@ async def get_market_tickers(
     market: str,
     page: int = Query(default=1, ge=1, description="페이지 번호 (1부터 시작)"),
     limit: int = Query(default=50, ge=1, le=500, description="페이지당 종목 수"),
-    stock_fetcher: PykrxStockDataFetcher = Depends(get_stock_fetcher),
+    stock_service: Union[MongoDBStockService, PykrxStockDataFetcher] = Depends(get_stock_service),
 ):
     """
     시장별 전체 종목 리스트 조회 (페이지네이션)
@@ -35,7 +37,7 @@ async def get_market_tickers(
     try:
         if market.upper() in ["KOSPI", "KOSDAQ", "KONEX"]:
             # 한국 주식
-            all_tickers = stock_fetcher.get_market_ticker_list(market.upper())
+            all_tickers = stock_service.get_market_ticker_list(market.upper())
         elif market.upper() == "US":
             # 미국 주식 (제한된 리스트)
             us_symbols = {
@@ -100,7 +102,7 @@ async def get_market_prices_v2(
     market: str,
     page: int = Query(default=1, ge=1, description="페이지 번호"),
     limit: int = Query(default=20, ge=1, le=100, description="페이지당 종목 수"),
-    stock_fetcher: PykrxStockDataFetcher = Depends(get_stock_fetcher),
+    stock_service: Union[MongoDBStockService, PykrxStockDataFetcher] = Depends(get_stock_service),
 ):
     """
     시장별 실시간 주가 정보 조회 (페이지네이션)
@@ -112,12 +114,12 @@ async def get_market_prices_v2(
     try:
         if market.upper() in ["KOSPI", "KOSDAQ", "KONEX"]:
             # pykrx로 오늘의 시장 OHLCV 조회
-            all_stocks = stock_fetcher.get_market_ohlcv_today(
+            all_stocks = stock_service.get_market_ohlcv_today(
                 market.upper(), limit * 10
             )  # 충분히 가져온 후 페이지네이션
         elif market.upper() == "US":
             # 미국 주식 인기 종목
-            all_stocks = stock_fetcher.get_popular_stocks("US", limit * 5)
+            all_stocks = stock_service.get_popular_stocks("US", limit * 5)
         else:
             raise HTTPException(status_code=400, detail="지원하지 않는 시장입니다")
 
@@ -150,7 +152,7 @@ async def search_stocks_v2(
     market: str = Query("ALL", description="시장 (KOSPI/KOSDAQ/US/ALL)"),
     page: int = Query(default=1, ge=1, description="페이지 번호"),
     limit: int = Query(default=20, ge=1, le=100, description="페이지당 결과 수"),
-    stock_fetcher: PykrxStockDataFetcher = Depends(get_stock_fetcher),
+    stock_service: Union[MongoDBStockService, PykrxStockDataFetcher] = Depends(get_stock_service),
 ):
     """
     종목 검색 (페이지네이션)
@@ -164,27 +166,27 @@ async def search_stocks_v2(
         all_results = []
 
         if market.upper() in ["ALL", "KOSPI"]:
-            kospi_results = stock_fetcher.search_stocks(query, "KR", limit * 2)
+            kospi_results = stock_service.search_stocks(query, "KR", limit * 2)
             # KOSPI 종목만 필터링
             for result in kospi_results:
-                tickers = stock_fetcher.get_market_ticker_list("KOSPI")
+                tickers = stock_service.get_market_ticker_list("KOSPI")
                 kospi_symbols = [t["symbol"] for t in tickers]
                 if result["symbol"] in kospi_symbols:
                     result["market"] = "KOSPI"
                     all_results.append(result)
 
         if market.upper() in ["ALL", "KOSDAQ"]:
-            kosdaq_results = stock_fetcher.search_stocks(query, "KR", limit * 2)
+            kosdaq_results = stock_service.search_stocks(query, "KR", limit * 2)
             # KOSDAQ 종목만 필터링
             for result in kosdaq_results:
-                tickers = stock_fetcher.get_market_ticker_list("KOSDAQ")
+                tickers = stock_service.get_market_ticker_list("KOSDAQ")
                 kosdaq_symbols = [t["symbol"] for t in tickers]
                 if result["symbol"] in kosdaq_symbols:
                     result["market"] = "KOSDAQ"
                     all_results.append(result)
 
         if market.upper() in ["ALL", "US"]:
-            us_results = stock_fetcher.search_stocks(query, "US", limit)
+            us_results = stock_service.search_stocks(query, "US", limit)
             all_results.extend(us_results)
 
         # 중복 제거
@@ -223,7 +225,7 @@ async def get_stock_data_v2(
     period: str = Query(
         default="1y", description="조회 기간 (1d, 5d, 1mo, 3mo, 6mo, ytd, 1y, 2y, 5y, max)"
     ),
-    stock_fetcher: PykrxStockDataFetcher = Depends(get_stock_fetcher),
+    stock_service: Union[MongoDBStockService, PykrxStockDataFetcher] = Depends(get_stock_service),
 ):
     """
     개별 종목 상세 데이터 조회
@@ -271,14 +273,14 @@ async def get_stock_data_v2(
             # 특정 시장이 지정된 경우 해당 시장만 시도
             if market.upper() in ["KOSPI", "KOSDAQ"]:
                 try:
-                    df = stock_fetcher.get_stock_ohlcv(symbol, start_date, end_date, market_code)
+                    df = stock_service.get_stock_ohlcv(symbol, start_date, end_date, market_code)
                 except Exception as e:
                     last_error = e
             else:
                 # 시장이 KR로 지정된 경우 직접 데이터 조회로 시도 (빠른 방식)
                 for specific_market in ["KOSPI", "KOSDAQ"]:
                     try:
-                        df = stock_fetcher.get_stock_ohlcv(symbol, start_date, end_date, market_code)
+                        df = stock_service.get_stock_ohlcv(symbol, start_date, end_date, market_code)
                         if df is not None and not df.empty:
                             market = specific_market  # 찾은 시장으로 업데이트
                             break
@@ -288,7 +290,7 @@ async def get_stock_data_v2(
         else:
             # US 시장
             try:
-                df = stock_fetcher.get_stock_ohlcv(symbol, start_date, end_date, market_code)
+                df = stock_service.get_stock_ohlcv(symbol, start_date, end_date, market_code)
             except Exception as e:
                 last_error = e
         
@@ -365,7 +367,7 @@ async def get_stock_data_v2(
 async def get_popular_stocks_v2(
     market: str = Query("ALL", description="시장 (KOSPI/KOSDAQ/US/ALL)"),
     limit: int = Query(default=10, ge=1, le=50, description="결과 수 제한"),
-    stock_fetcher: PykrxStockDataFetcher = Depends(get_stock_fetcher),
+    stock_service: Union[MongoDBStockService, PykrxStockDataFetcher] = Depends(get_stock_service),
 ):
     """
     인기 종목 조회 (거래대금 기준)
@@ -377,11 +379,11 @@ async def get_popular_stocks_v2(
         all_popular = []
 
         if market.upper() in ["ALL", "KOSPI", "KR"]:
-            kr_popular = stock_fetcher.get_popular_stocks("KR", limit)
+            kr_popular = stock_service.get_popular_stocks("KR", limit)
             all_popular.extend(kr_popular)
 
         if market.upper() in ["ALL", "US"]:
-            us_popular = stock_fetcher.get_popular_stocks(
+            us_popular = stock_service.get_popular_stocks(
                 "US", limit // 2 if market.upper() == "ALL" else limit
             )
             all_popular.extend(us_popular)
@@ -402,7 +404,7 @@ async def get_popular_stocks_v2(
 async def get_stock_detail_info(
     symbol: str,
     market: str = Query(..., description="시장 (KOSPI/KOSDAQ/US)"),
-    stock_fetcher: PykrxStockDataFetcher = Depends(get_stock_fetcher),
+    stock_service: Union[MongoDBStockService, PykrxStockDataFetcher] = Depends(get_stock_service),
 ):
     """
     상세 주식 정보 조회
@@ -432,14 +434,14 @@ async def get_stock_detail_info(
             if market.upper() in ["KOSPI", "KOSDAQ"]:
                 # 특정 시장이 지정된 경우
                 try:
-                    df = stock_fetcher.get_stock_ohlcv(symbol, one_year_ago, today, "KR")
+                    df = stock_service.get_stock_ohlcv(symbol, one_year_ago, today, "KR")
                 except Exception as e:
                     last_error = e
             else:
                 # 시장이 KR로 지정된 경우 직접 데이터 조회로 시도 (빠른 방식)
                 for specific_market in ["KOSPI", "KOSDAQ"]:
                     try:
-                        df = stock_fetcher.get_stock_ohlcv(symbol, one_year_ago, today, "KR")
+                        df = stock_service.get_stock_ohlcv(symbol, one_year_ago, today, "KR")
                         if df is not None and not df.empty:
                             market = specific_market  # 찾은 시장으로 업데이트
                             break
@@ -540,7 +542,7 @@ async def get_stock_detail_info(
             
         else:
             # 미국 주식 - yfinance를 통한 상세 정보 제공
-            df = stock_fetcher.get_stock_ohlcv(symbol, one_year_ago, today, "US")
+            df = stock_service.get_stock_ohlcv(symbol, one_year_ago, today, "US")
             if df is None or df.empty:
                 raise HTTPException(status_code=404, detail=f"종목 데이터를 찾을 수 없습니다: {symbol}")
             
@@ -642,11 +644,11 @@ async def get_stock_detail_info(
 
 @router.get("/market/status")
 async def get_market_status_v2(
-    stock_fetcher: PykrxStockDataFetcher = Depends(get_stock_fetcher),
+    stock_service: Union[MongoDBStockService, PykrxStockDataFetcher] = Depends(get_stock_service),
 ):
     """시장 상태 정보"""
     try:
-        return stock_fetcher.get_market_status()
+        return stock_service.get_market_status()
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"시장 상태 조회 중 오류 발생: {str(e)}"

@@ -40,18 +40,33 @@ export interface QuantIndicator {
   symbol: string;
   name: string;
   market: string;
-  per: number;
-  pbr: number;
-  eps: number;
-  bps: number;
+  per: number | null;
+  pbr: number | null;
+  eps: number | null;
+  bps: number | null;
   current_price: number;
-  market_cap: number;
-  estimated_roe: number;
+  market_cap: number | null;
+  // MongoDB 버전은 roe, 기존은 estimated_roe
+  roe?: number | null;
+  roa?: number | null;
+  estimated_roe?: number;
+  dividend_yield?: number | null;
+  // 기술적 지표
+  momentum_1m?: number;
   momentum_3m: number;
+  momentum_6m?: number;
   volatility: number;
-  limited_quant_score: number;
-  recommendation: 'BUY' | 'HOLD' | 'SELL';
-  data_completeness: 'FULL' | 'LIMITED';
+  rsi?: number;
+  volume_ratio?: number;
+  // 퀀트 점수 - MongoDB는 quant_score, 기존은 limited_quant_score
+  quant_score?: number;
+  limited_quant_score?: number;
+  value_score?: number;
+  growth_score?: number;
+  quality_score?: number;
+  momentum_score?: number;
+  recommendation: 'STRONG_BUY' | 'BUY' | 'HOLD' | 'SELL' | 'STRONG_SELL';
+  data_completeness?: 'FULL' | 'LIMITED';
 }
 
 interface AppContextType {

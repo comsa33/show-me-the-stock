@@ -97,7 +97,7 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
   const [recommendations, setRecommendations] = useState<RecommendedStock[]>([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
   const [recommendationsFetched, setRecommendationsFetched] = useState(false);
-  const [sortField, setSortField] = useState<keyof import('../../context/AppContext').QuantIndicator>('limited_quant_score');
+  const [sortField, setSortField] = useState<keyof import('../../context/AppContext').QuantIndicator>('quant_score');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [filters, setFilters] = useState({
     per: { min: 0, max: 50 },
@@ -219,15 +219,34 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
   const currentQuantData = quantData[selectedMarket] || [];
   
   const filteredAndSortedData = currentQuantData
-    .filter(item => 
-      item.per >= filters.per.min && item.per <= filters.per.max &&
-      item.pbr >= filters.pbr.min && item.pbr <= filters.pbr.max &&
-      item.estimated_roe >= filters.roe.min && item.estimated_roe <= filters.roe.max &&
-      item.market_cap >= filters.marketCap.min && item.market_cap <= filters.marketCap.max
-    )
+    .filter(item => {
+      const per = item.per ?? 999;
+      const pbr = item.pbr ?? 999;
+      const roe = item.roe ?? item.estimated_roe ?? 0;
+      const marketCap = item.market_cap ?? 0;
+      
+      return per >= filters.per.min && per <= filters.per.max &&
+             pbr >= filters.pbr.min && pbr <= filters.pbr.max &&
+             roe >= filters.roe.min && roe <= filters.roe.max &&
+             marketCap >= filters.marketCap.min * 1000000000; // Convert from billion to won
+    })
     .sort((a, b) => {
-      const aValue = a[sortField];
-      const bValue = b[sortField];
+      let aValue: any = a[sortField];
+      let bValue: any = b[sortField];
+      
+      // Handle MongoDB vs legacy API compatibility
+      if (sortField === 'quant_score') {
+        aValue = a.quant_score ?? a.limited_quant_score ?? 0;
+        bValue = b.quant_score ?? b.limited_quant_score ?? 0;
+      } else if (sortField === 'roe') {
+        aValue = a.roe ?? a.estimated_roe ?? 0;
+        bValue = b.roe ?? b.estimated_roe ?? 0;
+      }
+      
+      // Handle null/undefined values
+      if (aValue === null || aValue === undefined) aValue = sortDirection === 'asc' ? Number.MAX_VALUE : -Number.MAX_VALUE;
+      if (bValue === null || bValue === undefined) bValue = sortDirection === 'asc' ? Number.MAX_VALUE : -Number.MAX_VALUE;
+      
       const direction = sortDirection === 'asc' ? 1 : -1;
       
       if (typeof aValue === 'number' && typeof bValue === 'number') {
@@ -695,8 +714,8 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
               <th onClick={() => handleSort('pbr')}>
                 PBR <SortIcon field="pbr" />
               </th>
-              <th onClick={() => handleSort('estimated_roe')}>
-                추정ROE(%) <SortIcon field="estimated_roe" />
+              <th onClick={() => handleSort('roe')}>
+                ROE(%) <SortIcon field="roe" />
               </th>
               <th onClick={() => handleSort('eps')}>
                 EPS <SortIcon field="eps" />
@@ -710,8 +729,8 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
               <th onClick={() => handleSort('volatility')}>
                 변동성(%) <SortIcon field="volatility" />
               </th>
-              <th onClick={() => handleSort('limited_quant_score')}>
-                퀀트 점수 <SortIcon field="limited_quant_score" />
+              <th onClick={() => handleSort('quant_score')}>
+                퀀트 점수 <SortIcon field="quant_score" />
               </th>
               <th>
                 데이터 상태
@@ -728,23 +747,23 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
                     <span className="stock-symbol">({item.symbol})</span>
                   </div>
                 </td>
-                <td>{item.per}</td>
-                <td>{item.pbr}</td>
-                <td className={item.estimated_roe > 15 ? 'status-positive' : item.estimated_roe < 5 ? 'status-negative' : ''}>
-                  {item.estimated_roe}
+                <td>{item.per?.toFixed(2) ?? '-'}</td>
+                <td>{item.pbr?.toFixed(2) ?? '-'}</td>
+                <td className={(item.roe ?? item.estimated_roe ?? 0) > 15 ? 'status-positive' : (item.roe ?? item.estimated_roe ?? 0) < 5 ? 'status-negative' : ''}>
+                  {(item.roe ?? item.estimated_roe)?.toFixed(2) ?? '-'}
                 </td>
-                <td>{item.eps.toLocaleString()}</td>
+                <td>{item.eps?.toLocaleString() ?? '-'}</td>
                 <td>{item.current_price.toLocaleString()}</td>
                 <td className={item.momentum_3m > 0 ? 'status-positive' : 'status-negative'}>
-                  {item.momentum_3m > 0 ? '+' : ''}{item.momentum_3m}
+                  {item.momentum_3m > 0 ? '+' : ''}{item.momentum_3m.toFixed(1)}
                 </td>
                 <td className={item.volatility < 20 ? 'status-positive' : item.volatility > 30 ? 'status-negative' : ''}>
-                  {item.volatility}
+                  {item.volatility.toFixed(1)}
                 </td>
                 <td>
                   <div className="quant-score">
-                    <span className={`score ${item.limited_quant_score > 70 ? 'high' : item.limited_quant_score > 40 ? 'medium' : 'low'}`}>
-                      {item.limited_quant_score}
+                    <span className={`score ${(item.quant_score ?? item.limited_quant_score ?? 0) > 70 ? 'high' : (item.quant_score ?? item.limited_quant_score ?? 0) > 40 ? 'medium' : 'low'}`}>
+                      {(item.quant_score ?? item.limited_quant_score)?.toFixed(1) ?? '-'}
                     </span>
                   </div>
                 </td>
