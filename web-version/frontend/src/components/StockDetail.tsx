@@ -485,19 +485,19 @@ const StockDetail: React.FC = () => {
         
         <div className="header-actions">
           <button 
-            className="action-button"
+            className="action-button backtest-btn"
             onClick={() => setCurrentView('quant')}
-            title="백테스트"
+            title="과거 데이터로 투자 시뮬레이션을 해보세요"
           >
-            <TestTube size={16} />
+            <TestTube size={18} />
             <span>백테스트</span>
           </button>
           <button 
-            className="action-button"
+            className="action-button news-btn"
             onClick={() => setCurrentView('news')}
-            title="뉴스 보기"
+            title="이 종목과 관련된 최신 뉴스를 확인하세요"
           >
-            <Newspaper size={16} />
+            <Newspaper size={18} />
             <span>뉴스</span>
           </button>
         </div>
@@ -505,19 +505,24 @@ const StockDetail: React.FC = () => {
         {stockData && (
           <div className="current-price-info">
             <div className="current-price">{formatPrice(stockData.current_price)}</div>
-            <div className="price-change">
+            <div className={`price-change ${
+              stockData.data.length > 1 && stockData.current_price > stockData.data[stockData.data.length - 2].Close
+                ? 'status-positive' 
+                : stockData.data.length > 1 && stockData.current_price < stockData.data[stockData.data.length - 2].Close
+                ? 'status-negative'
+                : 'status-neutral'
+            }`}>
               {stockData.data.length > 1 && (
-                <span className={
-                  stockData.current_price > stockData.data[stockData.data.length - 2].Close
-                    ? 'status-positive' 
-                    : stockData.current_price < stockData.data[stockData.data.length - 2].Close
-                    ? 'status-negative'
-                    : 'status-neutral'
-                }>
-                  {stockData.current_price > stockData.data[stockData.data.length - 2].Close ? '▲' : 
-                   stockData.current_price < stockData.data[stockData.data.length - 2].Close ? '▼' : '—'}
-                  {((stockData.current_price - stockData.data[stockData.data.length - 2].Close) / stockData.data[stockData.data.length - 2].Close * 100).toFixed(2)}%
-                </span>
+                <>
+                  <span style={{ fontSize: '18px' }}>
+                    {stockData.current_price > stockData.data[stockData.data.length - 2].Close ? '▲' : 
+                     stockData.current_price < stockData.data[stockData.data.length - 2].Close ? '▼' : '—'}
+                  </span>
+                  <span>
+                    {Math.abs((stockData.current_price - stockData.data[stockData.data.length - 2].Close)).toFixed(2)}
+                    ({((stockData.current_price - stockData.data[stockData.data.length - 2].Close) / stockData.data[stockData.data.length - 2].Close * 100).toFixed(2)}%)
+                  </span>
+                </>
               )}
             </div>
           </div>
