@@ -60,9 +60,10 @@
   margin: 0;
 }
 
-/* 모바일에서는 부제목 숨김 */
 .header-text p {
-  display: none;
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 4px 0 0;
 }
 
 /* 헤더 컨트롤 - 오른쪽 섹션 */
@@ -587,6 +588,11 @@
   
   .header-left-section {
     justify-content: center;
+  }
+  
+  .header-text p {
+    font-size: 12px;
+    text-align: center;
   }
   
   .header-controls {
