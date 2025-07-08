@@ -5,7 +5,7 @@ import logging
 import FinanceDataReader as fdr
 import pandas as pd
 import yfinance as yf
-from pykrx import stock
+from ..database.mongodb_client import get_mongodb_client
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +15,16 @@ class StockDataFetcher:
         self._kospi_cache = None
         self._kosdaq_cache = None
         self._us_cache = None
+        self._all_kr_cache = None
         self._cache_time = None
         self.cache_duration = 300  # 5분 캐시
+        # MongoDB 클라이언트 초기화
+        try:
+            self.db = get_mongodb_client()
+            logger.info("MongoDB client initialized for StockDataFetcher")
+        except Exception as e:
+            logger.error(f"Failed to initialize MongoDB client: {e}")
+            self.db = None
 
     def _is_cache_valid(self) -> bool:
         """캐시가 유효한지 확인"""
@@ -26,63 +34,17 @@ class StockDataFetcher:
 
     def get_all_kospi_stocks(self) -> List[Dict[str, str]]:
         """전체 KOSPI 종목 가져오기"""
-        if self._kospi_cache is None or not self._is_cache_valid():
-            try:
-                # pykrx를 사용하여 전체 KOSPI 종목 가져오기
-                today = datetime.now().strftime('%Y%m%d')
-                kospi_list = stock.get_market_ticker_list(today, market="KOSPI")
-                
-                stocks = []
-                for ticker in kospi_list:
-                    try:
-                        name = stock.get_market_ticker_name(ticker)
-                        if name and len(name.strip()) > 0:
-                            stocks.append({
-                                "name": name,
-                                "symbol": ticker,
-                                "display": f"{name} ({ticker})",
-                                "market": "KR"
-                            })
-                    except:
-                        continue
-                
-                self._kospi_cache = stocks
-                self._cache_time = datetime.now()
-            except Exception as e:
-                print(f"KOSPI 데이터 로딩 실패: {e}")
-                # 실패시 기본 종목들 반환
-                self._kospi_cache = self._get_default_kr_stocks()
-        
-        return self._kospi_cache
+        # 전체 한국 주식을 가져온 후 KOSPI만 필터링
+        all_kr_stocks = self.get_all_kr_stocks()
+        # 실제로는 시장 구분이 없으므로 전체 반환 (향후 개선 필요)
+        return all_kr_stocks
 
     def get_all_kosdaq_stocks(self) -> List[Dict[str, str]]:
         """전체 KOSDAQ 종목 가져오기"""
-        if self._kosdaq_cache is None or not self._is_cache_valid():
-            try:
-                today = datetime.now().strftime('%Y%m%d')
-                kosdaq_list = stock.get_market_ticker_list(today, market="KOSDAQ")
-                
-                stocks = []
-                for ticker in kosdaq_list:
-                    try:
-                        name = stock.get_market_ticker_name(ticker)
-                        if name and len(name.strip()) > 0:
-                            stocks.append({
-                                "name": name,
-                                "symbol": ticker,
-                                "display": f"{name} ({ticker})",
-                                "market": "KR"
-                            })
-                    except:
-                        continue
-                
-                self._kosdaq_cache = stocks
-                self._cache_time = datetime.now()
-            except Exception as e:
-                print(f"KOSDAQ 데이터 로딩 실패: {e}")
-                self._kosdaq_cache = []
-        
-        return self._kosdaq_cache
+        # 전체 한국 주식을 가져온 후 KOSDAQ만 필터링
+        all_kr_stocks = self.get_all_kr_stocks()
+        # 실제로는 시장 구분이 없으므로 전체 반환 (향후 개선 필요)
+        return all_kr_stocks
 
     def get_all_us_stocks(self) -> List[Dict[str, str]]:
         """미국 주요 종목 가져오기"""
@@ -243,9 +205,36 @@ class StockDataFetcher:
 
     def get_all_kr_stocks(self) -> List[Dict[str, str]]:
         """한국 전체 종목 (KOSPI + KOSDAQ) 가져오기"""
-        kospi_stocks = self.get_all_kospi_stocks()
-        kosdaq_stocks = self.get_all_kosdaq_stocks()
-        return kospi_stocks + kosdaq_stocks
+        if self._all_kr_cache is None or not self._is_cache_valid():
+            try:
+                if self.db:
+                    # MongoDB에서 전체 한국 주식 목록 가져오기
+                    all_stocks = self.db.get_stock_list(market="KR")
+                    
+                    # 필요한 형식으로 변환
+                    formatted_stocks = []
+                    for stock in all_stocks:
+                        formatted_stocks.append({
+                            "name": stock.get("name", ""),
+                            "symbol": stock.get("symbol", ""),
+                            "display": f"{stock.get('name', '')} ({stock.get('symbol', '')})",
+                            "market": "KR"
+                        })
+                    
+                    self._all_kr_cache = formatted_stocks
+                    self._cache_time = datetime.now()
+                    logger.info(f"Loaded {len(formatted_stocks)} Korean stocks from MongoDB")
+                else:
+                    # MongoDB 연결 실패시 기본 종목들 반환
+                    logger.warning("MongoDB not available, using default stocks")
+                    self._all_kr_cache = self._get_default_kr_stocks()
+                    
+            except Exception as e:
+                logger.error(f"Failed to get Korean stocks: {e}")
+                # 실패시 기본 종목들 반환
+                self._all_kr_cache = self._get_default_kr_stocks()
+        
+        return self._all_kr_cache
 
     def get_paginated_stocks(self, market: str, page: int = 1, limit: int = 20) -> Dict:
         """페이지네이션된 주식 데이터 반환"""
@@ -327,14 +316,38 @@ class StockDataFetcher:
         return start_date.strftime('%Y-%m-%d')
 
     def get_real_time_price(self, symbol: str, market: str = "auto") -> Dict:
-        """실시간 주가 정보 가져오기 (pykrx 기반 실제 데이터)"""
+        """실시간 주가 정보 가져오기 (MongoDB 우선, fallback으로 pykrx/yfinance)"""
         try:
-            # pykrx를 통한 실제 데이터 조회
-            from pykrx import stock
+            # 먼저 MongoDB에서 최신 가격 데이터 조회
+            from app.database.mongodb_client import get_mongodb_client
             from datetime import datetime, timedelta
             
-            today = datetime.now().strftime("%Y%m%d")
-            week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y%m%d")
+            try:
+                db = get_mongodb_client()
+                latest_price = db.get_latest_price(symbol)
+                
+                if latest_price:
+                    # MongoDB에서 데이터를 찾았을 때
+                    return {
+                        "symbol": symbol,
+                        "price": latest_price.get("close", 0),
+                        "change": latest_price.get("change", 0),
+                        "change_percent": latest_price.get("change_percent", 0),
+                        "volume": latest_price.get("volume", 0),
+                        "timestamp": latest_price.get("date", datetime.now().isoformat()),
+                        "data_source": "mongodb"
+                    }
+            except Exception as e:
+                logger.info(f"MongoDB fetch failed for {symbol}: {e}")
+            
+            # MongoDB에 데이터가 없으면 pykrx/yfinance에서 조회
+            from pykrx import stock
+            
+            # 최근 거래일 데이터를 찾기 위해 최대 10일 전까지 확인
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=10)
+            today = end_date.strftime("%Y%m%d")
+            week_ago = start_date.strftime("%Y%m%d")
             
             if market.upper() == "KR":
                 try:

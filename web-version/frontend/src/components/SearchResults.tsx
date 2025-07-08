@@ -1,13 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { API_BASE } from '../config';
+import { stockSearchService, StockSearchItem } from '../services/stockSearchService';
 import './SearchResults.css';
 
-interface SearchResult {
-  name: string;
-  symbol: string;
+interface SearchResult extends StockSearchItem {
   display: string;
-  market: 'KR' | 'US';
 }
 
 interface SearchResultsProps {
@@ -17,54 +14,43 @@ interface SearchResultsProps {
 
 const SearchResults: React.FC<SearchResultsProps> = ({ query, onClose }) => {
   const { setSelectedStock, setCurrentView } = useApp();
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [allStocks, setAllStocks] = useState<StockSearchItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [totalCount, setTotalCount] = useState(0);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // Load all stocks on mount
   useEffect(() => {
-    if (query.trim().length > 0) {
-      searchStocks(query, 1);
-    } else {
-      setResults([]);
-      setTotalCount(0);
-    }
-  }, [query]);
-
-  const searchStocks = async (searchQuery: string, pageNum: number = 1) => {
-    if (searchQuery.trim().length === 0) return;
-
-    setLoading(true);
-    try {
-      const response = await fetch(
-        `${API_BASE}/v1/stocks/search?query=${encodeURIComponent(searchQuery)}&market=ALL&page=${pageNum}&limit=20`
-      );
-      const data = await response.json();
-
-      if (pageNum === 1) {
-        setResults(data.results || []);
-      } else {
-        setResults(prev => [...prev, ...(data.results || [])]);
+    const loadStocks = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await stockSearchService.getAllStocks();
+        setAllStocks(data.stocks);
+      } catch (err) {
+        console.error('Error loading stocks:', err);
+        setError('Failed to load stock list');
+      } finally {
+        setLoading(false);
       }
-      
-      setTotalCount(data.total_count || 0);
-      setPage(pageNum);
-      setHasMore(pageNum < (data.total_pages || 1));
-    } catch (error) {
-      console.error('검색 중 오류 발생:', error);
-      setResults([]);
-      setTotalCount(0);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  const loadMore = () => {
-    if (!loading && hasMore) {
-      searchStocks(query, page + 1);
-    }
-  };
+    loadStocks();
+  }, []);
+
+  // Filter stocks based on query
+  const filteredResults = useMemo(() => {
+    if (!query.trim()) return [];
+    
+    const searchResults = stockSearchService.searchStocks(allStocks, query);
+    
+    // Add display property
+    return searchResults.map(stock => ({
+      ...stock,
+      display: stockSearchService.formatStockDisplay(stock)
+    }));
+  }, [allStocks, query]);
+
+  const totalCount = filteredResults.length;
 
   const handleStockSelect = (stock: SearchResult) => {
     setSelectedStock({
@@ -94,12 +80,18 @@ const SearchResults: React.FC<SearchResultsProps> = ({ query, onClose }) => {
         </div>
 
         <div className="search-results-content">
-          {loading && results.length === 0 ? (
+          {loading && allStocks.length === 0 ? (
             <div className="search-loading">
               <div className="loading-spinner"></div>
-              <p>검색 중...</p>
+              <p>주식 목록 로딩 중...</p>
             </div>
-          ) : results.length === 0 ? (
+          ) : error ? (
+            <div className="search-empty">
+              <div className="empty-icon">⚠️</div>
+              <p>오류가 발생했습니다</p>
+              <span>{error}</span>
+            </div>
+          ) : filteredResults.length === 0 ? (
             <div className="search-empty">
               <div className="empty-icon">🔍</div>
               <p>검색 결과가 없습니다</p>
@@ -112,7 +104,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({ query, onClose }) => {
               </div>
               
               <div className="search-results-list">
-                {results.map((result, index) => (
+                {filteredResults.slice(0, 50).map((result, index) => (
                   <div 
                     key={`${result.symbol}-${result.market}-${index}`}
                     className="search-result-item"
@@ -131,15 +123,9 @@ const SearchResults: React.FC<SearchResultsProps> = ({ query, onClose }) => {
                 ))}
               </div>
 
-              {hasMore && (
-                <div className="search-load-more">
-                  <button 
-                    className="load-more-btn"
-                    onClick={loadMore}
-                    disabled={loading}
-                  >
-                    {loading ? '로딩 중...' : '더 보기'}
-                  </button>
+              {totalCount > 50 && (
+                <div className="search-results-info">
+                  <span>상위 50개 결과만 표시됩니다</span>
                 </div>
               )}
             </>

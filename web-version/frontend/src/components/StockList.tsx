@@ -12,6 +12,7 @@ interface Stock {
   change?: number;
   change_percent?: number;
   volume?: number | string;
+  data_date?: string;
 }
 
 interface StockListProps {
@@ -42,6 +43,7 @@ const StockList: React.FC<StockListProps> = ({
   const { searchTerm, setCurrentView, setSelectedStock } = useApp();
   const [localSearchTerm, setLocalSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'symbol'>('name');
+  const [lastUpdateTime, setLastUpdateTime] = useState<string>(new Date().toLocaleString('ko-KR'));
 
   // Helper function to format volume
   const formatVolume = (volume: number | string): string => {
@@ -55,6 +57,20 @@ const StockList: React.FC<StockListProps> = ({
   useEffect(() => {
     setLocalSearchTerm(searchTerm);
   }, [searchTerm]);
+
+  // Update timestamp when stocks change
+  useEffect(() => {
+    if (stocks.length > 0) {
+      // Use data_date from the first stock if available
+      const dataDate = stocks[0]?.data_date;
+      if (dataDate) {
+        const date = new Date(dataDate);
+        setLastUpdateTime(`${dataDate} (${date.toLocaleDateString('ko-KR', { weekday: 'long' })})`);
+      } else {
+        setLastUpdateTime(new Date().toLocaleString('ko-KR'));
+      }
+    }
+  }, [stocks]);
 
   const effectiveSearchTerm = localSearchTerm || searchTerm;
   
@@ -123,10 +139,13 @@ const StockList: React.FC<StockListProps> = ({
   return (
     <div className="stock-list-container slide-up">
       <div className="stock-list-header">
-        <h3>
-          {selectedMarket === 'KR' ? '🇰🇷 한국 주식' : '🇺🇸 미국 주식'} 
-          <span className="stock-count">({stocks.length})</span>
-        </h3>
+        <div className="header-title-group">
+          <h3>
+            {selectedMarket === 'KR' ? '🇰🇷 한국 주식' : '🇺🇸 미국 주식'} 
+            <span className="stock-count">({stocks.length})</span>
+          </h3>
+          <span className="update-time">데이터 기준: {lastUpdateTime}</span>
+        </div>
         
         <div className="header-controls">
           <div className="search-container-small">

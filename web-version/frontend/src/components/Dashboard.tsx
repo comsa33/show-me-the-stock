@@ -16,6 +16,7 @@ interface Stock {
   change?: number;
   change_percent?: number;
   volume?: number;
+  data_date?: string;
 }
 
 interface InterestRate {

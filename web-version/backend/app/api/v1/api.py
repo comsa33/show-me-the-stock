@@ -3,8 +3,8 @@ API v1 라우터
 모든 API 엔드포인트를 통합 관리
 """
 
-from app.api.v1.endpoints import ai_analysis, interest_rates, stocks, stocks_v2, quant, indices, realtime, news
-from app.api.v1 import ai_recommendations, backtest, chat, data_collection, data_cleanup
+from app.api.v1.endpoints import ai_analysis, interest_rates, stocks, stocks_v2, quant, indices, realtime, news, stocks_search
+from app.api.v1 import ai_recommendations, backtest, chat, data_cleanup, data_collection_unified
 from fastapi import APIRouter
 
 api_router = APIRouter()
@@ -12,6 +12,7 @@ api_router = APIRouter()
 # 각 모듈별 라우터 등록
 api_router.include_router(stocks.router, prefix="/stocks", tags=["stocks"])
 api_router.include_router(stocks_v2.router, prefix="/stocks/v2", tags=["stocks-v2"])
+api_router.include_router(stocks_search.router, prefix="/stocks/search", tags=["stocks-search"])
 api_router.include_router(
     interest_rates.router, prefix="/interest-rates", tags=["interest-rates"]
 )
@@ -23,6 +24,6 @@ api_router.include_router(news.router, prefix="/news", tags=["news"])
 api_router.include_router(ai_recommendations.router, tags=["ai-recommendations"])
 api_router.include_router(backtest.router, tags=["backtest"])
 api_router.include_router(chat.router, tags=["chat"])
-api_router.include_router(data_collection.router, tags=["data-collection"])
+api_router.include_router(data_collection_unified.router, tags=["data-collection"])
 api_router.include_router(data_cleanup.router, tags=["data-cleanup"])
 # api_router.include_router(predictions.router, prefix="/predictions", tags=["predictions"])

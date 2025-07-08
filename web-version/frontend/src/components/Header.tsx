@@ -3,7 +3,8 @@ import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import NotificationPanel from './NotificationPanel';
 import SearchResults from './SearchResults';
-import { Menu, Search, X, Bell, User, Sun, Moon } from 'lucide-react';
+import { Menu, Search, X, Bell, User, Sun, Moon, RefreshCw } from 'lucide-react';
+import { stockSearchService } from '../services/stockSearchService';
 import './Header.css';
 
 interface HeaderProps {
@@ -60,6 +61,12 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
     setShowSearchResults(false);
   };
 
+  // 개발 모드에서만 캐시 클리어 버튼 표시
+  const handleClearCache = () => {
+    stockSearchService.clearCache();
+    alert('Stock cache cleared! Refresh to get new data.');
+  };
+
   return (
     <header 
       className={`header ${isHeaderVisible ? 'header-visible' : 'header-hidden'}`}
@@ -91,6 +98,16 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
         </div>
 
         <div className="header-right">
+          {process.env.NODE_ENV === 'development' && (
+            <button 
+              className="theme-toggle-btn" 
+              onClick={handleClearCache} 
+              title="Clear stock cache"
+              style={{ marginRight: '8px' }}
+            >
+              <RefreshCw size={20} />
+            </button>
+          )}
           <button className="theme-toggle-btn" onClick={toggleTheme} aria-label="Toggle theme">
             {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
           </button>

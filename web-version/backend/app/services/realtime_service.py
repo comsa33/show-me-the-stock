@@ -7,20 +7,20 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Set
 import pandas as pd
-from pykrx import stock as krx_stock
 import yfinance as yf
 import redis.asyncio as redis
 
 from app.core.config import get_settings
 from app.core.websocket_manager import websocket_manager
-# from app.services.stock_service import StockDataService  # 필요시 사용
+from app.data.stock_data_provider_factory import StockDataProviderFactory
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
 class RealTimeStockService:
     def __init__(self):
-        # self.stocks_service = StockDataService()  # 필요시 사용
+        # 데이터 제공자 초기화
+        self.data_provider = StockDataProviderFactory.get_provider('hybrid')
         self.redis_client: Optional[redis.Redis] = None
         self.is_running = False
         self.background_tasks: Set[asyncio.Task] = set()
@@ -125,17 +125,16 @@ class RealTimeStockService:
             return
         
         try:
-            # pykrx로 실시간 가격 정보 수집
+            # 새로운 data provider로 실시간 가격 정보 수집
             current_prices = {}
             
             for symbol in symbols_to_monitor:
                 try:
-                    # 당일 주가 정보
-                    today = datetime.now().strftime('%Y%m%d')
-                    df = krx_stock.get_market_ohlcv_by_date(today, today, symbol)
+                    # 실시간 가격 정보 가져오기
+                    realtime_data = self.data_provider.get_stock_price_realtime(symbol)
                     
-                    if not df.empty:
-                        current_price = float(df.iloc[-1]['종가'])
+                    if realtime_data and 'price' in realtime_data:
+                        current_price = float(realtime_data['price'])
                         current_prices[symbol] = current_price
                         
                         # 가격 변동 체크 및 알림 발송
@@ -231,7 +230,13 @@ class RealTimeStockService:
         # 종목명 가져오기
         try:
             if market == 'KR':
-                stock_name = krx_stock.get_market_ticker_name(symbol)
+                # 주식 목록에서 종목명 찾기
+                stock_list = self.data_provider.get_stock_list(market='KR')
+                stock_name = symbol
+                for stock in stock_list:
+                    if stock.get('symbol') == symbol:
+                        stock_name = stock.get('name', symbol)
+                        break
             else:
                 ticker = yf.Ticker(symbol)
                 stock_name = ticker.info.get('longName', symbol)

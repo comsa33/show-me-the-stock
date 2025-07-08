@@ -246,6 +246,44 @@ class MongoDBStockService:
         
         return result
     
+    def get_all_stocks(self, market: str) -> List[Dict[str, Any]]:
+        """Get all stocks for a market with basic info"""
+        stocks = self.db.get_stock_list(market=market.upper())
+        result = []
+        
+        for stock in stocks:
+            # Get latest price data from stock_price_daily
+            latest_price = self.db.get_latest_price(stock["symbol"])
+            
+            stock_data = {
+                "name": stock["name"],
+                "symbol": stock["symbol"],
+                "display": f"{stock['name']} ({stock['symbol']})",
+                "market": stock["market"]
+            }
+            
+            # Add price data if available
+            if latest_price:
+                stock_data.update({
+                    "price": latest_price.get("close", 0),
+                    "change": latest_price.get("change", 0),
+                    "change_percent": latest_price.get("change_percent", 0),
+                    "volume": latest_price.get("volume", 0),
+                    "data_date": latest_price.get("date", "").split("T")[0] if latest_price.get("date") else ""
+                })
+            
+            result.append(stock_data)
+        
+        return result
+    
+    def get_all_kr_stocks(self) -> List[Dict[str, Any]]:
+        """Get all Korean stocks"""
+        return self.get_all_stocks("KR")
+    
+    def get_all_us_stocks(self) -> List[Dict[str, Any]]:
+        """Get all US stocks"""
+        return self.get_all_stocks("US")
+    
     def get_popular_stocks(self, market: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Get popular stocks by volume"""
         stocks = self.db.get_popular_stocks(market, limit)

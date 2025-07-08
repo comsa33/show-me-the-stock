@@ -9,8 +9,10 @@ from pydantic import BaseModel
 import logging
 
 from ...collectors.stock_data_collector import StockDataCollector
+from ...collectors.stock_data_collector_v3 import collector_v3
 from ...collectors.scheduler import get_scheduler
 from ...database.mongodb_client import get_mongodb_client
+from ...collectors.index_data_collector import get_index_collector
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/collection", tags=["data-collection"])
@@ -51,22 +53,20 @@ async def collect_stock_list(background_tasks: BackgroundTasks,
                            request: CollectionRequest):
     """Collect and update stock list"""
     try:
-        collector = StockDataCollector()
-        
         if request.market == "KR":
-            background_tasks.add_task(collector.collect_kr_stock_list)
+            background_tasks.add_task(collector_v3.collect_kr_stock_list)
             message = "Korean stock list collection started"
         else:
             # US stocks can be collected automatically or with specific symbols
             if request.symbols:
                 background_tasks.add_task(
-                    collector.collect_us_stock_list, 
+                    collector_v3.collect_us_stock_list, 
                     request.symbols
                 )
                 message = f"US stock list collection started for {len(request.symbols)} specified symbols"
             else:
                 # Collect comprehensive US stock list automatically
-                background_tasks.add_task(collector.collect_us_stock_list)
+                background_tasks.add_task(collector_v3.collect_us_stock_list)
                 message = "US stock list collection started (fetching S&P 500, NASDAQ 100, Dow Jones, and popular stocks)"
         
         return CollectionResponse(status="started", message=message)
@@ -94,16 +94,14 @@ async def collect_historical_data(background_tasks: BackgroundTasks,
             request.start_date = start_date.strftime("%Y-%m-%d")
             request.end_date = end_date.strftime("%Y-%m-%d")
         
-        collector = StockDataCollector()
-        
         # Add task for each symbol
         for symbol in request.symbols:
             background_tasks.add_task(
-                collector.collect_historical_data,
+                collector_v3.collect_historical_prices,
                 symbol,
-                request.market,
                 request.start_date,
-                request.end_date
+                request.end_date,
+                request.market
             )
         
         return CollectionResponse(
@@ -747,4 +745,133 @@ async def collect_all_us_financial(background_tasks: BackgroundTasks,
         raise
     except Exception as e:
         logger.error(f"Error starting complete US financial collection: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/collect-indices-historical")
+async def collect_indices_historical(background_tasks: BackgroundTasks,
+                                   start_date: Optional[str] = None,
+                                   end_date: Optional[str] = None,
+                                   market: Optional[str] = None):
+    """
+    Collect historical index data for market indices
+    
+    Args:
+        start_date: Start date (YYYY-MM-DD format). Default: 1 year ago
+        end_date: End date (YYYY-MM-DD format). Default: today
+        market: Market to collect (KR/US/ALL). Default: ALL
+    """
+    try:
+        index_collector = get_index_collector()
+        
+        # Determine which markets to collect
+        markets_to_collect = []
+        if market is None or market.upper() == "ALL":
+            markets_to_collect = ["KR", "US"]
+        else:
+            markets_to_collect = [market.upper()]
+        
+        # Convert dates for Korean market
+        kr_start = None
+        kr_end = None
+        if start_date:
+            kr_start = start_date.replace("-", "")
+        if end_date:
+            kr_end = end_date.replace("-", "")
+        
+        # Start collection tasks
+        messages = []
+        for mkt in markets_to_collect:
+            if mkt == "KR":
+                background_tasks.add_task(
+                    index_collector.collect_korean_indices,
+                    kr_start,
+                    kr_end
+                )
+                messages.append("Korean indices")
+            elif mkt == "US":
+                background_tasks.add_task(
+                    index_collector.collect_us_indices,
+                    start_date,
+                    end_date
+                )
+                messages.append("US indices")
+        
+        date_range = f"{start_date or '1 year ago'} to {end_date or 'today'}"
+        
+        return CollectionResponse(
+            status="started",
+            message=f"Historical index collection started for {', '.join(messages)} from {date_range}"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error starting historical index collection: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/collect-indices-daily")
+async def collect_indices_daily(background_tasks: BackgroundTasks):
+    """
+    Collect today's index data (for scheduler or manual trigger)
+    """
+    try:
+        index_collector = get_index_collector()
+        
+        background_tasks.add_task(index_collector.collect_daily_indices)
+        
+        return CollectionResponse(
+            status="started",
+            message="Daily index collection started for all markets"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error starting daily index collection: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/indices-collection-status")
+async def get_indices_collection_status():
+    """Get index data collection status"""
+    try:
+        db = get_mongodb_client()
+        
+        # Count index data by market
+        kr_indices = db.db.market_indices.count_documents({"market": "KR"})
+        us_indices = db.db.market_indices.count_documents({"market": "US"})
+        
+        # Get date ranges
+        kr_latest = db.db.market_indices.find_one(
+            {"market": "KR"},
+            sort=[("date", -1)]
+        )
+        kr_oldest = db.db.market_indices.find_one(
+            {"market": "KR"},
+            sort=[("date", 1)]
+        )
+        
+        us_latest = db.db.market_indices.find_one(
+            {"market": "US"},
+            sort=[("date", -1)]
+        )
+        us_oldest = db.db.market_indices.find_one(
+            {"market": "US"},
+            sort=[("date", 1)]
+        )
+        
+        return {
+            "korean_indices": {
+                "count": kr_indices,
+                "latest_date": kr_latest["date"] if kr_latest else None,
+                "oldest_date": kr_oldest["date"] if kr_oldest else None
+            },
+            "us_indices": {
+                "count": us_indices,
+                "latest_date": us_latest["date"] if us_latest else None,
+                "oldest_date": us_oldest["date"] if us_oldest else None
+            },
+            "total_count": kr_indices + us_indices
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting indices collection status: {e}")
         raise HTTPException(status_code=500, detail=str(e))

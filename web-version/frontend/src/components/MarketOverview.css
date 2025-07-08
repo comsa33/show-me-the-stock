@@ -13,6 +13,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .market-flag {
@@ -24,6 +25,14 @@
   font-weight: 700;
   color: var(--text-primary);
   margin: 0;
+}
+
+.update-time {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-left: 1rem;
+  font-weight: 400;
+  opacity: 0.8;
 }
 
 /* refresh-btn styles moved to global index.css */
@@ -71,6 +80,13 @@
     padding: 16px;
     margin: 0; /* 카드 자체 마진 제거 */
   }
+  
+  .update-time {
+    font-size: 0.65rem;
+    margin-left: 0;
+    width: 100%;
+    margin-top: 4px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -103,11 +119,24 @@
   border-color: var(--border-primary);
 }
 
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
 .card-title {
   font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
-  margin: 0 0 16px 0;
+  margin: 0;
+}
+
+.data-date {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.8;
 }
 
 /* Indices Card */
@@ -219,6 +248,23 @@
   color: var(--text-secondary);
   font-size: 14px;
   padding: 20px;
+}
+
+.no-data-message {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 20px;
+}
+
+.no-data-message p {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.no-data-message small {
+  font-size: 12px;
+  opacity: 0.8;
 }
 
 /* Status Card */

@@ -5,6 +5,7 @@
 from typing import Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query, Depends
 from app.data.stock_data import StockDataFetcher
+from app.services.stock_service_factory import StockServiceFactory
 from app.core.cache import cache_manager
 import logging
 import json
@@ -13,7 +14,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# 전역 스톡 데이터 페처 인스턴스
+# 스톡 서비스 인스턴스 (MongoDB 우선, fallback으로 StockDataFetcher)
+stock_service = StockServiceFactory.get_service()
+
+# 기본 StockDataFetcher는 특정 메서드를 위해 유지
 stock_fetcher = StockDataFetcher()
 
 # 캐시 TTL 설정 (24시간)
@@ -28,12 +32,21 @@ async def get_stock_prices(
 ):
     """시장별 주식 목록 조회 (페이지네이션)"""
     try:
-        # 새로운 페이지네이션 API 사용
-        result = stock_fetcher.get_paginated_stocks(market, page, limit)
+        # MongoDB 서비스인 경우 해당 서비스 사용
+        if hasattr(stock_service, 'get_paginated_stocks'):
+            result = stock_service.get_paginated_stocks(market, page, limit)
+        else:
+            # fallback으로 stock_fetcher 사용
+            result = stock_fetcher.get_paginated_stocks(market, page, limit)
         
         # 실시간 가격 정보 추가 (실제 데이터)
         for stock in result["stocks"]:
-            price_info = stock_fetcher.get_real_time_price(stock["symbol"], stock["market"])
+            # MongoDB 서비스인 경우 get_real_time_price 메서드 사용
+            if hasattr(stock_service, 'get_real_time_price'):
+                price_info = stock_service.get_real_time_price(stock["symbol"], stock.get("market", market))
+            else:
+                price_info = stock_fetcher.get_real_time_price(stock["symbol"], stock.get("market", market))
+                
             stock.update({
                 "price": price_info["price"],
                 "change": price_info["change"],
@@ -67,12 +80,17 @@ async def get_all_stocks(
 ):
     """전체 종목 리스트 조회 (페이지네이션)"""
     try:
-        if market.upper() == "KR":
-            all_stocks = stock_fetcher.get_all_kr_stocks()
-        elif market.upper() == "US":
-            all_stocks = stock_fetcher.get_all_us_stocks()
+        # MongoDB 서비스인 경우 해당 서비스 사용
+        if hasattr(stock_service, 'get_all_stocks'):
+            all_stocks = stock_service.get_all_stocks(market)
         else:
-            raise HTTPException(status_code=400, detail="지원하지 않는 시장입니다 (KR/US)")
+            # fallback으로 stock_fetcher 사용
+            if market.upper() == "KR":
+                all_stocks = stock_fetcher.get_all_kr_stocks()
+            elif market.upper() == "US":
+                all_stocks = stock_fetcher.get_all_us_stocks()
+            else:
+                raise HTTPException(status_code=400, detail="지원하지 않는 시장입니다 (KR/US)")
         
         # 페이지네이션 계산
         total_count = len(all_stocks)

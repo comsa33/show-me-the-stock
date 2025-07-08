@@ -14,6 +14,7 @@ interface MarketIndex {
   change: string;
   positive: boolean;
   data_source?: string;
+  data_date?: string;
 }
 
 interface MarketStatus {
@@ -58,6 +59,7 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
     change_percent: 0,
     formatted: '로딩 중...'
   });
+  const [lastUpdateTime, setLastUpdateTime] = useState<string>(new Date().toLocaleString('ko-KR'));
 
   const indices = useMemo((): MarketIndex[] => {
     const sourceIndices = selectedMarket === 'KR' ? marketIndices.korea : marketIndices.us;
@@ -79,7 +81,8 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
         value: indexData.value.toLocaleString(),
         change: `${indexData.change >= 0 ? '+' : ''}${indexData.change_percent.toFixed(2)}%`,
         positive: indexData.change_percent >= 0,
-        data_source: 'real'
+        data_source: indexData.data_source || 'real',
+        data_date: indexData.data_date
       }));
   }, [marketIndices, selectedMarket]);
 
@@ -177,6 +180,7 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
   useEffect(() => {
     fetchMarketStatus();
     fetchTradingVolume();
+    setLastUpdateTime(new Date().toLocaleString('ko-KR'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMarket, marketIndices]);
 
@@ -185,6 +189,7 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
     fetchMarketIndices();
     fetchMarketStatus();
     fetchTradingVolume();
+    setLastUpdateTime(new Date().toLocaleString('ko-KR'));
   };
   
   const marketData = {
@@ -209,6 +214,7 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
         <div className="market-title">
           <span className="market-flag">{currentMarket.flag}</span>
           <h2>{currentMarket.name} 개요</h2>
+          <span className="update-time">마지막 업데이트: {lastUpdateTime}</span>
         </div>
         <button 
           className="refresh-btn" 
@@ -222,11 +228,16 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
       <div className="overview-grid">
         {/* Market Indices */}
         <div className="overview-card indices-card">
-          <h3 className="card-title">주요 지수</h3>
+          <div className="card-header">
+            <h3 className="card-title">주요 지수</h3>
+            {currentMarket.indices.length > 0 && currentMarket.indices[0].data_date && (
+              <span className="data-date">데이터: {currentMarket.indices[0].data_date}</span>
+            )}
+          </div>
           <div className="indices-list">
             {marketIndicesLoading ? (
               <div className="loading-indicator">지수 데이터 로딩 중...</div>
-            ) : (
+            ) : currentMarket.indices.length > 0 ? (
               currentMarket.indices.map((index, i) => (
                 <div key={i} className="index-item">
                   <div className="index-info">
@@ -242,6 +253,11 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({
                   </span>
                 </div>
               ))
+            ) : (
+              <div className="no-data-message">
+                <p>지수 데이터를 사용할 수 없습니다</p>
+                <small>주말/공휴일에는 실시간 데이터가 제공되지 않습니다</small>
+              </div>
             )}
           </div>
         </div>

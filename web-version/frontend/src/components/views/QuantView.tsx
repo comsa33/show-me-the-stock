@@ -3,7 +3,7 @@ import { TrendingUp, TrendingDown, BarChart3, Target, ChevronDown, ChevronUp, Ac
 import { useApp } from '../../context/AppContext';
 import SearchableSelect from '../common/SearchableSelect';
 import { API_BASE } from '../../config';
-import { stockCache } from '../../utils/stockCache';
+import { stockSearchService } from '../../services/stockSearchService';
 import './QuantView.css';
 
 interface QuantViewProps {
@@ -109,36 +109,17 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
 
   // 백엔드에서 종목 목록 가져오기
   const fetchStocks = useCallback(async () => {
-    const cacheKey = `stocks_simple_${selectedMarket}`;
-    
-    // 캐시 확인
-    const cached = stockCache.get<StockOption[]>(cacheKey);
-    if (cached) {
-      setAvailableStocks(cached);
-      setStocksLoading(false);
-      return;
-    }
-    
-    // 캐시가 없으면 API 호출
     setStocksLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/v1/stocks/list/simple?market=${selectedMarket}`);
-      if (!response.ok) throw new Error('Failed to fetch stocks');
-      const data = await response.json();
-      
-      // API 응답 형식에 맞게 처리
-      const stocks = (data.stocks || data).map((stock: any) => ({
+      const data = await stockSearchService.getStocksByMarket(selectedMarket);
+      const stocks = data.stocks.map(stock => ({
         symbol: stock.symbol,
         name: stock.name,
-        market: stock.market || selectedMarket
+        market: stock.market
       }));
       setAvailableStocks(stocks);
-      
-      // 캐시에 저장 (24시간)
-      stockCache.set(cacheKey, stocks);
     } catch (error) {
       console.error('Failed to fetch stocks:', error);
-      // 실패 시 빈 배열
       setAvailableStocks([]);
     } finally {
       setStocksLoading(false);
@@ -147,16 +128,6 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
 
   // AI 추천 가져오기
   const fetchAIRecommendations = useCallback(async () => {
-    const cacheKey = `ai_recommendations_${selectedMarket}`;
-    
-    // 캐시 확인 (빈 배열이 아닌 경우에만 사용)
-    const cached = stockCache.get<RecommendedStock[]>(cacheKey);
-    if (cached && cached.length > 0) {
-      setRecommendations(cached);
-      setRecommendationsLoading(false);
-      return;
-    }
-    
     setRecommendationsLoading(true);
     try {
       const url = `${API_BASE}/v1/ai-recommendations/top-stocks?market=${selectedMarket}&top_n=6`;
@@ -167,13 +138,8 @@ const QuantView: React.FC<QuantViewProps> = ({ selectedMarket }) => {
       const recommendations = data.recommendations || [];
       
       setRecommendations(recommendations);
-      // 캐시에 저장 (1시간) - 데이터가 있을 때만
-      if (recommendations.length > 0) {
-        stockCache.set(cacheKey, recommendations, 60 * 60 * 1000);
-      }
     } catch (error) {
       console.error('Failed to fetch AI recommendations:', error);
-      // 실패 시 빈 배열
       setRecommendations([]);
     } finally {
       setRecommendationsLoading(false);

@@ -1,6 +1,6 @@
 """
 실제 재무 데이터 수집 서비스
-pykrx와 yfinance를 사용하여 실시간 재무 지표 수집
+다양한 데이터 제공자를 통한 실시간 재무 지표 수집
 """
 
 import logging
@@ -9,7 +9,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 import yfinance as yf
-from pykrx import stock
+from ..data.stock_data_provider_factory import StockDataProviderFactory
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +20,8 @@ class RealFinancialDataService:
     def __init__(self):
         self._cache = {}
         self._cache_duration = 3600  # 1시간 캐시
+        # 데이터 제공자 초기화
+        self.data_provider = StockDataProviderFactory.get_provider('hybrid')
     
     def _is_cache_valid(self, symbol: str) -> bool:
         """캐시 유효성 확인"""
@@ -34,51 +36,48 @@ class RealFinancialDataService:
             if self._is_cache_valid(symbol):
                 return self._cache[symbol]['data']
             
-            # pykrx를 사용한 재무 데이터 수집
-            today = datetime.now().strftime('%Y%m%d')
+            # 새로운 data provider를 사용한 재무 데이터 수집
+            today = datetime.now().strftime('%Y-%m-%d')
+            month_ago = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
             
             # 기본 정보
             try:
                 # 현재가 정보
-                price_data = stock.get_market_ohlcv_by_date(
-                    (datetime.now() - timedelta(days=30)).strftime('%Y%m%d'),
-                    today,
-                    symbol
-                )
+                realtime_data = self.data_provider.get_stock_price_realtime(symbol)
                 
-                if price_data.empty:
-                    return self._get_fallback_data(symbol, "KR")
-                
-                current_price = float(price_data['종가'].iloc[-1])
+                if not realtime_data or 'price' not in realtime_data:
+                    # 실시간 데이터 실패시 과거 데이터 시도
+                    price_data = self.data_provider.get_stock_price(symbol, month_ago, today)
+                    
+                    if price_data.empty:
+                        return self._get_fallback_data(symbol, "KR")
+                    
+                    current_price = float(price_data['close'].iloc[-1])
+                else:
+                    current_price = float(realtime_data['price'])
                 
                 # 시가총액 정보
-                market_cap_data = stock.get_market_cap_by_date(
-                    today, today, symbol
-                )
+                market_cap_info = self.data_provider.get_market_cap(symbol)
                 
                 market_cap = 0
                 shares_outstanding = 0
-                if not market_cap_data.empty:
-                    market_cap = float(market_cap_data['시가총액'].iloc[0]) / 100000000  # 억원 단위
-                    shares_outstanding = float(market_cap_data['상장주식수'].iloc[0])
+                if market_cap_info:
+                    market_cap = float(market_cap_info.get('market_cap', 0)) / 100000000  # 억원 단위
+                    shares_outstanding = float(market_cap_info.get('shares', 0))
                 
-                # 재무비율 정보 (연간)
+                # 재무비율 정보
                 try:
-                    # 최근 4분기 재무제표 데이터 시도
-                    fundamental_data = stock.get_market_fundamental_by_date(
-                        (datetime.now() - timedelta(days=90)).strftime('%Y%m%d'),
-                        today,
-                        symbol
-                    )
+                    # 재무 데이터 가져오기
+                    fundamental_data = self.data_provider.get_stock_fundamental(symbol, month_ago, today)
                     
                     if not fundamental_data.empty:
                         latest_fundamental = fundamental_data.iloc[-1]
-                        per = float(latest_fundamental.get('PER', 0))
-                        pbr = float(latest_fundamental.get('PBR', 0))
-                        eps = float(latest_fundamental.get('EPS', 0))
-                        bps = float(latest_fundamental.get('BPS', 0))
+                        per = float(latest_fundamental.get('per', 0))
+                        pbr = float(latest_fundamental.get('pbr', 0))
+                        eps = float(latest_fundamental.get('eps', 0))
+                        bps = float(latest_fundamental.get('bps', 0))
                         
-                        # ROE, ROA 추정 (정확한 데이터는 재무제표 API 필요)
+                        # ROE, ROA 추정
                         roe = (eps / bps * 100) if bps > 0 else 0
                         roa = roe * 0.7  # 일반적으로 ROA는 ROE의 70% 수준
                         
@@ -117,7 +116,7 @@ class RealFinancialDataService:
                     'roe': max(0, round(roe, 2)),
                     'roa': max(0, round(roa, 2)),
                     'debt_ratio': round(debt_ratio, 2),
-                    'data_source': 'pykrx_real'
+                    'data_source': self.data_provider.name
                 }
                 
                 # 캐시 저장

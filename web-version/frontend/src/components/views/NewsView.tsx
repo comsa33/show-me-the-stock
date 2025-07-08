@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import { API_BASE } from '../../config';
 import { RefreshCw, Calendar, ExternalLink, Search } from 'lucide-react';
-import { stockCache } from '../../utils/stockCache';
+import { stockSearchService } from '../../services/stockSearchService';
 import SearchableSelect from '../common/SearchableSelect';
 import './NewsView.css';
 
@@ -39,10 +39,6 @@ interface CachedNews {
   query: string;
 }
 
-interface SimpleStock {
-  symbol: string;
-  name: string;
-}
 
 const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
   const { selectedStock, setCurrentView, setSelectedStock } = useApp();
@@ -52,28 +48,8 @@ const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
   const [selectedSymbol, setSelectedSymbol] = useState<string>('');
   const [displayCount, setDisplayCount] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState(1);
-  const [allStocks, setAllStocks] = useState<SimpleStock[]>([]);
+  const [allStocks, setAllStocks] = useState<any[]>([]);
   const [stocksLoading, setStocksLoading] = useState(false);
-  const [popularStocks] = useState([
-    // 한국 주식
-    { symbol: '005930', name: '삼성전자', market: 'KR' },
-    { symbol: '000660', name: 'SK하이닉스', market: 'KR' },
-    { symbol: '035420', name: 'NAVER', market: 'KR' },
-    { symbol: '035720', name: '카카오', market: 'KR' },
-    { symbol: '051910', name: 'LG화학', market: 'KR' },
-    { symbol: '005380', name: '현대차', market: 'KR' },
-    { symbol: '207940', name: '삼성바이오로직스', market: 'KR' },
-    { symbol: '068270', name: '셀트리온', market: 'KR' },
-    // 미국 주식
-    { symbol: 'AAPL', name: 'Apple', market: 'US' },
-    { symbol: 'MSFT', name: 'Microsoft', market: 'US' },
-    { symbol: 'GOOGL', name: 'Alphabet', market: 'US' },
-    { symbol: 'AMZN', name: 'Amazon', market: 'US' },
-    { symbol: 'TSLA', name: 'Tesla', market: 'US' },
-    { symbol: 'META', name: 'Meta', market: 'US' },
-    { symbol: 'NVDA', name: 'NVIDIA', market: 'US' },
-    { symbol: 'NFLX', name: 'Netflix', market: 'US' }
-  ]);
 
   // 캐시 관련
   const CACHE_DURATION = 5 * 60 * 1000; // 5분
@@ -180,32 +156,12 @@ const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
 
   // 종목 목록 가져오기
   const fetchStocks = useCallback(async () => {
-    const cacheKey = `stocks_simple_${selectedMarket}`;
-    
-    // 캐시 확인
-    const cached = stockCache.get<SimpleStock[]>(cacheKey);
-    if (cached) {
-      setAllStocks(cached);
-      setStocksLoading(false);
-      return;
-    }
-    
-    // 캐시가 없으면 API 호출
     setStocksLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/v1/stocks/list/simple?market=${selectedMarket}`);
-      if (!response.ok) throw new Error('Failed to fetch stocks');
-      const data = await response.json();
-      
-      // API 응답 형식에 맞게 처리
-      const stocks = data.stocks || data;
-      setAllStocks(stocks);
-      
-      // 캐시에 저장 (24시간)
-      stockCache.set(cacheKey, stocks);
+      const data = await stockSearchService.getStocksByMarket(selectedMarket);
+      setAllStocks(data.stocks);
     } catch (error) {
       console.error('Failed to fetch stocks:', error);
-      // 실패 시 인기 종목만 사용
       setAllStocks([]);
     } finally {
       setStocksLoading(false);
@@ -241,9 +197,8 @@ const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
     setError(null);
 
     try {
-      // allStocks와 popularStocks에서 중복 없이 찾기
-      const stock = allStocks.find(s => s.symbol === selectedSymbol) || 
-                   popularStocks.find(s => s.symbol === selectedSymbol);
+      // allStocks에서 찾기
+      const stock = allStocks.find(s => s.symbol === selectedSymbol);
       const query = stock ? encodeURIComponent(stock.name) : encodeURIComponent(selectedSymbol);
       
       const response = await fetch(`${API_BASE}/v1/news/search?query=${query}&display=${displayCount}&page=${page}&sort=sim`);
@@ -268,7 +223,7 @@ const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
     } finally {
       setLoading(false);
     }
-  }, [selectedSymbol, displayCount, newsCache, popularStocks, allStocks, CACHE_DURATION]);
+  }, [selectedSymbol, displayCount, newsCache, allStocks, CACHE_DURATION]);
 
   // 심볼, 페이지, 표시 개수 변경 시 뉴스 자동 로드
   useEffect(() => {
@@ -342,22 +297,11 @@ const NewsView: React.FC<NewsViewProps> = ({ selectedMarket }) => {
           <div className="header-controls">
             <div className="control-item stock-selector-wrapper">
               <SearchableSelect
-                options={(() => {
-                  // allStocks가 비어있으면 popularStocks만 사용
-                  if (allStocks.length === 0) {
-                    return popularStocks.filter(s => s.market === selectedMarket).map(stock => ({
-                      value: stock.symbol,
-                      label: stock.name,
-                      subLabel: stock.symbol
-                    }));
-                  }
-                  // allStocks가 있으면 allStocks만 사용 (중복 제거)
-                  return allStocks.map(stock => ({
-                    value: stock.symbol,
-                    label: stock.name,
-                    subLabel: stock.symbol
-                  }));
-                })()}
+                options={allStocks.map(stock => ({
+                  value: stock.symbol,
+                  label: stock.name,
+                  subLabel: stock.symbol
+                }))}
                 value={selectedSymbol}
                 onChange={(value) => {
                   setSelectedSymbol(value);

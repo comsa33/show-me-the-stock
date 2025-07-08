@@ -1,6 +1,6 @@
 """
 주요 지수 데이터 수집 서비스
-한국 (pykrx) 및 미국 (yfinance) 주요 지수 실시간 데이터 제공
+한국 및 미국 주요 지수 실시간 데이터 제공
 """
 
 import logging
@@ -9,7 +9,8 @@ import numpy as np
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import yfinance as yf
-from pykrx import stock
+from ..database.mongodb_client import get_mongodb_client
+from ..data.stock_data_provider_factory import StockDataProviderFactory
 
 logger = logging.getLogger(__name__)
 
@@ -20,12 +21,22 @@ class IndexDataService:
     def __init__(self):
         self._cache = {}
         self._cache_duration = 300  # 5분 캐시
+        self.db = None
+        
+        # MongoDB 연결 시도
+        try:
+            self.db = get_mongodb_client()
+        except Exception as e:
+            logger.warning(f"MongoDB connection failed: {e}")
+        
+        # 데이터 제공자 초기화 (Hybrid provider 사용)
+        self.data_provider = StockDataProviderFactory.get_provider('hybrid')
         
         # 지수 매핑
         self.kr_indices = {
             'KOSPI': '1001',
             'KOSDAQ': '2001',
-            'KOSPI200': '1002',
+            'KOSPI200': '1028',  # Fixed from 1002 to 1028
             'KRX100': '1003'
         }
         
@@ -53,22 +64,22 @@ class IndexDataService:
         
         try:
             indices_data = []
-            today = datetime.now().strftime('%Y%m%d')
-            week_ago = (datetime.now() - timedelta(days=7)).strftime('%Y%m%d')
+            today = datetime.now().strftime('%Y-%m-%d')
+            week_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
             
             for name, code in self.kr_indices.items():
                 try:
-                    # 1주일 데이터 가져오기 (최신 데이터 확보)
-                    data = stock.get_index_ohlcv_by_date(week_ago, today, code)
+                    # 새로운 data provider 사용하여 지수 데이터 가져오기
+                    data = self.data_provider.get_index_data(code, week_ago, today)
                     
                     if not data.empty:
                         # 최신 데이터
-                        current_value = float(data['종가'].iloc[-1])
-                        current_open = float(data['시가'].iloc[-1])
+                        current_value = float(data['close'].iloc[-1])
+                        current_open = float(data['open'].iloc[-1])
                         
                         # 전일 대비 계산
                         if len(data) > 1:
-                            prev_close = float(data['종가'].iloc[-2])
+                            prev_close = float(data['close'].iloc[-2])
                         else:
                             prev_close = current_open
                         
@@ -76,7 +87,7 @@ class IndexDataService:
                         change_percent = (change / prev_close * 100) if prev_close > 0 else 0
                         
                         # 거래량 정보
-                        volume = int(data['거래량'].iloc[-1]) if '거래량' in data.columns else 0
+                        volume = int(data['volume'].iloc[-1]) if 'volume' in data.columns else 0
                         
                         index_info = {
                             'name': name,
@@ -88,7 +99,7 @@ class IndexDataService:
                             'market': 'KR',
                             'currency': 'KRW',
                             'timestamp': datetime.now().isoformat(),
-                            'data_source': 'pykrx'
+                            'data_source': self.data_provider.name
                         }
                         
                         indices_data.append(index_info)
@@ -112,7 +123,59 @@ class IndexDataService:
             
         except Exception as e:
             logger.error(f"한국 지수 데이터 수집 전체 실패: {e}")
-            return self._generate_mock_kr_indices()
+            # 실패 시 MongoDB에서 데이터 조회 시도
+            mongodb_data = self._get_indices_from_mongodb('KR')
+            if mongodb_data:
+                self._cache[cache_key] = {
+                    'data': mongodb_data,
+                    'timestamp': datetime.now().timestamp()
+                }
+                logger.info(f"Fallback: MongoDB에서 한국 지수 {len(mongodb_data)}개 로드")
+                return mongodb_data
+            return []
+    
+    def _get_indices_from_mongodb(self, market: str) -> List[Dict]:
+        """MongoDB에서 지수 데이터 가져오기"""
+        if not self.db:
+            return []
+            
+        try:
+            # MongoDB에서 최신 지수 데이터 조회
+            indices_data = []
+            
+            if market == 'US':
+                indices_map = self.us_indices
+            else:
+                indices_map = self.kr_indices
+                
+            for name, code in indices_map.items():
+                # 가장 최신 데이터 1개만 조회
+                index_data = self.db.db.market_indices.find_one(
+                    {'code': code},
+                    sort=[('date', -1)]
+                )
+                
+                if index_data:
+                    indices_data.append({
+                        'name': name,
+                        'code': code,
+                        'symbol': code,  # Add symbol field for compatibility
+                        'value': round(index_data.get('close', 0), 2),
+                        'change': round(index_data.get('change', 0), 2),
+                        'change_percent': round(index_data.get('change_percent', 0), 2),
+                        'volume': index_data.get('volume', 0),
+                        'market': market,
+                        'currency': 'USD' if market == 'US' else 'KRW',
+                        'timestamp': index_data.get('date', ''),
+                        'data_source': 'mongodb',
+                        'data_date': index_data.get('date', '').split('T')[0] if index_data.get('date') else ''
+                    })
+            
+            return indices_data
+            
+        except Exception as e:
+            logger.error(f"MongoDB에서 {market} 지수 데이터 조회 실패: {e}")
+            return []
     
     def get_us_indices(self) -> List[Dict]:
         """미국 주요 지수 데이터 수집"""
@@ -178,7 +241,16 @@ class IndexDataService:
             
         except Exception as e:
             logger.error(f"미국 지수 데이터 수집 전체 실패: {e}")
-            return self._generate_mock_us_indices()
+            # 실패 시 MongoDB에서 데이터 조회 시도
+            mongodb_data = self._get_indices_from_mongodb('US')
+            if mongodb_data:
+                self._cache[cache_key] = {
+                    'data': mongodb_data,
+                    'timestamp': datetime.now().timestamp()
+                }
+                logger.info(f"Fallback: MongoDB에서 미국 지수 {len(mongodb_data)}개 로드")
+                return mongodb_data
+            return []
     
     def get_all_indices(self) -> Dict[str, List[Dict]]:
         """전체 지수 데이터 수집"""
@@ -197,10 +269,11 @@ class IndexDataService:
         except Exception as e:
             logger.error(f"전체 지수 데이터 수집 실패: {e}")
             return {
-                'korean_indices': self._generate_mock_kr_indices(),
-                'us_indices': self._generate_mock_us_indices(),
-                'total_count': 4,
-                'last_updated': datetime.now().isoformat()
+                'korean_indices': [],
+                'us_indices': [],
+                'total_count': 0,
+                'last_updated': datetime.now().isoformat(),
+                'error': 'Failed to fetch index data'
             }
     
     def get_index_data(self, symbol: str, market: str = 'auto') -> Optional[Dict]:
@@ -224,69 +297,6 @@ class IndexDataService:
             logger.error(f"지수 {symbol} 데이터 조회 실패: {e}")
             return None
     
-    def _generate_mock_kr_indices(self) -> List[Dict]:
-        """Mock 한국 지수 데이터"""
-        
-        mock_data = [
-            {
-                'name': 'KOSPI',
-                'code': '1001',
-                'value': 3089.65,
-                'change': 15.32,
-                'change_percent': 0.50,
-                'volume': 750000000,
-                'market': 'KR',
-                'currency': 'KRW',
-                'timestamp': datetime.now().isoformat(),
-                'data_source': 'mock'
-            },
-            {
-                'name': 'KOSDAQ',
-                'code': '2001', 
-                'value': 783.67,
-                'change': -5.12,
-                'change_percent': -0.65,
-                'volume': 980000000,
-                'market': 'KR',
-                'currency': 'KRW',
-                'timestamp': datetime.now().isoformat(),
-                'data_source': 'mock'
-            }
-        ]
-        
-        return mock_data
-    
-    def _generate_mock_us_indices(self) -> List[Dict]:
-        """Mock 미국 지수 데이터"""
-        
-        mock_data = [
-            {
-                'name': 'S&P500',
-                'code': '^GSPC',
-                'value': 6198.01,
-                'change': 10.45,
-                'change_percent': 0.17,
-                'volume': 3200000000,
-                'market': 'US',
-                'currency': 'USD',
-                'timestamp': datetime.now().isoformat(),
-                'data_source': 'mock'
-            },
-            {
-                'name': 'NASDAQ',
-                'code': '^IXIC',
-                'value': 20202.89,
-                'change': -87.52,
-                'change_percent': -0.43,
-                'volume': 4100000000,
-                'market': 'US',
-                'currency': 'USD',
-                'timestamp': datetime.now().isoformat(),
-                'data_source': 'mock'
-            }
-        ]
-        
-        return mock_data
 
 
 # 전역 서비스 인스턴스

@@ -7,6 +7,10 @@ from datetime import datetime
 from pymongo import MongoClient, ASCENDING, DESCENDING
 from pymongo.errors import ConnectionFailure
 import logging
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +21,9 @@ class MongoDBClient:
     def __init__(self, uri: Optional[str] = None):
         self.uri = uri or os.getenv("MONGODB_URI")
         if not self.uri:
-            raise ValueError("MONGODB_URI not found in environment variables")
+            # Try with hardcoded URI as fallback
+            self.uri = "mongodb://admin:durwl4wlK@ruoserver.iptime.org:30017"
+            logger.warning("Using hardcoded MongoDB URI as fallback")
         
         self.client = None
         self.db = None

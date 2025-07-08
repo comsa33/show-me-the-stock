@@ -34,6 +34,8 @@ export interface MarketIndex {
   current_price: number;
   symbol?: string;
   volume?: number;
+  data_source?: string;
+  data_date?: string;
 }
 
 export interface QuantIndicator {
