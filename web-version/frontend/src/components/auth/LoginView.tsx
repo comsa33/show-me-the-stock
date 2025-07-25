@@ -1,6 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useApp } from '../../context/AppContext'
+import { isInAppBrowser } from '../../utils/browserDetect'
 import './AuthStyles.css'
 
 const LoginView: React.FC = () => {
@@ -8,9 +9,14 @@ const LoginView: React.FC = () => {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showInAppWarning, setShowInAppWarning] = useState(false)
   
   const { signIn, signInWithGoogle, signInWithGitHub } = useAuth()
   const { setCurrentView } = useApp()
+
+  useEffect(() => {
+    setShowInAppWarning(isInAppBrowser())
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -84,6 +90,21 @@ const LoginView: React.FC = () => {
           <div className="social-login-title">
             <span>간편 로그인</span>
           </div>
+          
+          {showInAppWarning && (
+            <div className="in-app-warning">
+              <p>인앱 브라우저에서는 소셜 로그인이 제한될 수 있습니다.</p>
+              <p>Chrome, Safari 등 기본 브라우저에서 접속해주세요.</p>
+              <button 
+                type="button"
+                className="auth-button secondary"
+                onClick={() => window.open(window.location.href, '_system')}
+              >
+                브라우저에서 열기
+              </button>
+            </div>
+          )}
+          
           <div className="social-login-buttons">
             <button 
               type="button" 

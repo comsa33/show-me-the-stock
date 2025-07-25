@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { Session, User, AuthError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { isInAppBrowser, openInExternalBrowser } from '../utils/browserDetect'
 
 interface AuthContextType {
   user: User | null
@@ -84,6 +85,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const signInWithGoogle = async () => {
+    // Check if we're in an in-app browser
+    if (isInAppBrowser()) {
+      // For in-app browsers, we need to open in external browser
+      const { data } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth-callback`,
+          skipBrowserRedirect: true
+        }
+      })
+      
+      if (data?.url) {
+        // Try to open in external browser
+        openInExternalBrowser(data.url);
+        
+        // Also show a message to the user
+        return { 
+          error: {
+            message: '인앱 브라우저에서는 구글 로그인이 제한됩니다. 기본 브라우저에서 다시 시도해주세요.',
+            status: 403
+          } as AuthError 
+        };
+      }
+    }
+    
+    // Normal flow for regular browsers
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {

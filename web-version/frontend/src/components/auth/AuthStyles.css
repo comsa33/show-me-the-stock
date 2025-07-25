@@ -180,6 +180,33 @@
   border-top: 1px solid var(--border-primary);
 }
 
+/* In-App Browser Warning */
+.in-app-warning {
+  background-color: rgba(255, 243, 205, 0.3);
+  border: 1px solid rgba(255, 234, 167, 0.5);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.in-app-warning p {
+  margin: 0.5rem 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.in-app-warning p:first-child {
+  font-weight: 500;
+}
+
+.in-app-warning .auth-button {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  padding: 0.625rem 1.25rem;
+}
+
 .social-login-title {
   text-align: center;
   color: var(--text-secondary);
