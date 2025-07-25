@@ -8,6 +8,11 @@ import QuantView from './views/QuantView';
 import ChatView from './views/ChatView';
 import MainContent from './MainContent';
 import StockDetail from './StockDetail';
+import LoginView from './auth/LoginView';
+import SignupView from './auth/SignupView';
+import ProfileView from './auth/ProfileView';
+import ProtectedRoute from './auth/ProtectedRoute';
+import AuthCallback from './auth/AuthCallback';
 import './ViewManager.css';
 
 interface ViewManagerProps {
@@ -35,18 +40,46 @@ const ViewManager: React.FC<ViewManagerProps> = ({
 
   const content = (() => {
     switch (currentView) {
+      case 'login':
+        return <LoginView />;
+      case 'signup':
+        return <SignupView />;
+      case 'auth-callback':
+        return <AuthCallback />;
+      case 'profile':
+        return (
+          <ProtectedRoute>
+            <ProfileView />
+          </ProtectedRoute>
+        );
       case 'stocks':
-        return <StockDetail />;
+        return (
+          <ProtectedRoute>
+            <StockDetail />
+          </ProtectedRoute>
+        );
       case 'quant':
-        return <QuantView selectedMarket={selectedMarket} />;
+        return (
+          <ProtectedRoute>
+            <QuantView selectedMarket={selectedMarket} />
+          </ProtectedRoute>
+        );
       case 'watchlist':
-        return <WatchlistView selectedMarket={selectedMarket} />;
+        return (
+          <ProtectedRoute>
+            <WatchlistView selectedMarket={selectedMarket} />
+          </ProtectedRoute>
+        );
       case 'news':
         return <NewsView selectedMarket={selectedMarket} />;
       case 'reports':
         return <ReportsView selectedMarket={selectedMarket} />;
       case 'chat':
-        return <ChatView />;
+        return (
+          <ProtectedRoute>
+            <ChatView />
+          </ProtectedRoute>
+        );
       case 'dashboard':
       default:
         return (

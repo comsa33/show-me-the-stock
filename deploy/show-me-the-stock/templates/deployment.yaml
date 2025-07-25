@@ -91,6 +91,10 @@ spec:
           value: "{{ .Values.frontend.env.BACKEND_HOST }}"
         - name: BACKEND_PORT
           value: "{{ .Values.frontend.env.BACKEND_PORT }}"
+        - name: REACT_APP_SUPABASE_URL
+          value: "{{ .Values.supabaseUrl }}"
+        - name: REACT_APP_SUPABASE_ANON_KEY
+          value: "{{ .Values.supabaseAnonKey }}"
         readinessProbe:
           httpGet:
             path: /health

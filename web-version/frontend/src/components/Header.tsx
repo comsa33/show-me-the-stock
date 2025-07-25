@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import NotificationPanel from './NotificationPanel';
 import SearchResults from './SearchResults';
-import { Menu, Search, X, Bell, User, Sun, Moon, RefreshCw } from 'lucide-react';
+import { Menu, Search, X, Bell, User, Sun, Moon, RefreshCw, LogIn } from 'lucide-react';
 import { stockSearchService } from '../services/stockSearchService';
 import './Header.css';
 
@@ -13,7 +14,8 @@ interface HeaderProps {
 
 
 const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
-  const { setSearchTerm, notifications } = useApp();
+  const { setSearchTerm, notifications, setCurrentView } = useApp();
+  const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -118,7 +120,23 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             </button>
           </div>
           <div className="user-profile">
-            <div className="user-avatar"><User size={20} /></div>
+            {user ? (
+              <button 
+                className="user-avatar-btn" 
+                onClick={() => setCurrentView('profile')}
+                title={user.email}
+              >
+                <User size={20} />
+              </button>
+            ) : (
+              <button 
+                className="login-btn" 
+                onClick={() => setCurrentView('login')}
+                title="로그인"
+              >
+                <LogIn size={20} />
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -1,0 +1,351 @@
+/**
+ * Authentication Components Styles
+ * Consistent with the app's design system
+ */
+
+.auth-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+  padding: 1rem;
+}
+
+.auth-card {
+  background: var(--bg-secondary);
+  padding: 2.5rem 2rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 440px;
+  transition: all 0.3s ease;
+}
+
+.auth-card:hover {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.auth-card h2 {
+  margin: 0 0 2rem 0;
+  text-align: center;
+  color: var(--text-primary);
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.form-group {
+  margin-bottom: 1.25rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  font-size: 1rem;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  background: var(--bg-primary);
+  box-shadow: 0 0 0 3px var(--accent-primary-alpha);
+}
+
+.form-group input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.auth-button {
+  width: 100%;
+  padding: 0.875rem;
+  background: var(--accent-primary);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  margin-top: 1.5rem;
+}
+
+.auth-button:hover:not(:disabled) {
+  background: var(--accent-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(138, 180, 248, 0.3);
+}
+
+.auth-button:active:not(:disabled) {
+  background: var(--accent-primary-active);
+  transform: translateY(0);
+}
+
+.auth-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-button.secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+}
+
+.auth-button.secondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-secondary);
+}
+
+.error-message {
+  color: var(--error-color);
+  font-size: 0.875rem;
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  background: rgba(242, 139, 130, 0.1);
+  border: 1px solid rgba(242, 139, 130, 0.2);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.success-message {
+  color: var(--success-color);
+  font-size: 0.875rem;
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  background: rgba(129, 201, 149, 0.1);
+  border: 1px solid rgba(129, 201, 149, 0.2);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.auth-link {
+  text-align: center;
+  margin-top: 1.5rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.auth-link a {
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.auth-link a:hover {
+  color: var(--accent-primary-hover);
+  text-decoration: underline;
+}
+
+/* Social Login Section */
+.social-login-section {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border-primary);
+}
+
+.social-login-title {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  position: relative;
+}
+
+.social-login-title::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--border-primary);
+  z-index: 0;
+}
+
+.social-login-title span {
+  background: var(--bg-secondary);
+  padding: 0 1rem;
+  position: relative;
+  z-index: 1;
+}
+
+.social-login-buttons {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.social-button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.social-button:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-secondary);
+  transform: translateY(-1px);
+}
+
+.social-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.social-button.google:hover {
+  border-color: #4285f4;
+  color: #4285f4;
+}
+
+.social-button.github:hover {
+  border-color: #24292e;
+  color: var(--text-primary);
+}
+
+/* Profile Styles */
+.profile-container {
+  padding: 2rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.profile-container h2 {
+  color: var(--text-primary);
+  margin-bottom: 2rem;
+  font-size: 1.75rem;
+  font-weight: 600;
+}
+
+.profile-section {
+  background: var(--bg-secondary);
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-primary);
+  margin-bottom: 1.5rem;
+}
+
+.profile-info p {
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.profile-info p strong {
+  color: var(--text-secondary);
+  font-weight: 500;
+  display: inline-block;
+  min-width: 100px;
+}
+
+.button-group {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.button-group button {
+  padding: 0.625rem 1.25rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.button-group button:first-child {
+  background: var(--accent-primary);
+  color: var(--text-on-accent);
+}
+
+.button-group button:first-child:hover {
+  background: var(--accent-primary-hover);
+}
+
+.button-group button.secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+}
+
+.button-group button.secondary:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-secondary);
+}
+
+.signout-button {
+  background: var(--error-color);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.signout-button:hover {
+  background: #e57373;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(242, 139, 130, 0.3);
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 2rem 1.5rem;
+  }
+  
+  .auth-card h2 {
+    font-size: 1.5rem;
+  }
+  
+  .social-login-buttons {
+    flex-direction: column;
+  }
+  
+  .profile-container {
+    padding: 1rem;
+  }
+}

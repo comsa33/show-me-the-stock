@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, ReactNode, useCallback, use
 import { API_BASE } from '../config';
 import NotificationService, { StockAlert } from '../services/NotificationService';
 
-export type ViewType = 'dashboard' | 'stocks' | 'quant' | 'portfolio' | 'watchlist' | 'news' | 'reports' | 'chat';
+export type ViewType = 'dashboard' | 'stocks' | 'quant' | 'portfolio' | 'watchlist' | 'news' | 'reports' | 'chat' | 'login' | 'signup' | 'profile' | 'auth-callback';
 
 interface Stock {
   name: string;
