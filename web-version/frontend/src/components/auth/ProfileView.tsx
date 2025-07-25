@@ -58,7 +58,7 @@ const ProfileView: React.FC = () => {
           
           if (!createError) {
             // user_settings도 생성
-            const { error: settingsError } = await supabase.from('user_settings').insert({
+            await supabase.from('user_settings').insert({
               user_id: user.id
             })
           }
