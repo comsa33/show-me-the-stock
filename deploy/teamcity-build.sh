@@ -20,7 +20,9 @@ echo "Building frontend image..."
 cd ../frontend
 docker build -t ${DOCKER_REGISTRY}/${PROJECT_NAME}-frontend:${BUILD_NUMBER} \
   --target production \
-  --build-arg BUILD_NUMBER=${BUILD_NUMBER} .
+  --build-arg BUILD_NUMBER=${BUILD_NUMBER} \
+  --build-arg REACT_APP_SUPABASE_URL="${REACT_APP_SUPABASE_URL}" \
+  --build-arg REACT_APP_SUPABASE_ANON_KEY="${REACT_APP_SUPABASE_ANON_KEY}" .
 
 # Push images to registry
 echo "Pushing images to registry..."
@@ -42,6 +44,11 @@ helm upgrade --install ${PROJECT_NAME} . \
   --set geminiApiKey="${GEMINI_API_KEY}" \
   --set alphaVantageApiKey="${ALPHA_VANTAGE_API_KEY}" \
   --set secretKey="${SECRET_KEY}" \
+  --set naverClientId="${NAVER_CLIENT_ID}" \
+  --set naverClientSecret="${NAVER_CLIENT_SECRET}" \
+  --set mongodbUri="${MONGODB_URI}" \
+  --set supabaseUrl="${REACT_APP_SUPABASE_URL}" \
+  --set supabaseAnonKey="${REACT_APP_SUPABASE_ANON_KEY}" \
   --wait --timeout=600s
 
 echo "Deployment completed successfully!"
