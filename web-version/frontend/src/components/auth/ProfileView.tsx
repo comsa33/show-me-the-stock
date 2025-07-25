@@ -23,23 +23,66 @@ const ProfileView: React.FC = () => {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!user) return
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('username, full_name, avatar_url')
-        .eq('id', user.id)
-        .single()
-
-      if (data && !error) {
-        setProfile(data)
+      if (!user) {
+        setLoading(false)
+        return
       }
-      setLoading(false)
+
+      setLoading(true)
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('username, full_name, avatar_url')
+          .eq('id', user.id)
+          .single()
+
+        if (data && !error) {
+          setProfile(data)
+        } else if (error && error.code === 'PGRST116') {
+          // 프로필이 없는 경우 (소셜 로그인 사용자일 수 있음)
+          // 기본값 설정
+          setProfile({
+            username: user.email?.split('@')[0] || '',
+            full_name: user.user_metadata?.full_name || '',
+            avatar_url: user.user_metadata?.avatar_url || ''
+          })
+          
+          // 프로필 생성 시도
+          const { error: createError } = await supabase.from('profiles').insert({
+            id: user.id,
+            username: user.email?.split('@')[0] || '',
+            full_name: user.user_metadata?.full_name || '',
+            avatar_url: user.user_metadata?.avatar_url || ''
+          })
+          
+          if (!createError) {
+            // user_settings도 생성
+            const { error: settingsError } = await supabase.from('user_settings').insert({
+              user_id: user.id
+            })
+          }
+        } else if (error) {
+          // 다른 에러의 경우 - 에러가 있어도 기본값으로 프로필 표시
+          setProfile({
+            username: user.email?.split('@')[0] || '',
+            full_name: '',
+            avatar_url: ''
+          })
+        }
+      } catch (err) {
+        // 예외 발생 시에도 기본값 설정
+        setProfile({
+          username: user?.email?.split('@')[0] || '',
+          full_name: '',
+          avatar_url: ''
+        })
+      } finally {
+        setLoading(false)
+      }
     }
 
-    if (user) {
-      fetchProfile()
-    }
+    fetchProfile()
   }, [user])
 
 

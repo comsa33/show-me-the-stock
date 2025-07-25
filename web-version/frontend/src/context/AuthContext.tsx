@@ -31,17 +31,69 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // 프로필 확인 및 생성 함수
+    const checkAndCreateProfile = async (user: User) => {
+      if (!user) return
+
+      try {
+        // 프로필 존재 확인
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', user.id)
+          .single()
+
+        if (!existingProfile) {
+          // 프로필이 없으면 생성
+          const { error: profileError } = await supabase.from('profiles').insert({
+            id: user.id,
+            username: user.email?.split('@')[0] || '',
+            full_name: user.user_metadata?.full_name || '',
+            avatar_url: user.user_metadata?.avatar_url || ''
+          })
+
+          // user_settings 테이블에도 레코드 생성
+          if (!profileError) {
+            const { data: existingSettings } = await supabase
+              .from('user_settings')
+              .select('user_id')
+              .eq('user_id', user.id)
+              .single()
+
+            if (!existingSettings) {
+              await supabase.from('user_settings').insert({
+                user_id: user.id
+              })
+            }
+          }
+        }
+      } catch (error) {
+        // Silent error handling
+      }
+    }
+
     // 초기 세션 확인
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
+      
+      // 소셜 로그인 사용자의 프로필 확인 및 생성
+      if (session?.user) {
+        await checkAndCreateProfile(session.user)
+      }
+      
       setLoading(false)
     })
 
     // 인증 상태 변경 구독
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
+      
+      // 로그인 이벤트 시 프로필 확인 및 생성
+      if (_event === 'SIGNED_IN' && session?.user) {
+        await checkAndCreateProfile(session.user)
+      }
     })
 
     return () => subscription.unsubscribe()
@@ -138,12 +190,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateProfile = async (updates: { username?: string; full_name?: string }) => {
     if (!user) return { error: new Error('No user logged in') }
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', user.id)
+    try {
+      // 먼저 프로필이 존재하는지 확인
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single()
 
-    return { error }
+      if (!existingProfile) {
+        // 프로필이 없으면 insert
+        const { error } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            ...updates,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+        return { error }
+      } else {
+        // 프로필이 있으면 update
+        const { error } = await supabase
+          .from('profiles')
+          .update({ ...updates, updated_at: new Date().toISOString() })
+          .eq('id', user.id)
+        return { error }
+      }
+    } catch (error) {
+      return { error: error as Error }
+    }
   }
 
   const value = {
