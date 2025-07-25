@@ -92,7 +92,7 @@ const StockList: React.FC<StockListProps> = ({
       const watchlistSet = new Set(items.map(item => `${item.stock_symbol}-${item.market}`));
       setWatchlist(watchlistSet);
     } catch (error) {
-      console.error('Failed to load watchlist:', error);
+      // Failed to load watchlist
     }
   };
 
@@ -118,7 +118,7 @@ const StockList: React.FC<StockListProps> = ({
         setWatchlist(prev => new Set(prev).add(key));
       }
     } catch (error) {
-      console.error('Failed to update watchlist:', error);
+      // Failed to update watchlist
     } finally {
       setWatchlistLoading(prev => {
         const newSet = new Set(prev);

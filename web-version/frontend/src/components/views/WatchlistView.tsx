@@ -89,7 +89,7 @@ const WatchlistView: React.FC<WatchlistViewProps> = ({ selectedMarket }) => {
                   }
                 }
               } catch (detailErr) {
-                console.error(`Failed to fetch detail for ${item.stock_symbol}:`, detailErr);
+                // Failed to fetch detail
               }
               
               stockMap.set(item.stock_symbol, {
@@ -104,8 +104,7 @@ const WatchlistView: React.FC<WatchlistViewProps> = ({ selectedMarket }) => {
             }
           }
         } catch (err) {
-          console.error(`Failed to fetch data for ${item.stock_symbol}:`, err);
-          // Add basic info even if API calls fail
+          // Failed to fetch data - Add basic info even if API calls fail
           stockMap.set(item.stock_symbol, {
             symbol: item.stock_symbol,
             name: item.stock_symbol, // Use symbol as fallback name
@@ -120,7 +119,7 @@ const WatchlistView: React.FC<WatchlistViewProps> = ({ selectedMarket }) => {
       
       setStockData(stockMap);
     } catch (error) {
-      console.error('Failed to fetch stock data:', error);
+      // Failed to fetch stock data
     }
   }, [selectedMarket]);
 
@@ -147,7 +146,7 @@ const WatchlistView: React.FC<WatchlistViewProps> = ({ selectedMarket }) => {
           await loadStockDataForItems(filteredItems);
         }
       } catch (error) {
-        console.error('Failed to load watchlist:', error);
+        // Failed to load watchlist
         if (mounted) {
           setError('관심종목을 불러오는데 실패했습니다.');
         }
@@ -178,7 +177,7 @@ const WatchlistView: React.FC<WatchlistViewProps> = ({ selectedMarket }) => {
         await loadStockDataForItems(filteredItems);
       }
     } catch (error) {
-      console.error('Failed to load watchlist:', error);
+      // Failed to load watchlist
       setError('관심종목을 불러오는데 실패했습니다.');
     } finally {
       setLoading(false);
@@ -193,7 +192,7 @@ const WatchlistView: React.FC<WatchlistViewProps> = ({ selectedMarket }) => {
       await watchlistService.remove(item.stock_symbol, item.market);
       setWatchlist(prev => prev.filter(w => w.id !== item.id));
     } catch (error) {
-      console.error('Failed to remove from watchlist:', error);
+      // Failed to remove from watchlist
     } finally {
       setRemovingItems(prev => {
         const newSet = new Set(prev);

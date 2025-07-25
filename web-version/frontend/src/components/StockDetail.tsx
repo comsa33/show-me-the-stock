@@ -180,7 +180,7 @@ const StockDetail: React.FC = () => {
       // 주식 데이터를 받은 후 금리 데이터 생성
       generateInterestRateData(transformedData);
     } catch (error) {
-      console.error('주식 데이터 로딩 실패:', error);
+      // 주식 데이터 로딩 실패
       setError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
       setStockData(null);
     } finally {
@@ -205,7 +205,7 @@ const StockDetail: React.FC = () => {
       const data = await response.json();
       setDetailedInfo(data);
     } catch (error) {
-      console.error('상세 정보 로딩 실패:', error);
+      // 상세 정보 로딩 실패
       setDetailedInfo(null);
     } finally {
       setDetailLoading(false);
@@ -224,7 +224,7 @@ const StockDetail: React.FC = () => {
       const data = await response.json();
       setAnalysisData(data);
     } catch (error) {
-      console.error('AI 분석 실패:', error);
+      // AI 분석 실패
     } finally {
       setAnalysisLoading(false);
     }
@@ -249,7 +249,7 @@ const StockDetail: React.FC = () => {
           );
           setIsInWatchlist(inWatchlist);
         } catch (error) {
-          console.error('Failed to check watchlist status:', error);
+          // Failed to check watchlist status
         }
       }
     };
@@ -275,7 +275,7 @@ const StockDetail: React.FC = () => {
         setIsInWatchlist(true);
       }
     } catch (error) {
-      console.error('Failed to toggle watchlist:', error);
+      // Failed to toggle watchlist
     } finally {
       setIsTogglingWatchlist(false);
     }
