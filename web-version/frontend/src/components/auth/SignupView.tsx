@@ -143,7 +143,7 @@ const SignupView: React.FC = () => {
         </div>
 
         <p className="auth-link">
-          이미 계정이 있으신가요? <a href="#" onClick={() => setCurrentView('login')}>로그인</a>
+          이미 계정이 있으신가요? <button className="link-button" onClick={() => setCurrentView('login')}>로그인</button>
         </p>
       </div>
     </div>

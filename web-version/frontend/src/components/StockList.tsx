@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { watchlistService } from '../services/watchlistService';
 import Pagination from './Pagination';
 import './StockList.css';
 
@@ -41,9 +43,12 @@ const StockList: React.FC<StockListProps> = ({
   onPageChange
 }) => {
   const { searchTerm, setCurrentView, setSelectedStock } = useApp();
+  const { user } = useAuth();
   const [localSearchTerm, setLocalSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'symbol'>('name');
   const [lastUpdateTime, setLastUpdateTime] = useState<string>(new Date().toLocaleString('ko-KR'));
+  const [watchlist, setWatchlist] = useState<Set<string>>(new Set());
+  const [watchlistLoading, setWatchlistLoading] = useState<Set<string>>(new Set());
 
   // Helper function to format volume
   const formatVolume = (volume: number | string): string => {
@@ -71,6 +76,57 @@ const StockList: React.FC<StockListProps> = ({
       }
     }
   }, [stocks]);
+
+  // Load user's watchlist
+  useEffect(() => {
+    if (user) {
+      loadWatchlist();
+    } else {
+      setWatchlist(new Set());
+    }
+  }, [user]);
+
+  const loadWatchlist = async () => {
+    try {
+      const items = await watchlistService.getAll();
+      const watchlistSet = new Set(items.map(item => `${item.stock_symbol}-${item.market}`));
+      setWatchlist(watchlistSet);
+    } catch (error) {
+      console.error('Failed to load watchlist:', error);
+    }
+  };
+
+  const toggleWatchlist = async (stock: Stock) => {
+    if (!user) {
+      setCurrentView('login');
+      return;
+    }
+
+    const key = `${stock.symbol}-${selectedMarket}`;
+    setWatchlistLoading(prev => new Set(prev).add(key));
+
+    try {
+      if (watchlist.has(key)) {
+        await watchlistService.remove(stock.symbol, selectedMarket);
+        setWatchlist(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(key);
+          return newSet;
+        });
+      } else {
+        await watchlistService.add(stock.symbol, selectedMarket);
+        setWatchlist(prev => new Set(prev).add(key));
+      }
+    } catch (error) {
+      console.error('Failed to update watchlist:', error);
+    } finally {
+      setWatchlistLoading(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(key);
+        return newSet;
+      });
+    }
+  };
 
   const effectiveSearchTerm = localSearchTerm || searchTerm;
   
@@ -190,10 +246,19 @@ const StockList: React.FC<StockListProps> = ({
                   <h4 className="stock-name">{stock.name}</h4>
                   <span className="stock-symbol">{stock.symbol}</span>
                 </div>
-                <button className="favorite-btn" aria-label="Add to favorites">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon>
-                  </svg>
+                <button 
+                  className={`favorite-btn ${watchlist.has(`${stock.symbol}-${selectedMarket}`) ? 'active' : ''}`} 
+                  aria-label={watchlist.has(`${stock.symbol}-${selectedMarket}`) ? 'Remove from watchlist' : 'Add to watchlist'}
+                  onClick={() => toggleWatchlist(stock)}
+                  disabled={watchlistLoading.has(`${stock.symbol}-${selectedMarket}`)}
+                >
+                  {watchlistLoading.has(`${stock.symbol}-${selectedMarket}`) ? (
+                    <div className="loading-spinner-small"></div>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill={watchlist.has(`${stock.symbol}-${selectedMarket}`) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                      <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon>
+                    </svg>
+                  )}
                 </button>
               </div>
 

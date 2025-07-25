@@ -154,6 +154,25 @@
   text-decoration: underline;
 }
 
+.link-button {
+  background: none;
+  border: none;
+  color: var(--accent-primary);
+  text-decoration: none;
+  cursor: pointer;
+  font-size: inherit;
+  font-family: inherit;
+  font-weight: 500;
+  padding: 0;
+  margin: 0;
+  transition: color 0.2s ease;
+}
+
+.link-button:hover {
+  color: var(--accent-primary-hover);
+  text-decoration: underline;
+}
+
 /* Social Login Section */
 .social-login-section {
   margin-top: 2rem;

@@ -22,25 +22,26 @@ const ProfileView: React.FC = () => {
   const [editing, setEditing] = useState(false)
 
   useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) return
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('username, full_name, avatar_url')
+        .eq('id', user.id)
+        .single()
+
+      if (data && !error) {
+        setProfile(data)
+      }
+      setLoading(false)
+    }
+
     if (user) {
-      loadProfile()
+      fetchProfile()
     }
   }, [user])
 
-  const loadProfile = async () => {
-    if (!user) return
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('username, full_name, avatar_url')
-      .eq('id', user.id)
-      .single()
-
-    if (data && !error) {
-      setProfile(data)
-    }
-    setLoading(false)
-  }
 
   const handleUpdateProfile = async () => {
     setLoading(true)

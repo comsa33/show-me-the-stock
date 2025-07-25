@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { watchlistService } from '../services/watchlistService';
 import { API_BASE } from '../config';
 import ProfessionalStockChart from './ProfessionalStockChart';
-import { BookOpen, TrendingUp, Gem, ArrowLeft, Sparkles, Download, ChevronDown, ChevronUp, Brain, ExternalLink, Activity, BarChart3, TestTube, Newspaper } from 'lucide-react';
+import { BookOpen, TrendingUp, Gem, ArrowLeft, Sparkles, Download, ChevronDown, ChevronUp, Brain, ExternalLink, Activity, BarChart3, TestTube, Newspaper, Star } from 'lucide-react';
 import './StockDetail.css';
 
 interface StockData {
@@ -107,6 +109,7 @@ interface AnalysisData {
 
 const StockDetail: React.FC = () => {
   const { selectedStock, currentView, setCurrentView } = useApp();
+  const { user } = useAuth();
   const [stockData, setStockData] = useState<StockData | null>(null);
   const [detailedInfo, setDetailedInfo] = useState<DetailedStockInfo | null>(null);
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
@@ -119,6 +122,8 @@ const StockDetail: React.FC = () => {
   const [interestRateData, setInterestRateData] = useState<Array<{ date: string; rate: number }>>([]);
   const [analysisType, setAnalysisType] = useState<'beginner' | 'swing' | 'invest'>('beginner');
   const [showSources, setShowSources] = useState(false); // 참고자료 접기/펼치기
+  const [isInWatchlist, setIsInWatchlist] = useState(false);
+  const [isTogglingWatchlist, setIsTogglingWatchlist] = useState(false);
 
   const periods = [
     { value: '1d', label: '1일' },
@@ -232,6 +237,49 @@ const StockDetail: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStock, period, currentView]);
+
+  // Check if selected stock is in watchlist
+  useEffect(() => {
+    const checkWatchlist = async () => {
+      if (selectedStock && user) {
+        try {
+          const inWatchlist = await watchlistService.isInWatchlist(
+            selectedStock.symbol, 
+            selectedStock.market || 'KR'
+          );
+          setIsInWatchlist(inWatchlist);
+        } catch (error) {
+          console.error('Failed to check watchlist status:', error);
+        }
+      }
+    };
+    
+    checkWatchlist();
+  }, [selectedStock, user]);
+
+  const toggleWatchlist = async () => {
+    if (!user) {
+      setCurrentView('login');
+      return;
+    }
+
+    if (!selectedStock || isTogglingWatchlist) return;
+
+    setIsTogglingWatchlist(true);
+    try {
+      if (isInWatchlist) {
+        await watchlistService.remove(selectedStock.symbol, selectedStock.market || 'KR');
+        setIsInWatchlist(false);
+      } else {
+        await watchlistService.add(selectedStock.symbol, selectedStock.market || 'KR');
+        setIsInWatchlist(true);
+      }
+    } catch (error) {
+      console.error('Failed to toggle watchlist:', error);
+    } finally {
+      setIsTogglingWatchlist(false);
+    }
+  };
 
 
   if (currentView !== 'stocks' || !selectedStock) {
@@ -478,7 +526,25 @@ const StockDetail: React.FC = () => {
         </div>
         
         <div className="stock-header-info">
-          <h2>{selectedStock.name}</h2>
+          <div className="stock-title-row">
+            <h2>{selectedStock.name}</h2>
+            <button
+              className={`watchlist-btn ${isInWatchlist ? 'active' : ''}`}
+              onClick={toggleWatchlist}
+              disabled={isTogglingWatchlist}
+              title={isInWatchlist ? '관심종목에서 제거' : '관심종목에 추가'}
+            >
+              {isTogglingWatchlist ? (
+                <div className="loading-spinner-small"></div>
+              ) : (
+                <Star
+                  size={20}
+                  fill={isInWatchlist ? 'currentColor' : 'none'}
+                  stroke="currentColor"
+                />
+              )}
+            </button>
+          </div>
           <span className="stock-symbol-large">{selectedStock.symbol}</span>
           <span className="market-badge">{selectedStock.market === 'KR' ? '한국' : '미국'}</span>
         </div>

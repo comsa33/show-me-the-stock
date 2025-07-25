@@ -896,10 +896,10 @@ case 'stocks':
 - GitHub 로그인 버튼 추가
 - 로그인/회원가입 화면에 소셜 로그인 옵션 표시
 
-## Phase 3: 사용자별 기능 구현 (Frontend + Supabase) 📋 대기
+## Phase 3: 사용자별 기능 구현 (Frontend + Supabase) 🚧 진행중
 
-### 3.1 관심종목(Watchlist) 기능 구현
-#### 3.1.1 Supabase 서비스 생성
+### 3.1 관심종목(Watchlist) 기능 구현 ✅ 완료
+#### 3.1.1 Supabase 서비스 생성 ✅
 ```typescript
 // src/services/watchlistService.ts
 import { supabase } from '../lib/supabase'
@@ -941,15 +941,18 @@ export const watchlistService = {
 }
 ```
 
-#### 3.1.2 StockCard 컴포넌트 수정
-- 별표 버튼에 onClick 이벤트 추가
-- 관심종목 여부 표시 (채워진 별/빈 별)
-- 로그인 상태 확인
+#### 3.1.2 StockCard 컴포넌트 수정 ✅
+- 별표 버튼에 onClick 이벤트 추가 ✅
+- 관심종목 여부 표시 (채워진 별/빈 별) ✅
+- 로그인 상태 확인 ✅
+- 로딩 상태 표시 ✅
 
-#### 3.1.3 WatchlistView 구현
-- 관심종목 목록 표시
-- 실시간 가격 업데이트
-- 관심종목 제거 기능
+#### 3.1.3 WatchlistView 구현 ✅
+- 관심종목 목록 표시 ✅
+- 실시간 가격 업데이트 ✅
+- 관심종목 제거 기능 ✅
+- 빈 상태 처리 ✅
+- 에러 처리 및 로딩 상태 ✅
 
 ### 3.2 포트폴리오 관리 기능
 #### 3.2.1 포트폴리오 서비스 생성

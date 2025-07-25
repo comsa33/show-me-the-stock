@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
+import { watchlistService } from '../../services/watchlistService';
 import { ApiData } from '../Dashboard';
-import { TrendingUp, BarChart3, Bot, Newspaper, Target, ArrowLeft } from 'lucide-react';
+import { TrendingUp, BarChart3, Bot, Newspaper, Target, ArrowLeft, Star } from 'lucide-react';
 import './StockAnalysisView.css';
 
 interface StockAnalysisViewProps {
@@ -11,11 +13,54 @@ interface StockAnalysisViewProps {
 }
 
 const StockAnalysisView: React.FC<StockAnalysisViewProps> = ({ apiData, selectedMarket, onRefresh }) => {
-  const { selectedStock, setSelectedStock } = useApp();
+  const { selectedStock, setSelectedStock, setCurrentView } = useApp();
+  const { user } = useAuth();
   const [analysisType, setAnalysisType] = useState<'short' | 'long'>('short');
+  const [isInWatchlist, setIsInWatchlist] = useState(false);
+  const [isTogglingWatchlist, setIsTogglingWatchlist] = useState(false);
 
   const handleStockSelect = (stock: any) => {
     setSelectedStock(stock);
+  };
+
+  // Check if selected stock is in watchlist
+  useEffect(() => {
+    const checkWatchlist = async () => {
+      if (selectedStock && user) {
+        try {
+          const inWatchlist = await watchlistService.isInWatchlist(selectedStock.symbol, selectedMarket);
+          setIsInWatchlist(inWatchlist);
+        } catch (error) {
+          console.error('Failed to check watchlist status:', error);
+        }
+      }
+    };
+    
+    checkWatchlist();
+  }, [selectedStock, user, selectedMarket]);
+
+  const toggleWatchlist = async () => {
+    if (!user) {
+      setCurrentView('login');
+      return;
+    }
+
+    if (!selectedStock || isTogglingWatchlist) return;
+
+    setIsTogglingWatchlist(true);
+    try {
+      if (isInWatchlist) {
+        await watchlistService.remove(selectedStock.symbol, selectedMarket);
+        setIsInWatchlist(false);
+      } else {
+        await watchlistService.add(selectedStock.symbol, selectedMarket);
+        setIsInWatchlist(true);
+      }
+    } catch (error) {
+      console.error('Failed to toggle watchlist:', error);
+    } finally {
+      setIsTogglingWatchlist(false);
+    }
   };
 
   return (
@@ -65,7 +110,25 @@ const StockAnalysisView: React.FC<StockAnalysisViewProps> = ({ apiData, selected
           {selectedStock ? (
             <div className="analysis-details">
               <div className="selected-stock-info">
-                <h3>{selectedStock.name} ({selectedStock.symbol})</h3>
+                <div className="stock-title-row">
+                  <h3>{selectedStock.name} ({selectedStock.symbol})</h3>
+                  <button
+                    className={`watchlist-btn ${isInWatchlist ? 'active' : ''}`}
+                    onClick={toggleWatchlist}
+                    disabled={isTogglingWatchlist}
+                    title={isInWatchlist ? '관심종목에서 제거' : '관심종목에 추가'}
+                  >
+                    {isTogglingWatchlist ? (
+                      <div className="loading-spinner-small"></div>
+                    ) : (
+                      <Star
+                        size={20}
+                        fill={isInWatchlist ? 'currentColor' : 'none'}
+                        stroke="currentColor"
+                      />
+                    )}
+                  </button>
+                </div>
                 <div className="market-badge">{selectedMarket === 'KR' ? '한국 KR' : '미국 US'}</div>
               </div>
 

@@ -112,7 +112,7 @@ const LoginView: React.FC = () => {
         </div>
 
         <p className="auth-link">
-          계정이 없으신가요? <a href="#" onClick={() => setCurrentView('signup')}>회원가입</a>
+          계정이 없으신가요? <button className="link-button" onClick={() => setCurrentView('signup')}>회원가입</button>
         </p>
       </div>
     </div>
