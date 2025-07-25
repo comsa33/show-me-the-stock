@@ -31,9 +31,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let mounted = true
+
     // 프로필 확인 및 생성 함수
     const checkAndCreateProfile = async (user: User) => {
-      if (!user) return
+      if (!user || !mounted) return
 
       try {
         // 프로필 존재 확인
@@ -53,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           })
 
           // user_settings 테이블에도 레코드 생성
-          if (!profileError) {
+          if (!profileError && mounted) {
             const { data: existingSettings } = await supabase
               .from('user_settings')
               .select('user_id')
@@ -72,60 +74,78 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // 초기 세션 확인
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      
-      // 소셜 로그인 사용자의 프로필 확인 및 생성
-      if (session?.user) {
-        await checkAndCreateProfile(session.user)
+    // 초기 세션 확인 - 즉시 로딩 해제
+    const initializeSession = async () => {
+      try {
+        // 먼저 로컬 세션 확인 (빠른 응답)
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        if (error) {
+          console.error('Error getting session:', error)
+          if (mounted) {
+            setLoading(false)
+          }
+          return
+        }
+        
+        if (mounted) {
+          setSession(session)
+          setUser(session?.user ?? null)
+          setLoading(false) // 즉시 로딩 해제
+        }
+        
+        // 프로필 생성은 백그라운드에서 처리
+        if (session?.user && mounted) {
+          checkAndCreateProfile(session.user)
+        }
+      } catch (error) {
+        console.error('Error initializing session:', error)
+        if (mounted) {
+          setLoading(false)
+        }
       }
-      
-      setLoading(false)
-    })
+    }
+    
+    initializeSession()
 
     // 인증 상태 변경 구독
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted) return
+      
       setSession(session)
       setUser(session?.user ?? null)
       
-      // 로그인 이벤트 시 프로필 확인 및 생성
-      if (_event === 'SIGNED_IN' && session?.user) {
-        await checkAndCreateProfile(session.user)
+      // 로그인 이벤트 시 프로필 확인 및 생성 (백그라운드)
+      if (_event === 'SIGNED_IN' && session?.user && mounted) {
+        checkAndCreateProfile(session.user)
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   const signUp = async (email: string, password: string, username?: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          username: username || email.split('@')[0]
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username: username || email.split('@')[0]
+          }
         }
-      }
-    })
-
-    if (!error && data.user) {
-      // 프로필 생성
-      await supabase.from('profiles').insert({
-        id: data.user.id,
-        username: username || email.split('@')[0],
-        full_name: '',
-        avatar_url: ''
       })
 
-      // 기본 설정 생성
-      await supabase.from('user_settings').insert({
-        user_id: data.user.id
-      })
+      // 트리거가 프로필을 생성하므로 여기서는 생성하지 않음
+      // 만약 트리거가 없거나 실패했을 경우를 위한 백업으로만 checkAndCreateProfile 사용
+
+      return { error }
+    } catch (err) {
+      return { error: err as AuthError }
     }
-
-    return { error }
   }
 
   const signIn = async (email: string, password: string) => {

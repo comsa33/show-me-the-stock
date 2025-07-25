@@ -13,92 +13,96 @@ interface Profile {
 const ProfileView: React.FC = () => {
   const { user, signOut, updateProfile } = useAuth()
   const { setCurrentView } = useApp()
+  const [loading, setLoading] = useState(false) // 초기값을 false로 변경
   const [profile, setProfile] = useState<Profile>({
-    username: '',
-    full_name: '',
-    avatar_url: ''
+    username: user?.email?.split('@')[0] || '',
+    full_name: user?.user_metadata?.full_name || '',
+    avatar_url: user?.user_metadata?.avatar_url || ''
   })
   const [editing, setEditing] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    let mounted = true
+    let mounted = true;
 
-    const loadProfile = async () => {
+    const fetchProfile = async () => {
       if (!user) {
         if (mounted) {
           setLoading(false)
         }
         return
       }
+      
+      // 로딩 상태를 즉시 false로 설정하고 프로필 데이터만 업데이트
+      if (mounted) {
+        setLoading(false)
+      }
 
       try {
-        // 프로필 데이터 로드
         const { data, error } = await supabase
           .from('profiles')
           .select('username, full_name, avatar_url')
           .eq('id', user.id)
           .single()
 
-        if (!mounted) return
+        if (!mounted) return;
 
-        if (data) {
+        if (data && !error) {
           setProfile(data)
-        } else if (error?.code === 'PGRST116') {
-          // 프로필이 없는 경우 기본값 설정
+        } else if (error && error.code === 'PGRST116') {
+          // 프로필이 없는 경우 (소셜 로그인 사용자일 수 있음)
+          // 기본값 설정
           const defaultProfile = {
             username: user.email?.split('@')[0] || '',
             full_name: user.user_metadata?.full_name || '',
             avatar_url: user.user_metadata?.avatar_url || ''
-          }
+          };
+          
           setProfile(defaultProfile)
           
-          // 백그라운드에서 프로필 생성 시도
-          const createProfile = async () => {
-            try {
-              await supabase.from('profiles').insert({
-                id: user.id,
-                ...defaultProfile
-              })
-            } catch {
-              // Silent error - 이미 존재하거나 다른 문제
-            }
+          // 프로필 생성 시도
+          try {
+            await supabase.from('profiles').insert({
+              id: user.id,
+              ...defaultProfile
+            })
+            
+            // user_settings도 생성
+            await supabase.from('user_settings').insert({
+              user_id: user.id
+            })
+          } catch (insertError) {
+            // 이미 존재하거나 다른 에러일 경우 무시
           }
-          createProfile()
-        } else {
-          // 다른 오류의 경우에도 기본값 사용
+        } else if (error) {
+          // 다른 에러의 경우 - 에러가 있어도 기본값으로 프로필 표시
           setProfile({
             username: user.email?.split('@')[0] || '',
-            full_name: user.user_metadata?.full_name || '',
-            avatar_url: user.user_metadata?.avatar_url || ''
+            full_name: '',
+            avatar_url: ''
           })
         }
-      } catch (error) {
+      } catch (err) {
         if (mounted) {
-          // 오류 발생 시 기본값 설정
+          // 예외 발생 시에도 기본값 설정
           setProfile({
             username: user?.email?.split('@')[0] || '',
-            full_name: user?.user_metadata?.full_name || '',
-            avatar_url: user?.user_metadata?.avatar_url || ''
+            full_name: '',
+            avatar_url: ''
           })
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false)
         }
       }
     }
 
-    loadProfile()
+    fetchProfile()
 
     return () => {
-      mounted = false
+      mounted = false;
     }
   }, [user])
 
+
   const handleUpdateProfile = async () => {
-    setSaving(true)
+    setLoading(true)
     const { error } = await updateProfile({
       username: profile.username,
       full_name: profile.full_name
@@ -107,7 +111,7 @@ const ProfileView: React.FC = () => {
     if (!error) {
       setEditing(false)
     }
-    setSaving(false)
+    setLoading(false)
   }
 
   const handleSignOut = async () => {
@@ -115,19 +119,8 @@ const ProfileView: React.FC = () => {
     setCurrentView('login')
   }
 
-  if (!user) {
-    return null
-  }
-
   if (loading) {
-    return (
-      <div className="profile-container">
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <p>프로필을 불러오는 중...</p>
-        </div>
-      </div>
-    )
+    return <div className="loading">프로필 불러오는 중...</div>
   }
 
   return (
@@ -136,7 +129,7 @@ const ProfileView: React.FC = () => {
       
       <div className="profile-section">
         <div className="profile-info">
-          <p><strong>이메일:</strong> {user.email}</p>
+          <p><strong>이메일:</strong> {user?.email}</p>
           
           {editing ? (
             <>
@@ -146,7 +139,6 @@ const ProfileView: React.FC = () => {
                   type="text"
                   value={profile.username || ''}
                   onChange={(e) => setProfile({ ...profile, username: e.target.value })}
-                  disabled={saving}
                 />
               </div>
               
@@ -156,15 +148,14 @@ const ProfileView: React.FC = () => {
                   type="text"
                   value={profile.full_name || ''}
                   onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
-                  disabled={saving}
                 />
               </div>
               
               <div className="button-group">
-                <button onClick={handleUpdateProfile} disabled={saving}>
-                  {saving ? '저장 중...' : '저장'}
+                <button onClick={handleUpdateProfile} disabled={loading}>
+                  저장
                 </button>
-                <button onClick={() => setEditing(false)} className="secondary" disabled={saving}>
+                <button onClick={() => setEditing(false)} className="secondary">
                   취소
                 </button>
               </div>
@@ -173,8 +164,8 @@ const ProfileView: React.FC = () => {
             <>
               <p><strong>사용자명:</strong> {profile.username || '미설정'}</p>
               <p><strong>이름:</strong> {profile.full_name || '미설정'}</p>
-              <p><strong>가입일:</strong> {user.created_at ? new Date(user.created_at).toLocaleDateString('ko-KR') : ''}</p>
-              <p><strong>인증 방법:</strong> {user.app_metadata?.provider || 'email'}</p>
+              <p><strong>가입일:</strong> {user?.created_at ? new Date(user.created_at).toLocaleDateString('ko-KR') : ''}</p>
+              <p><strong>인증 방법:</strong> {user?.app_metadata?.provider || 'email'}</p>
               
               <button onClick={() => setEditing(true)} className="auth-button secondary">
                 프로필 수정

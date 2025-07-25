@@ -4,6 +4,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
 import Dashboard from './components/Dashboard';
 import FloatingChatButton from './components/common/FloatingChatButton';
+import SessionDebug from './components/debug/SessionDebug';
 import './App.css';
 
 const AppContent = () => {
@@ -24,6 +25,8 @@ const AppContent = () => {
     <>
       <Dashboard />
       <FloatingChatButton />
+      {/* Temporary debug component - remove after fixing loading issue */}
+      <SessionDebug />
     </>
   );
 }

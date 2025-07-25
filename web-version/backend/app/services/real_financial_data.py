@@ -23,6 +23,15 @@ class RealFinancialDataService:
         # 데이터 제공자 초기화
         self.data_provider = StockDataProviderFactory.get_provider('hybrid')
     
+    def _safe_float(self, value, default=0):
+        """안전한 float 변환"""
+        try:
+            if value is None:
+                return default
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+    
     def _is_cache_valid(self, symbol: str) -> bool:
         """캐시 유효성 확인"""
         if symbol not in self._cache:
@@ -52,9 +61,9 @@ class RealFinancialDataService:
                     if price_data.empty:
                         return self._get_fallback_data(symbol, "KR")
                     
-                    current_price = float(price_data['close'].iloc[-1])
+                    current_price = self._safe_float(price_data['close'].iloc[-1])
                 else:
-                    current_price = float(realtime_data['price'])
+                    current_price = self._safe_float(realtime_data['price'])
                 
                 # 시가총액 정보
                 market_cap_info = self.data_provider.get_market_cap(symbol)
@@ -62,8 +71,8 @@ class RealFinancialDataService:
                 market_cap = 0
                 shares_outstanding = 0
                 if market_cap_info:
-                    market_cap = float(market_cap_info.get('market_cap', 0)) / 100000000  # 억원 단위
-                    shares_outstanding = float(market_cap_info.get('shares', 0))
+                    market_cap = self._safe_float(market_cap_info.get('market_cap', 0)) / 100000000  # 억원 단위
+                    shares_outstanding = self._safe_float(market_cap_info.get('shares', 0))
                 
                 # 재무비율 정보
                 try:
@@ -72,10 +81,10 @@ class RealFinancialDataService:
                     
                     if not fundamental_data.empty:
                         latest_fundamental = fundamental_data.iloc[-1]
-                        per = float(latest_fundamental.get('per', 0))
-                        pbr = float(latest_fundamental.get('pbr', 0))
-                        eps = float(latest_fundamental.get('eps', 0))
-                        bps = float(latest_fundamental.get('bps', 0))
+                        per = self._safe_float(latest_fundamental.get('per', 0))
+                        pbr = self._safe_float(latest_fundamental.get('pbr', 0))
+                        eps = self._safe_float(latest_fundamental.get('eps', 0))
+                        bps = self._safe_float(latest_fundamental.get('bps', 0))
                         
                         # ROE, ROA 추정
                         roe = (eps / bps * 100) if bps > 0 else 0
@@ -151,30 +160,30 @@ class RealFinancialDataService:
                 return self._get_fallback_data(symbol, "US")
             
             # 현재가
-            current_price = info.get('currentPrice', info.get('regularMarketPrice', 0))
+            current_price = self._safe_float(info.get('currentPrice', info.get('regularMarketPrice', 0)))
             if current_price == 0:
                 hist = ticker.history(period="1d")
                 if not hist.empty:
-                    current_price = float(hist['Close'].iloc[-1])
+                    current_price = self._safe_float(hist['Close'].iloc[-1])
             
             # 재무 지표
-            market_cap = info.get('marketCap', 0) / 1000000  # 백만달러 단위
-            shares_outstanding = info.get('sharesOutstanding', 0)
+            market_cap = self._safe_float(info.get('marketCap', 0)) / 1000000  # 백만달러 단위
+            shares_outstanding = self._safe_float(info.get('sharesOutstanding', 0))
             
             # 밸류에이션 지표
-            per = info.get('trailingPE', info.get('forwardPE', 0))
-            pbr = info.get('priceToBook', 0)
+            per = self._safe_float(info.get('trailingPE', info.get('forwardPE', 0)))
+            pbr = self._safe_float(info.get('priceToBook', 0))
             
             # 수익성 지표
-            roe = info.get('returnOnEquity', 0) * 100 if info.get('returnOnEquity') else 0
-            roa = info.get('returnOnAssets', 0) * 100 if info.get('returnOnAssets') else 0
+            roe = self._safe_float(info.get('returnOnEquity', 0)) * 100
+            roa = self._safe_float(info.get('returnOnAssets', 0)) * 100
             
             # EPS, BPS
-            eps = info.get('trailingEps', info.get('forwardEps', 0))
-            book_value = info.get('bookValue', 0)
+            eps = self._safe_float(info.get('trailingEps', info.get('forwardEps', 0)))
+            book_value = self._safe_float(info.get('bookValue', 0))
             
             # 부채비율
-            debt_to_equity = info.get('debtToEquity', 0)
+            debt_to_equity = self._safe_float(info.get('debtToEquity', 0))
             if debt_to_equity == 0:
                 debt_ratio = np.random.uniform(30, 70)  # 미국 기업 평균
             else:

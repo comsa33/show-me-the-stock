@@ -23,11 +23,17 @@ const SignupView: React.FC = () => {
     
     if (error) {
       setError(error.message)
+      setLoading(false)
     } else {
+      // 회원가입 성공
       setSuccess(true)
+      setLoading(false)
+      
+      // 2초 후 자동으로 대시보드로 이동
+      setTimeout(() => {
+        setCurrentView('dashboard')
+      }, 2000)
     }
-    
-    setLoading(false)
   }
 
   const handleGoogleLogin = async () => {
@@ -52,11 +58,8 @@ const SignupView: React.FC = () => {
         <div className="auth-card">
           <h2>회원가입 완료</h2>
           <div className="success-message">
-            회원가입이 완료되었습니다! 이메일을 확인하여 계정을 활성화해주세요.
+            회원가입이 완료되었습니다! 잠시 후 자동으로 이동합니다...
           </div>
-          <button onClick={() => setCurrentView('login')} className="auth-button">
-            로그인하러 가기
-          </button>
         </div>
       </div>
     )

@@ -125,31 +125,45 @@ const WatchlistView: React.FC<WatchlistViewProps> = ({ selectedMarket }) => {
   }, [selectedMarket]);
 
   useEffect(() => {
+    let mounted = true;
+    
     const loadData = async () => {
-      if (user) {
-        try {
-          setLoading(true);
-          const items = await watchlistService.getAll();
-          const filteredItems = items.filter(item => item.market === selectedMarket);
-          setWatchlist(filteredItems);
-          
-          // Load stock data immediately after setting watchlist
-          if (filteredItems.length > 0) {
-            await loadStockDataForItems(filteredItems);
-          }
-        } catch (error) {
-          console.error('Failed to load watchlist:', error);
-          setError('관심종목을 불러오는데 실패했습니다.');
-        } finally {
+      if (!user) {
+        if (mounted) {
           setLoading(false);
         }
-      } else {
-        setCurrentView('login');
+        return;
+      }
+      
+      try {
+        const items = await watchlistService.getAll();
+        if (!mounted) return;
+        
+        const filteredItems = items.filter(item => item.market === selectedMarket);
+        setWatchlist(filteredItems);
+        
+        // Load stock data immediately after setting watchlist
+        if (filteredItems.length > 0) {
+          await loadStockDataForItems(filteredItems);
+        }
+      } catch (error) {
+        console.error('Failed to load watchlist:', error);
+        if (mounted) {
+          setError('관심종목을 불러오는데 실패했습니다.');
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
     
     loadData();
-  }, [user, setCurrentView, selectedMarket, loadStockDataForItems]);
+    
+    return () => {
+      mounted = false;
+    };
+  }, [user, selectedMarket, loadStockDataForItems]);
 
 
   const loadWatchlist = async () => {
