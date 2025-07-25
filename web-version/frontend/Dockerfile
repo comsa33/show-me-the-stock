@@ -32,8 +32,16 @@ CMD ["npm", "start"]
 # build stage
 FROM base AS build
 
+# 빌드 시 필요한 환경 변수 (빌드 시점에 주입됨)
+ARG REACT_APP_SUPABASE_URL
+ARG REACT_APP_SUPABASE_ANON_KEY
+
 # 소스코드 복사
 COPY . .
+
+# .env 파일이 없는 경우를 위한 환경 변수 설정
+ENV REACT_APP_SUPABASE_URL=$REACT_APP_SUPABASE_URL
+ENV REACT_APP_SUPABASE_ANON_KEY=$REACT_APP_SUPABASE_ANON_KEY
 
 # 개발 의존성 포함 재설치 + resolutions 적용
 RUN npm install --save-dev npm-force-resolutions \
